@@ -7,6 +7,7 @@ import { mapWhatsAppError } from '../whatsapp/errors'
 import { getCredentials, type Credentials } from '../whatsapp/credentials'
 import { broadcastToHub } from '../api/realtime'
 import { settingsDb } from '../db/settings'
+import { templatesDb } from '../db/templates'
 
 export type CampaignWorkflowParams = { campaignId: string }
 const BATCH_SIZE = 50
@@ -67,6 +68,14 @@ export async function sendCampaignBatch(
 
   const campaign = (await cdb.get(campaignId))!
   const client = whatsappClient(creds)
+  // Idioma REAL do template (D1) — antes era hardcode 'pt_BR', o que fazia templates
+  // aprovados em outro idioma (ex.: en_US) falharem em massa com erro 132001. Fallback
+  // para 'pt_BR' se o template não estiver sincronizado. Componentes/variáveis do
+  // template NÃO são enviados: o MVP não modela parâmetros por destinatário, então só
+  // templates sem variáveis são suportados (templates com {{1}} retornam 132000).
+  // templatesDb.get devolve a linha com tipagem frouxa — castamos para ler o idioma.
+  const template = (await templatesDb(env.DB).get(campaign.template_name)) as { language?: string } | null
+  const language = template?.language ?? 'pt_BR'
   // Env tipado com DurableObjectNamespace<PhoneThrottle> — RPC direto, sem casts
   const throttle = env.THROTTLE.getByName(creds.phoneId)
   await throttle.configure(rate)
@@ -76,7 +85,7 @@ export async function sendCampaignBatch(
     const waitMs = await throttle.acquire() // produção: sem argumento (now = Date.now() no DO)
     if (waitMs > 0) await new Promise((r) => setTimeout(r, waitMs)) // wall-time, não CPU
     const result = await client.sendTemplate(row.phone, {
-      name: campaign.template_name, language: 'pt_BR',
+      name: campaign.template_name, language,
     })
     if (result.ok) {
       await ccdb.markResult(campaignId, row.contact_id, { status: 'sent', message_id: result.messageId })
