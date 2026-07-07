@@ -6,6 +6,7 @@ import { templatesRoutes } from './templates'
 import { settingsRoutes } from './settings'
 import { realtimeRoutes } from './realtime'
 import { campaignsRoutes } from './campaigns'
+import { webhookRoutes } from './webhook'
 
 export function createApp() {
   const app = new Hono<{ Bindings: Env }>()
@@ -28,5 +29,7 @@ export function createApp() {
   app.route('/api/settings', settingsRoutes)
   app.route('/api/realtime', realtimeRoutes)
   app.route('/api/campaigns', campaignsRoutes)
+  // Webhook da Meta: público (fora de /api/*), autenticado por assinatura HMAC
+  app.route('/webhook', webhookRoutes)
   return app
 }
