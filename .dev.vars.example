@@ -1,0 +1,7 @@
+ENVIRONMENT=development
+MASTER_PASSWORD=dev
+META_APP_SECRET=dev-meta-secret
+META_VERIFY_TOKEN=dev-verify
+WHATSAPP_TOKEN=dev-token
+TURNSTILE_SECRET=
+SMARTZAP_API_KEY=dev-api-key

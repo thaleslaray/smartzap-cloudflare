@@ -1,0 +1,29 @@
+{
+  "name": "smartzap-cf",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-05",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "not_found_handling": "single-page-application",
+    // Garante que a API e o webhook nunca sejam respondidos pelo fallback da SPA
+    "run_worker_first": ["/api/*", "/webhook"]
+  },
+  "observability": { "enabled": true },
+  // Em dev/test o .dev.vars sobrescreve com ENVIRONMENT=development
+  "vars": { "ENVIRONMENT": "production" },
+  "d1_databases": [{ "binding": "DB", "database_name": "smartzap", "database_id": "PLACEHOLDER-SET-ON-DEPLOY", "migrations_dir": "migrations" }],
+  "kv_namespaces": [{ "binding": "CACHE", "id": "PLACEHOLDER-SET-ON-DEPLOY" }],
+  "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "smartzap-media" }],
+  "queues": {
+    "producers": [{ "binding": "WEBHOOK_QUEUE", "queue": "meta-webhooks" }],
+    "consumers": [{ "queue": "meta-webhooks", "max_batch_size": 50, "max_batch_timeout": 2, "max_retries": 5, "dead_letter_queue": "meta-webhooks-dlq" }]
+  },
+  "workflows": [{ "binding": "CAMPAIGN_WF", "name": "campaign-send", "class_name": "CampaignSendWorkflow" }],
+  "durable_objects": { "bindings": [
+    { "name": "REALTIME", "class_name": "RealtimeHub" },
+    { "name": "THROTTLE", "class_name": "PhoneThrottle" }
+  ]},
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["RealtimeHub", "PhoneThrottle"] }],
+  "ratelimits": [{ "name": "LOGIN_LIMITER", "namespace_id": "1001", "simple": { "limit": 5, "period": 60 } }],
+  "triggers": { "crons": ["*/15 * * * *"] }
+}
