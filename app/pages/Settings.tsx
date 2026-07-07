@@ -39,7 +39,8 @@ export default function SettingsPage() {
       </button>
       <p className="text-xs text-zinc-500">
         Webhook da Meta: configure a URL <code className="text-zinc-300">https://SEU-DOMINIO/webhook</code> com
-        o verify token igual ao META_APP_SECRET.
+        o verify token igual ao <code className="text-zinc-300">META_VERIFY_TOKEN</code> (token dedicado do
+        webhook — diferente do META_APP_SECRET, que é a chave HMAC).
       </p>
     </div>
   )
