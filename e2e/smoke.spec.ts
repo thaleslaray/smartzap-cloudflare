@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 
 test('login → dashboard → import de contato', async ({ page }) => {
   await page.goto('/login')
-  await page.getByPlaceholder('Senha mestra').fill('dev')
+  await page.getByLabel('Senha mestra').fill('dev')
   await page.getByRole('button', { name: 'Entrar' }).click()
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
 
