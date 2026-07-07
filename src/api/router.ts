@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { requireAuth } from '../middleware/auth'
 import { authRoutes } from './auth'
+import { contactsRoutes } from './contacts'
 
 export function createApp() {
   const app = new Hono<{ Bindings: Env }>()
@@ -18,7 +19,6 @@ export function createApp() {
   app.use('/api/*', requireAuth)
   app.get('/api/health', (c) => c.json({ ok: true }))
   app.route('/api/auth', authRoutes)
-  // Rota provisória usada pelo teste de 401 — substituída na Task 5
-  app.get('/api/contacts', (c) => c.json({ items: [] }))
+  app.route('/api/contacts', contactsRoutes)
   return app
 }
