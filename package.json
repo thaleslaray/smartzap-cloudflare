@@ -29,6 +29,7 @@
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.43.1",
     "@cloudflare/vitest-pool-workers": "^0.18.1",
+    "@playwright/test": "^1.61.1",
     "@tailwindcss/vite": "^4.3.2",
     "@tanstack/react-query": "^5.101.2",
     "@types/papaparse": "^5.5.2",
