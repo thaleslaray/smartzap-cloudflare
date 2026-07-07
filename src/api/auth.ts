@@ -6,12 +6,13 @@ const SESSION_TTL = 60 * 60 * 24 * 7 // 7 dias
 
 async function verifyTurnstile(env: Env, token: string | undefined, ip: string): Promise<boolean> {
   if (!env.TURNSTILE_SECRET) {
-    // Fail-closed: produção sem secret é erro de configuração, nunca bypass silencioso
-    if (env.ENVIRONMENT === 'production') {
-      console.error(JSON.stringify({ level: 'error', msg: 'TURNSTILE_SECRET ausente em produção — login bloqueado' }))
-      return false
-    }
-    return true // bypass explícito fora de produção (dev/test)
+    // Sem TURNSTILE_SECRET → proteção anti-bot DESLIGADA e login liberado em qualquer
+    // ambiente (postura "sem Turnstile", para testar sem precisar configurar o widget).
+    // ATENÇÃO: antes de abrir para produção de verdade, configure TURNSTILE_SECRET +
+    // o widget no Login.tsx — sem isso o login fica exposto a brute-force (mitigado só
+    // pelo rate limit e pela senha mestra). Aviso alto no log para não passar batido.
+    console.warn(JSON.stringify({ level: 'warn', msg: 'TURNSTILE_SECRET ausente — verificação anti-bot desligada, login liberado' }))
+    return true
   }
   if (!token) return false
   const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {

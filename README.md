@@ -26,8 +26,9 @@ Automação de campanhas WhatsApp (API oficial Meta) — 100% Cloudflare Workers
 
 ## Checklist pós-deploy
 
-- [ ] `TURNSTILE_SECRET` setado — em produção o login é fail-closed sem ele (conferir
-      com `wrangler secret list`)
+- [ ] `TURNSTILE_SECRET` setado + widget do Turnstile conectado no Login.tsx ANTES de
+      abrir para produção real. Sem o secret, a verificação anti-bot fica DESLIGADA e o
+      login é liberado (postura de teste) — protegido só por rate limit + senha mestra.
 - [ ] `GET https://<worker>/api/health` responde JSON (confirma `run_worker_first` ok)
 - [ ] Webhook configurado na Meta com o `META_VERIFY_TOKEN` (GET de verificação passa)
 
