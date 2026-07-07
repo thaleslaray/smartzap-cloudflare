@@ -11,8 +11,8 @@
   "observability": { "enabled": true },
   // Em dev/test o .dev.vars sobrescreve com ENVIRONMENT=development
   "vars": { "ENVIRONMENT": "production" },
-  "d1_databases": [{ "binding": "DB", "database_name": "smartzap", "database_id": "PLACEHOLDER-SET-ON-DEPLOY", "migrations_dir": "migrations" }],
-  "kv_namespaces": [{ "binding": "CACHE", "id": "PLACEHOLDER-SET-ON-DEPLOY" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "smartzap", "database_id": "38f79030-3d63-4331-ad32-6c329d948267", "migrations_dir": "migrations" }],
+  "kv_namespaces": [{ "binding": "CACHE", "id": "fd7450b359d84ffb84bfbe3f96abecbe" }],
   "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "smartzap-media" }],
   "queues": {
     "producers": [{ "binding": "WEBHOOK_QUEUE", "queue": "meta-webhooks" }],
