@@ -38,7 +38,9 @@ describe('templates sync', () => {
     expect(await res.json()).toEqual({ synced: 1 })
     const list = await SELF.fetch('https://x.com/api/templates', { headers: AUTH })
     const { items } = (await list.json()) as { items: { name: string }[] }
-    expect(items[0].name).toBe('promo_julho')
+    // Não usar items[0]: Task 10 (campaigns.test.ts) também grava na tabela
+    // templates compartilhada e pode ordenar antes de 'promo_julho'.
+    expect(items.map((i) => i.name)).toContain('promo_julho')
   })
 })
 
