@@ -1,14 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
 import { NavLink, Outlet } from 'react-router'
-import { LayoutDashboard, Megaphone, Users, FileText, Settings } from 'lucide-react'
 import { api } from '../lib/api'
+import { Logo } from './ui'
 
 const NAV = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/campaigns', label: 'Campanhas', icon: Megaphone },
-  { to: '/contacts', label: 'Contatos', icon: Users },
-  { to: '/templates', label: 'Templates', icon: FileText },
-  { to: '/settings', label: 'Configurações', icon: Settings },
+  { to: '/', label: 'Dashboard' },
+  { to: '/campaigns', label: 'Campanhas' },
+  { to: '/contacts', label: 'Contatos' },
+  { to: '/templates', label: 'Templates' },
+  { to: '/settings', label: 'Configurações' },
 ]
 
 export default function Shell() {
@@ -21,21 +21,41 @@ export default function Shell() {
     retry: false,
   })
   return (
-    <div className="flex min-h-screen">
-      <aside className="w-56 shrink-0 border-r border-zinc-800 bg-zinc-900 p-4">
-        <div className="mb-6 text-lg font-semibold text-primary-400">SmartZap</div>
-        <nav className="space-y-1">
-          {NAV.map(({ to, label, icon: Icon }) => (
-            <NavLink key={to} to={to} end={to === '/'}
+    <div className="flex min-h-screen bg-zinc-950">
+      <aside className="flex w-56 shrink-0 flex-col gap-0.5 border-r border-[#1f1f23] bg-zinc-900 px-3 py-4">
+        <div className="flex items-center gap-2.5 px-2.5 pb-5 pt-1.5">
+          <Logo />
+          <div className="flex flex-col leading-tight">
+            <span className="text-[15px] font-bold tracking-[-0.01em]">SmartZap</span>
+            <span className="text-[10px] uppercase tracking-[0.1em] text-zinc-500">Cloudflare</span>
+          </div>
+        </div>
+        <nav className="flex flex-col gap-0.5">
+          {NAV.map(({ to, label }) => (
+            <NavLink
+              key={to} to={to} end={to === '/'}
               className={({ isActive }) =>
-                `flex items-center gap-2 rounded-[--radius-app] px-3 py-2 text-sm ${
-                  isActive ? 'bg-zinc-800 text-primary-400' : 'text-zinc-400 hover:bg-zinc-800/50'}`}>
-              <Icon size={16} /> {label}
+                `rounded-lg px-2.5 py-2 text-sm transition-colors ${
+                  isActive
+                    ? 'bg-primary-500/10 font-semibold text-primary-400'
+                    : 'text-zinc-400 hover:bg-[#1f1f23] hover:text-zinc-100'
+                }`
+              }
+            >
+              {label}
             </NavLink>
           ))}
         </nav>
+        <div className="mt-auto flex items-center gap-2 border-t border-[#1f1f23] p-2.5">
+          <span className="h-[7px] w-[7px] rounded-full bg-primary-400" />
+          <span className="text-xs text-zinc-400">Meta conectada</span>
+        </div>
       </aside>
-      <main className="flex-1 p-8"><Outlet /></main>
+      <main className="flex-1 overflow-auto px-10 py-8">
+        <div className="mx-auto max-w-[1160px]">
+          <Outlet />
+        </div>
+      </main>
     </div>
   )
 }
