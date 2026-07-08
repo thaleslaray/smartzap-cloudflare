@@ -26,7 +26,7 @@ export default function Contacts() {
       <Card>
         <table className="w-full text-left text-sm">
           <thead>
-            <tr className="border-b border-[#1f1f23] text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+            <tr className="border-b border-border-subtle text-caption font-semibold uppercase tracking-wider text-zinc-500">
               <th className="px-5 py-3">Nome</th>
               <th className="px-5 py-3">Telefone</th>
               <th className="px-5 py-3">Status</th>
@@ -34,7 +34,7 @@ export default function Contacts() {
           </thead>
           <tbody>
             {(data?.items ?? []).map((c) => (
-              <tr key={c.id} className="border-b border-[#1f1f23] last:border-0 hover:bg-zinc-800/40">
+              <tr key={c.id} className="border-b border-border-subtle last:border-0 hover:bg-zinc-800/40">
                 <td className="px-5 py-3 font-medium">{c.name ?? '—'}</td>
                 <td className="px-5 py-3 font-mono text-xs text-zinc-400">{c.phone}</td>
                 <td className="px-5 py-3">

@@ -26,7 +26,7 @@ export default function CampaignNew() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <PageHeader title="Nova campanha" action={<span className="text-[13px] text-zinc-500">Passo {step} de 3</span>} />
+      <PageHeader title="Nova campanha" action={<span className="text-body text-zinc-500">Passo {step} de 3</span>} />
 
       <div className="mb-8 flex items-center gap-2">
         {STEP_LABELS.map((label, i) => {
@@ -47,7 +47,7 @@ export default function CampaignNew() {
                 >
                   {done ? '✓' : n}
                 </span>
-                <span className={`whitespace-nowrap text-[13px] font-medium ${current ? 'text-zinc-50' : done ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                <span className={`whitespace-nowrap text-body font-medium ${current ? 'text-zinc-50' : done ? 'text-zinc-400' : 'text-zinc-500'}`}>
                   {label}
                 </span>
               </div>
@@ -63,7 +63,7 @@ export default function CampaignNew() {
         <div className="space-y-5">
           <div>
             <h2 className="mb-1 text-base font-semibold">Nome e template</h2>
-            <p className="text-[13px] text-zinc-400">Somente templates aprovados pela Meta podem ser usados em campanhas.</p>
+            <p className="text-body text-zinc-400">Somente templates aprovados pela Meta podem ser usados em campanhas.</p>
           </div>
           <input
             value={name}
@@ -85,10 +85,10 @@ export default function CampaignNew() {
                   }`}
                 >
                   <div className="mb-2.5 flex items-center justify-between gap-2">
-                    <span className="font-mono text-[13px] font-semibold">{t.name}</span>
+                    <span className="font-mono text-body font-semibold">{t.name}</span>
                     <span className="flex items-center gap-1.5">
                       <span
-                        className={`rounded-full border px-2 py-px text-[10px] font-semibold tracking-wide ${
+                        className={`rounded-full border px-2 py-px text-micro font-semibold tracking-wide ${
                           t.category === 'MARKETING'
                             ? 'border-primary-400/30 bg-primary-400/10 text-primary-400'
                             : 'border-blue-400/30 bg-blue-400/10 text-blue-400'
@@ -96,7 +96,7 @@ export default function CampaignNew() {
                       >
                         {t.category}
                       </span>
-                      <span className="rounded-full border border-zinc-700 px-2 py-px text-[10px] font-medium text-zinc-400">
+                      <span className="rounded-full border border-zinc-700 px-2 py-px text-micro font-medium text-zinc-400">
                         {t.language}
                       </span>
                     </span>
@@ -125,7 +125,7 @@ export default function CampaignNew() {
         <div className="space-y-5">
           <div>
             <h2 className="mb-1 text-base font-semibold">Audiência</h2>
-            <p className="text-[13px] text-zinc-400">
+            <p className="text-body text-zinc-400">
               Todos os contatos com opt-in ativo. Contatos com opt-out ou em supressão são pulados automaticamente.
             </p>
           </div>
@@ -148,24 +148,24 @@ export default function CampaignNew() {
         <div className="space-y-5">
           <div>
             <h2 className="mb-1 text-base font-semibold">Revisão e disparo</h2>
-            <p className="text-[13px] text-zinc-400">Confira tudo antes de disparar — o envio não pode ser desfeito.</p>
+            <p className="text-body text-zinc-400">Confira tudo antes de disparar — o envio não pode ser desfeito.</p>
           </div>
 
-          <Card className="divide-y divide-[#1f1f23]">
+          <Card className="divide-y divide-border-subtle">
             <div className="flex justify-between px-5 py-[13px]">
-              <span className="text-[13px] text-zinc-400">Destinatários</span>
-              <span className="text-[13px] font-semibold">{estimate.recipients.toLocaleString('pt-BR')}</span>
+              <span className="text-body text-zinc-400">Destinatários</span>
+              <span className="text-body font-semibold">{estimate.recipients.toLocaleString('pt-BR')}</span>
             </div>
             <div className="flex justify-between px-5 py-[13px]">
-              <span className="text-[13px] text-zinc-400">Serão pulados (opt-out / supressão)</span>
-              <span className="text-[13px] font-semibold text-status-skipped">{estimate.skipped.toLocaleString('pt-BR')}</span>
+              <span className="text-body text-zinc-400">Serão pulados (opt-out / supressão)</span>
+              <span className="text-body font-semibold text-status-skipped">{estimate.skipped.toLocaleString('pt-BR')}</span>
             </div>
           </Card>
 
           <div className="flex items-center gap-5 rounded-[--radius-app] border border-primary-500/25 bg-primary-500/[0.06] p-5">
             <div className="flex-1">
               <p className="text-xs font-semibold uppercase tracking-[0.06em] text-primary-400">Custo estimado da Meta</p>
-              <p className="mt-1.5 text-[13px] text-zinc-400">
+              <p className="mt-1.5 text-body text-zinc-400">
                 {estimate.unit.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 4 })} por mensagem entregue (tarifa oficial Meta, categoria do template)
               </p>
             </div>

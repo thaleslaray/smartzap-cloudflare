@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { NavLink, Outlet } from 'react-router'
 import { api } from '../lib/api'
-import { Logo } from './ui'
+import { Logo, focusRing } from './ui'
 
 const NAV = [
   { to: '/', label: 'Dashboard' },
@@ -22,12 +22,12 @@ export default function Shell() {
   })
   return (
     <div className="flex min-h-screen bg-zinc-950">
-      <aside className="flex w-56 shrink-0 flex-col gap-0.5 border-r border-[#1f1f23] bg-zinc-900 px-3 py-4">
+      <aside className="flex w-56 shrink-0 flex-col gap-0.5 border-r border-border-subtle bg-zinc-900 px-3 py-4">
         <div className="flex items-center gap-2.5 px-2.5 pb-5 pt-1.5">
           <Logo />
           <div className="flex flex-col leading-tight">
-            <span className="text-[15px] font-bold tracking-[-0.01em]">SmartZap</span>
-            <span className="text-[10px] uppercase tracking-[0.1em] text-zinc-500">Cloudflare</span>
+            <span className="text-subtitle font-bold tracking-[-0.01em]">SmartZap</span>
+            <span className="text-micro uppercase tracking-[0.1em] text-zinc-500">Cloudflare</span>
           </div>
         </div>
         <nav className="flex flex-col gap-0.5">
@@ -35,10 +35,10 @@ export default function Shell() {
             <NavLink
               key={to} to={to} end={to === '/'}
               className={({ isActive }) =>
-                `rounded-lg px-2.5 py-2 text-sm transition-colors ${
+                `rounded-lg px-2.5 py-2 text-sm transition-colors ${focusRing} ${
                   isActive
                     ? 'bg-primary-500/10 font-semibold text-primary-400'
-                    : 'text-zinc-400 hover:bg-[#1f1f23] hover:text-zinc-100'
+                    : 'text-zinc-400 hover:bg-border-subtle hover:text-zinc-100'
                 }`
               }
             >
@@ -46,7 +46,7 @@ export default function Shell() {
             </NavLink>
           ))}
         </nav>
-        <div className="mt-auto flex items-center gap-2 border-t border-[#1f1f23] p-2.5">
+        <div className="mt-auto flex items-center gap-2 border-t border-border-subtle p-2.5">
           <span className="h-[7px] w-[7px] rounded-full bg-primary-400" />
           <span className="text-xs text-zinc-400">Meta conectada</span>
         </div>

@@ -42,14 +42,14 @@ export default function Dashboard() {
       ) : (
         <Card className="overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4">
-            <h2 className="text-[15px] font-semibold">Campanhas recentes</h2>
-            <Link to="/campaigns" className="text-[13px] text-primary-400 hover:underline">Ver todas</Link>
+            <h2 className="text-subtitle font-semibold">Campanhas recentes</h2>
+            <Link to="/campaigns" className="text-body text-primary-400 hover:underline">Ver todas</Link>
           </div>
           {data.recentCampaigns.map((c) => (
             <Link
               key={c.id}
               to={`/campaigns/${c.id}`}
-              className="grid grid-cols-[minmax(200px,1.3fr)_130px_1fr_100px] items-center gap-4 border-t border-[#1f1f23] px-5 py-3.5 hover:bg-zinc-800/50"
+              className="grid grid-cols-[minmax(200px,1.3fr)_130px_1fr_100px] items-center gap-4 border-t border-border-subtle px-5 py-3.5 hover:bg-zinc-800/50"
             >
               <div>
                 <p className="text-sm font-medium">{c.name}</p>

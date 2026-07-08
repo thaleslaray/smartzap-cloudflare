@@ -42,12 +42,12 @@ export default function Campaigns() {
       />
 
       <Card className="overflow-hidden">
-        <div className={`grid ${GRID_COLS} gap-4 border-b border-[#1f1f23] px-5 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-500`}>
+        <div className={`grid ${GRID_COLS} gap-4 border-b border-border-subtle px-5 py-2.5 text-caption font-semibold uppercase tracking-wider text-zinc-500`}>
           <span>Nome</span><span>Template</span><span>Status</span><span>Progresso</span><span className="text-right">Data</span>
         </div>
 
         {linhas.map((c) => (
-          <div key={c.id} className={`grid ${GRID_COLS} items-center gap-4 border-b border-[#1f1f23] px-5 py-3.5 hover:bg-zinc-800/30`}>
+          <div key={c.id} className={`grid ${GRID_COLS} items-center gap-4 border-b border-border-subtle px-5 py-3.5 hover:bg-zinc-800/30`}>
             <Link to={`/campaigns/${c.id}`} className="truncate font-medium hover:text-primary-300">
               {c.name}
             </Link>

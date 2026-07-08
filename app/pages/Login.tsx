@@ -19,7 +19,7 @@ export default function Login() {
 
         <Card className="p-6">
           <form onSubmit={(e) => { e.preventDefault(); login.mutate({ password }) }}>
-            <label htmlFor="master-password" className="mb-2 block text-[13px] font-medium text-zinc-400">
+            <label htmlFor="master-password" className="mb-2 block text-body font-medium text-zinc-400">
               Senha mestra
             </label>
             <input

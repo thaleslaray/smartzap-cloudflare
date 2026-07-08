@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
-import { PageHeader, Card, btnSecondary } from '../components/ui'
+import { PageHeader, Card, Button } from '../components/ui'
 
 type Template = { name: string; language: string; category: string; status: string }
 
@@ -25,9 +25,9 @@ export default function Templates() {
         title="Templates"
         subtitle="Sincronizados da conta WhatsApp Business"
         action={
-          <button onClick={() => sync.mutate()} disabled={sync.isPending} className={btnSecondary}>
+          <Button variant="secondary" onClick={() => sync.mutate()} loading={sync.isPending}>
             {sync.isPending ? 'Sincronizando…' : 'Sincronizar com a Meta'}
-          </button>
+          </Button>
         }
       />
       <div className="flex items-center gap-2 rounded-[--radius-app] border border-zinc-800 bg-zinc-900 px-3.5 py-2.5 text-xs text-zinc-400">
@@ -39,15 +39,15 @@ export default function Templates() {
         {(data?.items ?? []).map((t) => (
           <Card key={t.name} className="p-4">
             <div className="mb-1.5 flex items-center justify-between gap-2">
-              <span className="truncate font-mono text-[13px] font-semibold">{t.name}</span>
-              <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border border-current/20 px-2.5 py-0.5 text-[10px] font-semibold tracking-wide ${badge(t.status)}`}>
+              <span className="truncate font-mono text-body font-semibold">{t.name}</span>
+              <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border border-current/20 px-2.5 py-0.5 text-micro font-semibold tracking-wide ${badge(t.status)}`}>
                 <span className="h-1.5 w-1.5 rounded-full bg-current" />
                 {t.status}
               </span>
             </div>
             <div className="flex gap-1.5">
-              <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wide ${categoryTint(t.category)}`}>{t.category}</span>
-              <span className="rounded-full border border-zinc-700 px-2 py-0.5 text-[10px] font-medium text-zinc-400">{t.language}</span>
+              <span className={`rounded-full border px-2 py-0.5 text-micro font-semibold tracking-wide ${categoryTint(t.category)}`}>{t.category}</span>
+              <span className="rounded-full border border-zinc-700 px-2 py-0.5 text-micro font-medium text-zinc-400">{t.language}</span>
             </div>
           </Card>
         ))}
