@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
@@ -52,20 +52,22 @@ for (const file of trackedLocalVars)
 
 const localAllowlist = resolve(root, ".dev.vars.qa.local");
 try {
-  const mode = statSync(localAllowlist).mode & 0o777;
-  if (mode !== 0o600)
-    hits.push({
-      file: ".dev.vars.qa.local",
-      rule: `permissions-${mode.toString(8)}-expected-600`,
-    });
   execFileSync("git", ["check-ignore", "-q", ".dev.vars.qa.local"], {
     cwd: root,
   });
 } catch {
   hits.push({
     file: ".dev.vars.qa.local",
-    rule: "missing-unprotected-or-not-ignored",
+    rule: "not-ignored",
   });
+}
+if (existsSync(localAllowlist)) {
+  const mode = statSync(localAllowlist).mode & 0o777;
+  if (mode !== 0o600)
+    hits.push({
+      file: ".dev.vars.qa.local",
+      rule: `permissions-${mode.toString(8)}-expected-600`,
+    });
 }
 
 const report = { ok: hits.length === 0, filesScanned: files.length, hits };
