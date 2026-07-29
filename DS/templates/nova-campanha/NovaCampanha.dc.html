@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<!-- @template name="Nova campanha (wizard)" description="Wizard de 4 passos: template, audiência, variáveis e revisão com custo estimado da Meta" -->
+<helmet>
+  <script src="./ds-base.js"></script>
+</helmet>
+
+<div data-screen-label="Nova campanha" style="min-height:100vh; background:var(--surface-page); color:var(--text-primary); font-family:var(--font-family)">
+
+  <div style="max-width:860px; margin:0 auto; padding:32px 24px 64px 24px">
+
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:28px">
+      <div>
+        <a href="../campanhas/Campanhas.dc.html" style="font-size:13px; color:var(--text-muted); text-decoration:none" style-hover="color:var(--text-secondary)">← Campanhas</a>
+        <h1 style="margin:6px 0 0 0; font-size:22px; font-weight:700; letter-spacing:-0.01em">Nova campanha</h1>
+      </div>
+      <span style="font-size:13px; color:var(--text-muted)">Passo {{ passoAtual }} de 4</span>
+    </div>
+
+    <div style="display:flex; align-items:center; gap:8px; margin-bottom:32px">
+      <sc-for list="{{ passos }}" as="p" hint-placeholder-count="4">
+        <div style="display:flex; align-items:center; gap:8px; flex:1">
+          <sc-if value="{{ p.feito }}" hint-placeholder-val="{{ false }}">
+            <button onClick="{{ p.ir }}" style="display:flex; align-items:center; gap:8px; background:transparent; border:none; padding:0; cursor:pointer; font-family:var(--font-family)">
+              <span style="width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; background:rgba(16,185,129,0.18); color:#34d399; border:1px solid rgba(52,211,153,0.5)">✓</span>
+              <span style="font-size:13px; font-weight:500; color:#a1a1aa; white-space:nowrap">{{ p.rotulo }}</span>
+            </button>
+          </sc-if>
+          <sc-if value="{{ p.atual }}" hint-placeholder-val="{{ true }}">
+            <span style="display:flex; align-items:center; gap:8px">
+              <span style="width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; background:#10b981; color:#022c22; border:1px solid rgba(52,211,153,0.5)">{{ p.numero }}</span>
+              <span style="font-size:13px; font-weight:500; color:#fafafa; white-space:nowrap">{{ p.rotulo }}</span>
+            </span>
+          </sc-if>
+          <sc-if value="{{ p.futuro }}" hint-placeholder-val="{{ false }}">
+            <span style="display:flex; align-items:center; gap:8px">
+              <span style="width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; background:transparent; color:#71717a; border:1px solid #3f3f46">{{ p.numero }}</span>
+              <span style="font-size:13px; font-weight:500; color:#71717a; white-space:nowrap">{{ p.rotulo }}</span>
+            </span>
+          </sc-if>
+          <sc-if value="{{ p.linhaFeita }}" hint-placeholder-val="{{ false }}">
+            <span style="flex:1; height:1px; background:rgba(52,211,153,0.4); min-width:24px"></span>
+          </sc-if>
+          <sc-if value="{{ p.linhaPendente }}" hint-placeholder-val="{{ true }}">
+            <span style="flex:1; height:1px; background:#27272a; min-width:24px"></span>
+          </sc-if>
+        </div>
+      </sc-for>
+    </div>
+
+    <sc-if value="{{ passo1 }}" hint-placeholder-val="{{ true }}">
+      <h2 style="margin:0 0 4px 0; font-size:16px; font-weight:600">Escolha o template</h2>
+      <p style="margin:0 0 20px 0; font-size:13px; color:var(--text-secondary)">Somente templates aprovados pela Meta podem ser usados em campanhas.</p>
+      <div style="display:grid; grid-template-columns:repeat(2, 1fr); gap:14px">
+        <sc-for list="{{ templates }}" as="t" hint-placeholder-count="4">
+          <sc-if value="{{ t.sel }}" hint-placeholder-val="{{ false }}">
+            <button onClick="{{ t.escolher }}" style="text-align:left; padding:16px; border-radius:var(--radius); cursor:pointer; font-family:var(--font-family); background:rgba(16,185,129,0.07); border:1px solid rgba(52,211,153,0.55)">
+              <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px">
+                <span style="font-size:13px; font-weight:600; color:var(--text-primary); font-family:ui-monospace, monospace">{{ t.nome }}</span>
+                <span style="display:flex; gap:6px; align-items:center">
+                  <sc-if value="{{ t.ehMarketing }}" hint-placeholder-val="{{ true }}"><span style="padding:1px 8px; border-radius:999px; font-size:10px; font-weight:600; letter-spacing:0.04em; color:#34d399; background:rgba(52,211,153,0.10); border:1px solid rgba(52,211,153,0.3)">MARKETING</span></sc-if><sc-if value="{{ t.ehUtility }}" hint-placeholder-val="{{ false }}"><span style="padding:1px 8px; border-radius:999px; font-size:10px; font-weight:600; letter-spacing:0.04em; color:#60a5fa; background:rgba(96,165,250,0.10); border:1px solid rgba(96,165,250,0.3)">UTILITY</span></sc-if>
+                  <span style="padding:1px 8px; border-radius:999px; font-size:10px; font-weight:500; color:#a1a1aa; border:1px solid #3f3f46">pt_BR</span>
+                </span>
+              </div>
+              <p style="margin:0; font-size:13px; line-height:1.5; color:var(--text-secondary)">{{ t.corpo }}</p>
+            </button>
+          </sc-if>
+          <sc-if value="{{ t.naoSel }}" hint-placeholder-val="{{ true }}">
+          <button onClick="{{ t.escolher }}" style="text-align:left; padding:16px; border-radius:var(--radius); cursor:pointer; font-family:var(--font-family); background:var(--surface-raised); border:1px solid #27272a" style-hover="border-color:#52525b">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px">
+              <span style="font-size:13px; font-weight:600; color:var(--text-primary); font-family:ui-monospace, monospace">{{ t.nome }}</span>
+              <span style="display:flex; gap:6px; align-items:center">
+                <sc-if value="{{ t.ehMarketing }}" hint-placeholder-val="{{ true }}"><span style="padding:1px 8px; border-radius:999px; font-size:10px; font-weight:600; letter-spacing:0.04em; color:#34d399; background:rgba(52,211,153,0.10); border:1px solid rgba(52,211,153,0.3)">MARKETING</span></sc-if><sc-if value="{{ t.ehUtility }}" hint-placeholder-val="{{ false }}"><span style="padding:1px 8px; border-radius:999px; font-size:10px; font-weight:600; letter-spacing:0.04em; color:#60a5fa; background:rgba(96,165,250,0.10); border:1px solid rgba(96,165,250,0.3)">UTILITY</span></sc-if>
+                <span style="padding:1px 8px; border-radius:999px; font-size:10px; font-weight:500; color:#a1a1aa; border:1px solid #3f3f46">pt_BR</span>
+              </span>
+            </div>
+            <p style="margin:0; font-size:13px; line-height:1.5; color:var(--text-secondary)">{{ t.corpo }}</p>
+          </button>
+          </sc-if>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ passo2 }}" hint-placeholder-val="{{ false }}">
+      <h2 style="margin:0 0 4px 0; font-size:16px; font-weight:600">Audiência</h2>
+      <p style="margin:0 0 20px 0; font-size:13px; color:var(--text-secondary)">Contatos com opt-out ou em supressão são pulados automaticamente.</p>
+      <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:20px">
+        <sc-for list="{{ audiencias }}" as="a" hint-placeholder-count="3">
+          <sc-if value="{{ a.sel }}" hint-placeholder-val="{{ false }}">
+            <button onClick="{{ a.escolher }}" style="display:flex; align-items:center; gap:14px; text-align:left; padding:14px 16px; border-radius:var(--radius); cursor:pointer; font-family:var(--font-family); background:rgba(16,185,129,0.07); border:1px solid rgba(52,211,153,0.55)">
+              <span style="width:18px; height:18px; border-radius:50%; flex-shrink:0; border:2px solid #34d399; display:flex; align-items:center; justify-content:center"><span style="width:8px; height:8px; border-radius:50%; background:#34d399"></span></span>
+              <span style="flex:1">
+                <span style="display:block; font-size:14px; font-weight:500; color:var(--text-primary)">{{ a.titulo }}</span>
+                <span style="display:block; margin-top:2px; font-size:12px; color:var(--text-muted)">{{ a.descricao }}</span>
+              </span>
+              <span style="font-size:13px; color:var(--text-secondary); white-space:nowrap">{{ a.contagem }}</span>
+            </button>
+          </sc-if>
+          <sc-if value="{{ a.naoSel }}" hint-placeholder-val="{{ true }}">
+            <button onClick="{{ a.escolher }}" style="display:flex; align-items:center; gap:14px; text-align:left; padding:14px 16px; border-radius:var(--radius); cursor:pointer; font-family:var(--font-family); background:var(--surface-raised); border:1px solid #27272a" style-hover="border-color:#52525b">
+              <span style="width:18px; height:18px; border-radius:50%; flex-shrink:0; border:2px solid #52525b; display:flex; align-items:center; justify-content:center"><span style="width:8px; height:8px; border-radius:50%; background:transparent"></span></span>
+              <span style="flex:1">
+                <span style="display:block; font-size:14px; font-weight:500; color:var(--text-primary)">{{ a.titulo }}</span>
+                <span style="display:block; margin-top:2px; font-size:12px; color:var(--text-muted)">{{ a.descricao }}</span>
+              </span>
+              <span style="font-size:13px; color:var(--text-secondary); white-space:nowrap">{{ a.contagem }}</span>
+            </button>
+          </sc-if>
+        </sc-for>
+      </div>
+
+      <sc-if value="{{ mostraTags }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px; padding:14px 16px; background:var(--surface-raised); border:1px solid #27272a; border-radius:var(--radius)">
+          <sc-for list="{{ tags }}" as="tg" hint-placeholder-count="5">
+            <sc-if value="{{ tg.ativa }}" hint-placeholder-val="{{ false }}">
+              <button onClick="{{ tg.alternar }}" style="padding:5px 12px; border-radius:999px; font-size:12px; font-weight:500; cursor:pointer; font-family:var(--font-family); background:rgba(16,185,129,0.14); color:#34d399; border:1px solid rgba(52,211,153,0.4)">{{ tg.nome }}</button>
+            </sc-if>
+            <sc-if value="{{ tg.inativa }}" hint-placeholder-val="{{ true }}">
+              <button onClick="{{ tg.alternar }}" style="padding:5px 12px; border-radius:999px; font-size:12px; font-weight:500; cursor:pointer; font-family:var(--font-family); background:transparent; color:#a1a1aa; border:1px solid #3f3f46" style-hover="border-color:#52525b; color:var(--text-primary)">{{ tg.nome }}</button>
+            </sc-if>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ mostraLista }}" hint-placeholder-val="{{ false }}">
+        <textarea placeholder="Cole números no formato E.164, um por linha: +5511912345678" rows="5" style="width:100%; margin-bottom:20px; padding:12px 14px; border-radius:var(--radius); border:1px solid #3f3f46; background:var(--surface-raised); color:var(--text-primary); font-size:13px; font-family:ui-monospace, monospace; outline:none; resize:vertical" style-focus="border-color:var(--color-primary-400)"></textarea>
+      </sc-if>
+
+      <div style="display:flex; gap:14px; padding:16px 20px; background:var(--surface-raised); border:1px solid #27272a; border-radius:var(--radius)">
+        <div style="flex:1">
+          <p style="margin:0; font-size:12px; color:var(--text-muted)">Destinatários resolvidos</p>
+          <p style="margin:4px 0 0 0; font-size:24px; font-weight:700; color:var(--color-primary-400)">{{ destinatariosFmt }}</p>
+        </div>
+        <div style="width:1px; background:#27272a"></div>
+        <div style="flex:1">
+          <p style="margin:0; font-size:12px; color:var(--text-muted)">Serão pulados (opt-out / supressão)</p>
+          <p style="margin:4px 0 0 0; font-size:24px; font-weight:700; color:var(--status-skipped)">{{ puladosFmt }}</p>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ passo3 }}" hint-placeholder-val="{{ false }}">
+      <h2 style="margin:0 0 4px 0; font-size:16px; font-weight:600">Variáveis do template</h2>
+      <p style="margin:0 0 20px 0; font-size:13px; color:var(--text-secondary)">Mapeie cada variável para um campo do contato. O preview usa um contato real da sua base.</p>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:start">
+        <div style="display:flex; flex-direction:column; gap:12px">
+          <div style="padding:14px 16px; background:var(--surface-raised); border:1px solid #27272a; border-radius:var(--radius)">
+            <label style="display:block; font-size:12px; color:var(--text-muted); margin-bottom:8px">Variável <span style="font-family:ui-monospace, monospace; color:var(--color-primary-400)">{{ tagVar1 }}</span></label>
+            <select value="{{ var1 }}" onChange="{{ aoMudarVar1 }}" style="width:100%; padding:8px 10px; border-radius:8px; border:1px solid #3f3f46; background:var(--surface-overlay); color:var(--text-primary); font-size:13px; font-family:var(--font-family); outline:none">
+              <sc-for list="{{ campos }}" as="f" hint-placeholder-count="5">
+                <option value="{{ f.chave }}">{{ f.rotulo }}</option>
+              </sc-for>
+            </select>
+          </div>
+          <div style="padding:14px 16px; background:var(--surface-raised); border:1px solid #27272a; border-radius:var(--radius)">
+            <label style="display:block; font-size:12px; color:var(--text-muted); margin-bottom:8px">Variável <span style="font-family:ui-monospace, monospace; color:var(--color-primary-400)">{{ tagVar2 }}</span></label>
+            <select value="{{ var2 }}" onChange="{{ aoMudarVar2 }}" style="width:100%; padding:8px 10px; border-radius:8px; border:1px solid #3f3f46; background:var(--surface-overlay); color:var(--text-primary); font-size:13px; font-family:var(--font-family); outline:none">
+              <sc-for list="{{ campos }}" as="f" hint-placeholder-count="5">
+                <option value="{{ f.chave }}">{{ f.rotulo }}</option>
+              </sc-for>
+            </select>
+          </div>
+          <p style="margin:0; font-size:12px; color:var(--text-muted)">Contato de exemplo: Maria Souza · +55 11 91234-5678</p>
+        </div>
+        <div style="padding:20px; background:var(--surface-raised); border:1px solid #27272a; border-radius:var(--radius)">
+          <p style="margin:0 0 12px 0; font-size:11px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:var(--text-muted)">Preview da mensagem</p>
+          <div style="max-width:320px; padding:12px 14px; border-radius:12px; border-top-left-radius:4px; background:var(--surface-overlay); font-size:13px; line-height:1.55; color:var(--text-primary)">
+            {{ prevA }}<span style="color:var(--color-primary-300); font-weight:600">{{ prevV1 }}</span>{{ prevB }}<span style="color:var(--color-primary-300); font-weight:600">{{ prevV2 }}</span>{{ prevC }}
+            <span style="display:block; margin-top:8px; font-size:10px; color:var(--text-muted); text-align:right">14:32</span>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ passo4 }}" hint-placeholder-val="{{ false }}">
+      <sc-if value="{{ naoDisparada }}" hint-placeholder-val="{{ true }}">
+        <h2 style="margin:0 0 4px 0; font-size:16px; font-weight:600">Revisão e disparo</h2>
+        <p style="margin:0 0 20px 0; font-size:13px; color:var(--text-secondary)">Confira tudo antes de disparar — o envio não pode ser desfeito.</p>
+
+        <div style="background:var(--surface-raised); border:1px solid #27272a; border-radius:var(--radius); margin-bottom:16px">
+          <div style="display:flex; justify-content:space-between; padding:13px 20px; border-bottom:1px solid #1f1f23">
+            <span style="font-size:13px; color:var(--text-muted)">Template</span>
+            <span style="font-size:13px; font-family:ui-monospace, monospace">{{ resumoTemplate }}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; padding:13px 20px; border-bottom:1px solid #1f1f23">
+            <span style="font-size:13px; color:var(--text-muted)">Audiência</span>
+            <span style="font-size:13px">{{ resumoAudiencia }}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; padding:13px 20px; border-bottom:1px solid #1f1f23">
+            <span style="font-size:13px; color:var(--text-muted)">Variáveis</span>
+            <span style="font-size:13px">{{ resumoVariaveis }}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; padding:13px 20px">
+            <span style="font-size:13px; color:var(--text-muted)">Serão pulados</span>
+            <span style="font-size:13px; color:var(--status-skipped)">{{ puladosFmt }} contatos</span>
+          </div>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:20px; padding:20px; background:rgba(16,185,129,0.06); border:1px solid rgba(16,185,129,0.25); border-radius:var(--radius); margin-bottom:16px">
+          <div style="flex:1">
+            <p style="margin:0; font-size:12px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:var(--color-primary-400)">Custo estimado da Meta</p>
+            <p style="margin:6px 0 0 0; font-size:13px; color:var(--text-secondary)">{{ destinatariosFmt }} destinatários × {{ tarifaFmt }} (marketing, BRL)</p>
+          </div>
+          <p style="margin:0; font-size:30px; font-weight:700; letter-spacing:-0.02em; color:var(--color-primary-300)">{{ custoFmt }}</p>
+        </div>
+
+        <div style="display:flex; gap:10px; margin-bottom:8px">
+          <sc-for list="{{ modosEnvio }}" as="m" hint-placeholder-count="2">
+            <sc-if value="{{ m.sel }}" hint-placeholder-val="{{ false }}">
+              <button onClick="{{ m.escolher }}" style="flex:1; display:flex; align-items:center; gap:12px; text-align:left; padding:14px 16px; border-radius:var(--radius); cursor:pointer; font-family:var(--font-family); background:rgba(16,185,129,0.07); border:1px solid rgba(52,211,153,0.55)">
+                <span style="width:18px; height:18px; border-radius:50%; flex-shrink:0; border:2px solid #34d399; display:flex; align-items:center; justify-content:center"><span style="width:8px; height:8px; border-radius:50%; background:#34d399"></span></span>
+                <span>
+                  <span style="display:block; font-size:14px; font-weight:500; color:var(--text-primary)">{{ m.titulo }}</span>
+                  <span style="display:block; margin-top:2px; font-size:12px; color:var(--text-muted)">{{ m.descricao }}</span>
+                </span>
+              </button>
+            </sc-if>
+            <sc-if value="{{ m.naoSel }}" hint-placeholder-val="{{ true }}">
+              <button onClick="{{ m.escolher }}" style="flex:1; display:flex; align-items:center; gap:12px; text-align:left; padding:14px 16px; border-radius:var(--radius); cursor:pointer; font-family:var(--font-family); background:var(--surface-raised); border:1px solid #27272a" style-hover="border-color:#52525b">
+                <span style="width:18px; height:18px; border-radius:50%; flex-shrink:0; border:2px solid #52525b; display:flex; align-items:center; justify-content:center"><span style="width:8px; height:8px; border-radius:50%; background:transparent"></span></span>
+                <span>
+                  <span style="display:block; font-size:14px; font-weight:500; color:var(--text-primary)">{{ m.titulo }}</span>
+                  <span style="display:block; margin-top:2px; font-size:12px; color:var(--text-muted)">{{ m.descricao }}</span>
+                </span>
+              </button>
+            </sc-if>
+          </sc-for>
+        </div>
+
+        <sc-if value="{{ agendando }}" hint-placeholder-val="{{ false }}">
+          <input type="datetime-local" value="2026-07-08T09:00" style="margin-top:8px; padding:9px 12px; border-radius:8px; border:1px solid #3f3f46; background:var(--surface-raised); color:var(--text-primary); font-size:13px; font-family:var(--font-family); outline:none; color-scheme:dark" style-focus="border-color:var(--color-primary-400)" />
+        </sc-if>
+      </sc-if>
+
+      <sc-if value="{{ disparada }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:72px 40px; background:var(--surface-raised); border:1px solid rgba(16,185,129,0.3); border-radius:var(--radius); display:flex; flex-direction:column; align-items:center; text-align:center">
+          <div style="width:48px; height:48px; border-radius:50%; background:rgba(16,185,129,0.15); border:2px solid var(--color-primary-500); display:flex; align-items:center; justify-content:center; margin-bottom:20px; color:var(--color-primary-400); font-size:20px; font-weight:700">✓</div>
+          <h2 style="margin:0; font-size:18px; font-weight:600">{{ tituloSucesso }}</h2>
+          <p style="margin:8px 0 24px 0; font-size:14px; color:var(--text-secondary); max-width:400px">{{ textoSucesso }}</p>
+          <a href="../campanhas/Campanhas.dc.html" style="display:inline-flex; padding:10px 18px; border-radius:8px; background:var(--color-primary-500); color:#022c22; font-size:14px; font-weight:600; text-decoration:none" style-hover="background:var(--color-primary-600); color:#ecfdf5">Ver campanhas</a>
+        </div>
+      </sc-if>
+    </sc-if>
+
+    <sc-if value="{{ naoDisparada }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-top:28px; padding-top:20px; border-top:1px solid #1f1f23">
+        <sc-if value="{{ podeVoltar }}" hint-placeholder-val="{{ false }}">
+          <button onClick="{{ voltar }}" style="padding:9px 18px; border-radius:8px; border:1px solid #3f3f46; background:transparent; color:var(--text-secondary); font-size:14px; font-weight:500; cursor:pointer; font-family:var(--font-family)" style-hover="border-color:#52525b; color:var(--text-primary)">Voltar</button>
+        </sc-if>
+        <sc-if value="{{ ehPrimeiro }}" hint-placeholder-val="{{ true }}">
+          <span></span>
+        </sc-if>
+        <sc-if value="{{ naoUltimo }}" hint-placeholder-val="{{ true }}">
+          <button onClick="{{ avancar }}" style="padding:9px 22px; border-radius:8px; border:none; background:var(--color-primary-500); color:#022c22; font-size:14px; font-weight:600; cursor:pointer; font-family:var(--font-family)" style-hover="background:var(--color-primary-600); color:#ecfdf5">Continuar</button>
+        </sc-if>
+        <sc-if value="{{ ehUltimo }}" hint-placeholder-val="{{ false }}">
+          <button onClick="{{ disparar }}" style="padding:9px 22px; border-radius:8px; border:none; background:var(--color-primary-500); color:#022c22; font-size:14px; font-weight:600; cursor:pointer; font-family:var(--font-family)" style-hover="background:var(--color-primary-600); color:#ecfdf5">{{ rotuloDisparo }}</button>
+        </sc-if>
+      </div>
+    </sc-if>
+
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;passoInicial&quot;: {&quot;editor&quot;: &quot;int&quot;, &quot;default&quot;: 1, &quot;tsType&quot;: &quot;number&quot;, &quot;min&quot;: 1, &quot;max&quot;: 4, &quot;section&quot;: &quot;Wizard&quot;}, &quot;tarifa&quot;: {&quot;editor&quot;: &quot;float&quot;, &quot;default&quot;: 0.3217, &quot;tsType&quot;: &quot;number&quot;, &quot;min&quot;: 0, &quot;step&quot;: 0.0001, &quot;unit&quot;: &quot;R$&quot;, &quot;section&quot;: &quot;Custo&quot;}}">
+class Component extends DCLogic {
+  state = {
+    passo: 1,
+    templateId: 'black_friday_vip',
+    audiencia: 'tags',
+    tagsAtivas: ['VIP', 'Black Friday'],
+    var1: 'primeiro_nome',
+    var2: 'cupom',
+    modo: 'agora',
+    disparada: false,
+  };
+
+  componentDidMount() {
+    const p = Number(this.props.passoInicial ?? 1);
+    if (p >= 1 && p <= 4 && p !== this.state.passo) this.setState({ passo: p });
+  }
+
+  templatesDef = [
+    { id: 'black_friday_vip', categoria: 'MARKETING', corpo: 'Olá {{1}}! A Black Friday VIP começou: use o cupom {{2}} e garanta 40% de desconto em qualquer plano até domingo. Responda SAIR para não receber mais.' },
+    { id: 'boas_vindas_promo', categoria: 'MARKETING', corpo: 'Olá {{1}}, seja bem-vindo(a)! Preparamos uma condição especial para você: {{2}}. Aproveite enquanto durar.' },
+    { id: 'reengajamento_30d', categoria: 'MARKETING', corpo: '{{1}}, sentimos sua falta! Faz 30 dias que você não aparece por aqui. Volte hoje e use {{2}} na sua próxima compra.' },
+    { id: 'confirmacao_pedido', categoria: 'UTILITY', corpo: 'Olá {{1}}, seu pedido {{2}} foi confirmado e já está em processamento. Avisaremos assim que for enviado.' },
+  ];
+
+  audienciasDef = [
+    { id: 'todos', titulo: 'Todos os contatos opt-in', descricao: 'Base completa com consentimento ativo', contagem: '2.847 contatos', dest: 2751, pulados: 96 },
+    { id: 'tags', titulo: 'Filtrar por tags', descricao: 'Somente contatos com as tags selecionadas', contagem: '1.248 contatos', dest: 1248, pulados: 41 },
+    { id: 'lista', titulo: 'Colar lista de números', descricao: 'Números avulsos em formato E.164', contagem: '462 válidos', dest: 462, pulados: 38 },
+  ];
+
+  camposDef = [
+    { chave: 'nome', rotulo: 'Nome completo', exemplo: 'Maria Souza' },
+    { chave: 'primeiro_nome', rotulo: 'Primeiro nome', exemplo: 'Maria' },
+    { chave: 'telefone', rotulo: 'Telefone', exemplo: '+55 11 91234-5678' },
+    { chave: 'cidade', rotulo: 'Cidade (campo custom)', exemplo: 'Curitiba' },
+    { chave: 'plano', rotulo: 'Plano (campo custom)', exemplo: 'Pro' },
+    { chave: 'cupom', rotulo: 'Cupom (campo custom)', exemplo: 'BF40-VIP' },
+  ];
+
+  tagsDef = ['VIP', 'Black Friday', 'Cliente ativo', 'Lead frio', 'Curso Turbo'];
+
+  rotulosPassos = ['Template', 'Audiência', 'Variáveis', 'Revisão'];
+
+  renderVals() {
+    const s = this.state;
+    const tarifa = Number(this.props.tarifa ?? 0.3217);
+    const tpl = this.templatesDef.find(t => t.id === s.templateId) || this.templatesDef[0];
+    const aud = this.audienciasDef.find(a => a.id === s.audiencia) || this.audienciasDef[0];
+    const brl = (v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const num = (v) => v.toLocaleString('pt-BR');
+    const campo = (chave) => this.camposDef.find(f => f.chave === chave) || this.camposDef[0];
+
+    const passos = this.rotulosPassos.map((rotulo, i) => {
+      const n = i + 1;
+      const feito = n < s.passo, atual = n === s.passo;
+      return {
+        rotulo,
+        numero: String(n),
+        feito,
+        atual,
+        futuro: !feito && !atual,
+        linhaFeita: n < 4 && feito,
+        linhaPendente: n < 4 && !feito,
+        ir: () => { if (n < s.passo) this.setState({ passo: n, disparada: false }); },
+      };
+    });
+
+    const templates = this.templatesDef.map(t => {
+      const sel = t.id === s.templateId;
+      const mkt = t.categoria === 'MARKETING';
+      return {
+        nome: t.id,
+        corpo: t.corpo,
+        sel,
+        naoSel: !sel,
+        ehMarketing: mkt,
+        ehUtility: !mkt,
+        escolher: () => this.setState({ templateId: t.id }),
+      };
+    });
+
+    const radio = (sel) => ({ sel, naoSel: !sel });
+
+    const audiencias = this.audienciasDef.map(a => ({
+      ...a, ...radio(a.id === s.audiencia),
+      escolher: () => this.setState({ audiencia: a.id }),
+    }));
+
+    const tags = this.tagsDef.map(nome => {
+      const ativa = s.tagsAtivas.includes(nome);
+      return {
+        nome,
+        ativa,
+        inativa: !ativa,
+        alternar: () => this.setState(st => ({ tagsAtivas: ativa ? st.tagsAtivas.filter(t => t !== nome) : [...st.tagsAtivas, nome] })),
+      };
+    });
+
+    // preview: corpo dividido em torno de {{1}} e {{2}}
+    const [antes1, resto] = tpl.corpo.split('{{1}}');
+    const [entre, depois2] = (resto || '').split('{{2}}');
+
+    const modosEnvio = [
+      { id: 'agora', titulo: 'Disparar agora', descricao: 'O envio começa imediatamente' },
+      { id: 'agendar', titulo: 'Agendar', descricao: 'Escolha data e hora do disparo' },
+    ].map(m => ({ ...m, ...radio(m.id === s.modo), escolher: () => this.setState({ modo: m.id }) }));
+
+    return {
+      passoAtual: s.passo,
+      passos,
+      passo1: s.passo === 1, passo2: s.passo === 2, passo3: s.passo === 3, passo4: s.passo === 4,
+      templates,
+      audiencias,
+      tags,
+      mostraTags: s.passo === 2 && s.audiencia === 'tags',
+      mostraLista: s.passo === 2 && s.audiencia === 'lista',
+      destinatariosFmt: num(aud.dest),
+      puladosFmt: num(aud.pulados),
+      campos: this.camposDef,
+      var1: s.var1, var2: s.var2,
+      tagVar1: '{{1}}', tagVar2: '{{2}}',
+      aoMudarVar1: (e) => this.setState({ var1: e.target.value }),
+      aoMudarVar2: (e) => this.setState({ var2: e.target.value }),
+      prevA: antes1, prevV1: campo(s.var1).exemplo, prevB: entre, prevV2: campo(s.var2).exemplo, prevC: depois2,
+      resumoTemplate: tpl.id,
+      resumoAudiencia: aud.titulo + ' — ' + num(aud.dest) + ' destinatários',
+      resumoVariaveis: '{{1}} → ' + campo(s.var1).rotulo + ' · {{2}} → ' + campo(s.var2).rotulo,
+      tarifaFmt: 'R$ ' + tarifa.toFixed(4).replace('.', ','),
+      custoFmt: brl(aud.dest * tarifa),
+      modosEnvio,
+      agendando: s.modo === 'agendar' && !s.disparada,
+      rotuloDisparo: s.modo === 'agendar' ? 'Agendar campanha' : 'Disparar campanha',
+      disparada: s.disparada,
+      naoDisparada: !s.disparada,
+      tituloSucesso: s.modo === 'agendar' ? 'Campanha agendada' : 'Campanha em disparo',
+      textoSucesso: s.modo === 'agendar'
+        ? 'O disparo para ' + num(aud.dest) + ' destinatários está agendado para 08 jul, 09:00.'
+        : 'O envio para ' + num(aud.dest) + ' destinatários começou. Acompanhe o progresso ao vivo na lista de campanhas.',
+      podeVoltar: s.passo > 1,
+      ehPrimeiro: s.passo === 1,
+      naoUltimo: s.passo < 4,
+      ehUltimo: s.passo === 4,
+      avancar: () => this.setState(st => ({ passo: Math.min(4, st.passo + 1) })),
+      voltar: () => this.setState(st => ({ passo: Math.max(1, st.passo - 1) })),
+      disparar: () => this.setState({ disparada: true }),
+    };
+  }
+}
+
+</script>
+</body>
+</html>

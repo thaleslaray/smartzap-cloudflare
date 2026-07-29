@@ -1,0 +1,82 @@
+// Runtime inteiramente isolado para Vitest e Playwright. Como o arquivo vive em
+// config/, o Wrangler não carrega o .dev.vars real da raiz do projeto.
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "smartzap-cf-test",
+  "main": "../src/index.ts",
+  "compatibility_date": "2026-07-05",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/webhook"]
+  },
+  "vars": {
+    "ENVIRONMENT": "test",
+    "MASTER_PASSWORD": "dev",
+    "SMARTZAP_API_KEY": "dev-api-key",
+    "META_APP_SECRET": "dev-meta-secret",
+    "META_VERIFY_TOKEN": "dev-verify",
+    "WHATSAPP_TOKEN": "test-whatsapp-token",
+    "FLOW_PRIVATE_KEY": "",
+    "FLOW_PUBLIC_KEY": "",
+    "TURNSTILE_SECRET": "",
+    "TURNSTILE_SITE_KEY": "",
+    "META_GRAPH_VERSION": "v25.0",
+    "META_APP_ID": "123456789",
+    "META_EXPECTED_PHONE_ID": "11111",
+    "META_EXPECTED_WABA_ID": "22222",
+    "META_EXPECTED_CALLBACK_URL": "https://worker.example/webhook",
+    "TURNSTILE_ENABLED": "false",
+    "AI_ENABLED": "false",
+    "AI_MODEL": "@cf/openai/gpt-oss-20b",
+    "AI_GATEWAY_ID": "smartzap-test",
+    "AI_PROVIDER_TIMEOUT_MS": "20000",
+    "AI_MAX_DRAFTS_PER_CONVERSATION_HOUR": "20",
+    "AI_MAX_DRAFTS_PER_DAY": "200",
+    "INBOX_SEND_ENABLED": "true",
+    "INBOX_AUTOMATION_ENABLED": "false",
+    "AUTOMATION_QUEUE_NAME": "inbox-automation-test",
+    "PILOT_SEND_ENABLED": "false",
+    "PILOT_RECIPIENT_E164": "+5511999999999",
+    "PILOT_RECIPIENT_ALLOWLIST": "+5511999999999,+5521999999999,+5531999999999,+5541999999999",
+    "PILOT_MAX_REAL_SENDS": "3",
+    "PILOT_MAX_RUNS_PER_DAY": "2",
+    "PILOT_TIME_WINDOW_ENABLED": "false",
+    "PILOT_TEMPLATE_ALLOWLIST": "hello_world,template_static_test",
+    "GOOGLE_CALENDAR_ENCRYPTION_KEY": "test-google-calendar-encryption-key"
+  },
+  // O runtime determinístico não declara binding Workers AI. Testes que
+  // exercitam IA injetam providers falsos; chamadas reais pertencem ao staging.
+  "d1_databases": [{
+    "binding": "DB",
+    "database_name": "smartzap-test",
+    "database_id": "00000000-0000-0000-0000-000000000001",
+    "migrations_dir": "../migrations"
+  }],
+  "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "smartzap-media-test" }],
+  "queues": {
+    "producers": [
+      { "binding": "WEBHOOK_QUEUE", "queue": "meta-webhooks-test" },
+      { "binding": "AUTOMATION_QUEUE", "queue": "inbox-automation" }
+    ],
+    "consumers": [{ "queue": "meta-webhooks-test", "max_batch_size": 50 }, { "queue": "inbox-automation", "max_batch_size": 10 }]
+  },
+  "workflows": [{
+    "binding": "CAMPAIGN_WF",
+    "name": "campaign-send-test",
+    "class_name": "CampaignSendWorkflow"
+  }],
+  "durable_objects": { "bindings": [
+    { "name": "REALTIME", "class_name": "RealtimeHub" },
+    { "name": "THROTTLE", "class_name": "PhoneThrottle" }
+  ]},
+  "migrations": [{
+    "tag": "v1",
+    "new_sqlite_classes": ["RealtimeHub", "PhoneThrottle"]
+  }],
+  "ratelimits": [{
+    "name": "LOGIN_LIMITER",
+    "namespace_id": "1001",
+    "simple": { "limit": 5, "period": 60 }
+  }]
+}

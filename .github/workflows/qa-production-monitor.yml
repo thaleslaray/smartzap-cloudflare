@@ -1,0 +1,59 @@
+name: Monitor Cloudflare read-only
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qa-cloudflare-read-only-monitor
+  cancel-in-progress: true
+
+jobs:
+  staging:
+    name: Staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: staging
+    env:
+      QA_BASE_URL: https://smartzap-cf-staging.thales2581.workers.dev
+      QA_API_KEY: ${{ secrets.SMARTZAP_API_KEY_STAGING }}
+      QA_REPORT_DIR: qa/reports/monitor-staging-${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/qa-remote-health.mjs
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: monitor-staging-${{ github.run_id }}
+          path: qa/reports/
+          if-no-files-found: ignore
+          retention-days: 21
+
+  production:
+    name: Produção
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: production
+    env:
+      QA_BASE_URL: https://smartzap-cf.thales2581.workers.dev
+      QA_REPORT_DIR: qa/reports/monitor-production-${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/qa-remote-health.mjs
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: monitor-production-${{ github.run_id }}
+          path: qa/reports/
+          if-no-files-found: ignore
+          retention-days: 21

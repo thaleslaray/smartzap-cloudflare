@@ -1,0 +1,48 @@
+name: QA semanal operacional
+
+on:
+  schedule:
+    - cron: "30 13 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qa-weekly-operational
+  cancel-in-progress: false
+
+jobs:
+  staging-drills:
+    name: Regressão, reconciliação e rollback
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: staging
+    concurrency:
+      group: smartzap-staging-mutating
+      cancel-in-progress: false
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      QA_REPORT_DIR: qa/reports/weekly-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Reconciliar catálogo, risco e cobertura
+        run: node scripts/qa-validate.mjs --full
+      - name: Repetir contratos de webhook, assinatura e idempotência
+        run: npx vitest run --max-workers=1 tests/webhook.test.ts tests/workflow.test.ts tests/pilot.test.ts
+      - name: Ensaiar rollback e restaurar a versão vigente
+        run: node scripts/qa-rollback-drill.mjs
+      - name: Guardar evidências semanais
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-semanal-${{ github.run_id }}-${{ github.run_attempt }}
+          path: qa/reports/
+          if-no-files-found: ignore
+          retention-days: 21

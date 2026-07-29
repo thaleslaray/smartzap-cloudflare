@@ -10,5 +10,8 @@ export function settingsDb(db: D1Database) {
          ON CONFLICT(key) DO UPDATE SET value = ?2, updated_at = datetime('now')`
       ).bind(key, value).run()
     },
+    async delete(key: string): Promise<void> {
+      await db.prepare('DELETE FROM settings WHERE key = ?1').bind(key).run()
+    },
   }
 }

@@ -1,7 +1,8 @@
 import type { Context, Next } from 'hono'
 import { getCookie } from 'hono/cookie'
+import { hashSessionToken } from '../domain/session'
 
-const PUBLIC = new Set(['/api/health', '/api/auth/login'])
+const PUBLIC = new Set(['/api/health', '/api/auth/login', '/api/auth/config'])
 
 // Comparação timing-safe canônica: digere os dois lados (SHA-256) para igualar os
 // comprimentos — sem early-return que vaze o tamanho do secret — e compara com
@@ -27,9 +28,14 @@ export async function requireAuth(c: Context<{ Bindings: Env }>, next: Next) {
   const key = c.req.header('x-api-key') ?? c.req.header('authorization')?.replace(/^Bearer /, '')
   if (key && c.env.SMARTZAP_API_KEY && (await timingSafeEqualStr(key, c.env.SMARTZAP_API_KEY))) return next()
 
-  // 2) Sessão: valor do cookie validado contra o KV (não só presença)
+  // 2) Sessão revogável com consistência forte no D1. O token bruto nunca é persistido.
   const token = getCookie(c, 'smartzap_session')
-  if (token && (await c.env.CACHE.get(`session:${token}`))) return next()
+  if (token) {
+    const row = await c.env.DB.prepare(
+      'SELECT 1 AS ok FROM sessions WHERE token_hash = ?1 AND expires_at > unixepoch()'
+    ).bind(await hashSessionToken(token)).first<{ ok: number }>()
+    if (row?.ok === 1) return next()
+  }
 
   return c.json({ error: 'não autenticado' }, 401)
 }

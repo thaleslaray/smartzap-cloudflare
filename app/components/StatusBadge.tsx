@@ -5,11 +5,15 @@ const COLORS: Record<string, string> = {
   draft: '#a1a1aa', scheduled: '#60a5fa', sending: '#34d399', completed: '#10b981',
   paused: '#fbbf24', failed: '#f87171', cancelled: '#71717a',
   pending: '#a1a1aa', skipped: '#fbbf24', sent: '#60a5fa', delivered: '#34d399', read: '#10b981',
+  reserved: '#a1a1aa', accepted: '#60a5fa', rejected: '#f87171', ambiguous: '#fbbf24',
+  opt_in: '#10b981', opt_out: '#f87171', unknown: '#a1a1aa',
 }
 const LABELS: Record<string, string> = {
   draft: 'Rascunho', scheduled: 'Agendada', sending: 'Enviando', completed: 'Concluída',
   paused: 'Pausada', failed: 'Falhou', cancelled: 'Cancelada', pending: 'Pendente',
   skipped: 'Pulada', sent: 'Enviada', delivered: 'Entregue', read: 'Lida',
+  reserved: 'Processando', accepted: 'Aceita pela Meta', rejected: 'Rejeitada', ambiguous: 'Confirmação pendente',
+  opt_in: 'Opt-in', opt_out: 'Opt-out', unknown: 'Não confirmado',
 }
 
 function tint(hex: string, alpha: number): string {
