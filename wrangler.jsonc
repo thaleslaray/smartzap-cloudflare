@@ -1,4 +1,5 @@
 {
+  "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "smartzap-cf",
   "main": "src/index.ts",
   "compatibility_date": "2026-07-05",
@@ -9,14 +10,49 @@
     "run_worker_first": ["/api/*", "/webhook"]
   },
   "observability": { "enabled": true },
+  "dev": { "inspector_port": 9230 },
+  "ai": { "binding": "AI", "remote": true },
+  "ai_search_namespaces": [{ "binding": "AI_SEARCH", "namespace": "default", "remote": true }],
   // Em dev/test o .dev.vars sobrescreve com ENVIRONMENT=development
-  "vars": { "ENVIRONMENT": "production" },
+  "vars": {
+    "ENVIRONMENT": "production",
+    "META_GRAPH_VERSION": "v25.0",
+    "META_APP_ID": "344941004274813",
+    "META_EXPECTED_PHONE_ID": "177462062115446",
+    "META_EXPECTED_WABA_ID": "159711717233997",
+    "META_EXPECTED_CALLBACK_URL": "https://smartzap-cf.thales2581.workers.dev/webhook",
+    "TURNSTILE_ENABLED": "false",
+    "AI_ENABLED": "true",
+    "AI_MODEL": "@cf/meta/llama-3.2-3b-instruct",
+    "AI_GATEWAY_ID": "smartzap",
+    "AI_MAX_DRAFTS_PER_CONVERSATION_HOUR": "20",
+    "AI_MAX_DRAFTS_PER_DAY": "200",
+    "CLOUDFLARE_ACCOUNT_ID": "4a1961760bc2292fab3733dc2b3c811c",
+    "CLOUDFLARE_WORKER_NAME": "smartzap-cf",
+    "CLOUDFLARE_D1_DATABASE_ID": "38f79030-3d63-4331-ad32-6c329d948267",
+    "FLOW_DATA_API_VERSION": "3.0",
+    "INBOX_SEND_ENABLED": "true",
+    "INBOX_AUTOMATION_ENABLED": "true"
+  },
+  // O deploy falha antes de publicar uma versão incapaz de autenticar/enviar/receber.
+  // Turnstile é opcional e controlado explicitamente por TURNSTILE_ENABLED.
+  "secrets": { "required": [
+    "MASTER_PASSWORD", "SMARTZAP_API_KEY", "META_APP_SECRET", "META_VERIFY_TOKEN",
+    "CLOUDFLARE_ANALYTICS_TOKEN",
+    "WHATSAPP_TOKEN",
+    "FLOW_PRIVATE_KEY", "FLOW_PUBLIC_KEY"
+  ] },
   "d1_databases": [{ "binding": "DB", "database_name": "smartzap", "database_id": "38f79030-3d63-4331-ad32-6c329d948267", "migrations_dir": "migrations" }],
-  "kv_namespaces": [{ "binding": "CACHE", "id": "fd7450b359d84ffb84bfbe3f96abecbe" }],
   "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "smartzap-media" }],
   "queues": {
-    "producers": [{ "binding": "WEBHOOK_QUEUE", "queue": "meta-webhooks" }],
-    "consumers": [{ "queue": "meta-webhooks", "max_batch_size": 50, "max_batch_timeout": 2, "max_retries": 5, "dead_letter_queue": "meta-webhooks-dlq" }]
+    "producers": [
+      { "binding": "WEBHOOK_QUEUE", "queue": "meta-webhooks" },
+      { "binding": "AUTOMATION_QUEUE", "queue": "inbox-automation" }
+    ],
+    "consumers": [
+      { "queue": "meta-webhooks", "max_batch_size": 50, "max_batch_timeout": 2, "max_retries": 5, "dead_letter_queue": "meta-webhooks-dlq" },
+      { "queue": "inbox-automation", "max_batch_size": 10, "max_batch_timeout": 2, "max_retries": 3, "dead_letter_queue": "inbox-automation-dlq" }
+    ]
   },
   "workflows": [{ "binding": "CAMPAIGN_WF", "name": "campaign-send", "class_name": "CampaignSendWorkflow" }],
   "durable_objects": { "bindings": [

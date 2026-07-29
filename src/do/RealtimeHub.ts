@@ -1,4 +1,5 @@
 import { DurableObject } from 'cloudflare:workers'
+import { redactOperationalDetail } from '../domain/redaction'
 
 export type RealtimeEvent =
   | { type: 'invalidate'; keys: string[][] }
@@ -36,7 +37,10 @@ export class RealtimeHub extends DurableObject<Env> {
   }
 
   async webSocketError(ws: WebSocket, error: unknown) {
-    console.warn('[realtime] erro no socket', error)
+    console.warn(JSON.stringify({
+      level: 'warn', msg: 'erro no socket realtime',
+      error: redactOperationalDetail(error instanceof Error ? error.message : error),
+    }))
     try { ws.close(1011, 'erro interno') } catch { /* já fechado */ }
   }
 }

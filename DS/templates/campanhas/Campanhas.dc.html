@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<!-- @template name="Campanhas — lista" description="Tabela de campanhas com filtro por status, busca e progresso ao vivo" -->
+<helmet>
+  <script src="./ds-base.js"></script>
+  <style>
+    @keyframes sz-listras { from { background-position: 0 0; } to { background-position: 16px 0; } }
+    @keyframes sz-pulso { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+  </style>
+</helmet>
+
+<div data-screen-label="Campanhas" style="display:flex; min-height:100vh; background:var(--surface-page); color:var(--text-primary); font-family:var(--font-family)">
+
+  <aside style="width:224px; flex-shrink:0; background:var(--surface-raised); border-right:1px solid #1f1f23; display:flex; flex-direction:column; padding:16px 12px; gap:2px">
+    <div style="display:flex; align-items:center; gap:10px; padding:6px 10px 20px 10px">
+      <div style="width:30px; height:30px; border-radius:8px; background:var(--color-primary-500); display:flex; align-items:center; justify-content:center; color:#022c22; font-weight:800; font-size:15px">S</div>
+      <div style="display:flex; flex-direction:column; line-height:1.2">
+        <span style="font-weight:700; font-size:15px; letter-spacing:-0.01em">SmartZap</span>
+        <span style="font-size:10px; color:var(--text-muted); letter-spacing:0.1em; text-transform:uppercase">Cloudflare</span>
+      </div>
+    </div>
+    <a href="../dashboard/Dashboard.dc.html" style="display:flex; align-items:center; padding:8px 10px; border-radius:8px; font-size:14px; color:var(--text-secondary); text-decoration:none" style-hover="background:#1f1f23; color:var(--text-primary)">Dashboard</a>
+    <a href="#" style="display:flex; align-items:center; padding:8px 10px; border-radius:8px; font-size:14px; font-weight:600; color:var(--color-primary-400); background:rgba(16,185,129,0.10); text-decoration:none">Campanhas</a>
+    <a href="../contatos/Contatos.dc.html" style="display:flex; align-items:center; padding:8px 10px; border-radius:8px; font-size:14px; color:var(--text-secondary); text-decoration:none" style-hover="background:#1f1f23; color:var(--text-primary)">Contatos</a>
+    <a href="../templates-meta/TemplatesMeta.dc.html" style="display:flex; align-items:center; padding:8px 10px; border-radius:8px; font-size:14px; color:var(--text-secondary); text-decoration:none" style-hover="background:#1f1f23; color:var(--text-primary)">Templates</a>
+    <a href="../settings/Settings.dc.html" style="display:flex; align-items:center; padding:8px 10px; border-radius:8px; font-size:14px; color:var(--text-secondary); text-decoration:none" style-hover="background:#1f1f23; color:var(--text-primary)">Configurações</a>
+    <div style="margin-top:auto; display:flex; align-items:center; gap:8px; padding:10px; border-top:1px solid #1f1f23">
+      <span style="width:7px; height:7px; border-radius:50%; background:var(--color-primary-400)"></span>
+      <span style="font-size:12px; color:var(--text-secondary)">Meta conectada</span>
+    </div>
+  </aside>
+
+  <main style="flex:1; padding:32px 40px; max-width:1240px">
+    <div style="display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:20px">
+      <div>
+        <h1 style="margin:0; font-size:22px; font-weight:700; letter-spacing:-0.01em">Campanhas</h1>
+        <p style="margin:4px 0 0 0; font-size:13px; color:var(--text-secondary)">7 campanhas no total</p>
+      </div>
+      <a href="../nova-campanha/NovaCampanha.dc.html" style="display:inline-flex; align-items:center; gap:8px; padding:9px 16px; border-radius:8px; background:var(--color-primary-500); color:#022c22; font-size:14px; font-weight:600; text-decoration:none" style-hover="background:var(--color-primary-600); color:#ecfdf5">Nova campanha</a>
+    </div>
+
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap">
+      <input placeholder="Buscar por nome…" value="{{ busca }}" onChange="{{ aoBuscar }}" style="width:260px; padding:8px 12px; border-radius:8px; border:1px solid #3f3f46; background:var(--surface-raised); color:var(--text-primary); font-size:13px; outline:none; font-family:var(--font-family)" style-focus="border-color:var(--color-primary-400)" />
+      <div style="display:flex; gap:6px; flex-wrap:wrap">
+        <sc-for list="{{ chips }}" as="ch" hint-placeholder-count="8">
+          <sc-if value="{{ ch.ativa }}" hint-placeholder-val="{{ false }}">
+            <button onClick="{{ ch.aplicar }}" style="padding:6px 12px; border-radius:999px; font-size:12px; font-weight:500; cursor:pointer; font-family:var(--font-family); background:rgba(16,185,129,0.14); color:#34d399; border:1px solid rgba(52,211,153,0.4)">{{ ch.rotulo }}</button>
+          </sc-if>
+          <sc-if value="{{ ch.inativa }}" hint-placeholder-val="{{ true }}">
+            <button onClick="{{ ch.aplicar }}" style="padding:6px 12px; border-radius:999px; font-size:12px; font-weight:500; cursor:pointer; font-family:var(--font-family); background:transparent; color:#a1a1aa; border:1px solid #3f3f46" style-hover="border-color:#52525b; color:var(--text-primary)">{{ ch.rotulo }}</button>
+          </sc-if>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="background:var(--surface-raised); border:1px solid #27272a; border-radius:var(--radius); overflow:hidden">
+      <div style="display:grid; grid-template-columns:minmax(190px,1.2fr) 150px 120px minmax(260px,1.4fr) 110px; gap:16px; padding:10px 20px; border-bottom:1px solid #1f1f23; font-size:11px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:var(--text-muted)">
+        <span>Nome</span><span>Template</span><span>Status</span><span>Progresso</span><span style="text-align:right">Data</span>
+      </div>
+
+      <sc-for list="{{ linhas }}" as="c" hint-placeholder-count="7">
+        <div style="display:grid; grid-template-columns:minmax(190px,1.2fr) 150px 120px minmax(260px,1.4fr) 110px; gap:16px; align-items:center; padding:13px 20px; border-bottom:1px solid #1f1f23" style-hover="background:#1c1c1f">
+          <p style="margin:0; font-size:14px; font-weight:500"><a href="../campanha-detalhe/CampanhaDetalhe.dc.html" style="color:var(--text-primary); text-decoration:none" style-hover="color:var(--color-primary-300)">{{ c.nome }}</a></p>
+          <p style="margin:0; font-size:12px; color:var(--text-muted); font-family:ui-monospace, monospace; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ c.template }}</p>
+          <span style="display:flex; justify-self:start">
+            <sc-if value="{{ c.e.draft }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex; align-items:center; gap:6px; padding:2px 10px; border-radius:999px; font-size:12px; font-weight:500; color:#a1a1aa; background:rgba(161,161,170,0.12); border:1px solid rgba(161,161,170,0.25)"><span style="width:6px; height:6px; border-radius:50%; background:currentColor"></span>Rascunho</span></sc-if>
+            <sc-if value="{{ c.e.scheduled }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex; align-items:center; gap:6px; padding:2px 10px; border-radius:999px; font-size:12px; font-weight:500; color:#60a5fa; background:rgba(96,165,250,0.12); border:1px solid rgba(96,165,250,0.25)"><span style="width:6px; height:6px; border-radius:50%; background:currentColor"></span>Agendada</span></sc-if>
+            <sc-if value="{{ c.e.sending }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex; align-items:center; gap:6px; padding:2px 10px; border-radius:999px; font-size:12px; font-weight:500; color:#34d399; background:rgba(52,211,153,0.12); border:1px solid rgba(52,211,153,0.25)"><span style="width:6px; height:6px; border-radius:50%; background:currentColor; animation:sz-pulso 1.2s ease-in-out infinite"></span>Enviando</span></sc-if>
+            <sc-if value="{{ c.e.completed }}" hint-placeholder-val="{{ true }}"><span style="display:inline-flex; align-items:center; gap:6px; padding:2px 10px; border-radius:999px; font-size:12px; font-weight:500; color:#10b981; background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.25)"><span style="width:6px; height:6px; border-radius:50%; background:currentColor"></span>Concluída</span></sc-if>
+            <sc-if value="{{ c.e.paused }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex; align-items:center; gap:6px; padding:2px 10px; border-radius:999px; font-size:12px; font-weight:500; color:#fbbf24; background:rgba(251,191,36,0.12); border:1px solid rgba(251,191,36,0.25)"><span style="width:6px; height:6px; border-radius:50%; background:currentColor"></span>Pausada</span></sc-if>
+            <sc-if value="{{ c.e.failed }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex; align-items:center; gap:6px; padding:2px 10px; border-radius:999px; font-size:12px; font-weight:500; color:#f87171; background:rgba(248,113,113,0.12); border:1px solid rgba(248,113,113,0.25)"><span style="width:6px; height:6px; border-radius:50%; background:currentColor"></span>Falhou</span></sc-if>
+            <sc-if value="{{ c.e.cancelled }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex; align-items:center; gap:6px; padding:2px 10px; border-radius:999px; font-size:12px; font-weight:500; color:#71717a; background:rgba(113,113,122,0.10); border:1px solid rgba(113,113,122,0.22)"><span style="width:6px; height:6px; border-radius:50%; background:currentColor"></span>Cancelada</span></sc-if>
+          </span>
+          <div>
+            <div style="height:6px; border-radius:999px; background:#27272a; overflow:hidden">
+              <sc-if value="{{ c.aoVivo }}" hint-placeholder-val="{{ false }}">
+                <div style="height:6px; border-radius:999px; background:var(--color-primary-500); background-image:linear-gradient(90deg, rgba(255,255,255,0.18) 0 8px, transparent 8px 16px); background-size:16px 6px; animation:sz-listras 0.8s linear infinite; width:{{ c.pct }}"></div>
+              </sc-if>
+              <sc-if value="{{ c.estatico }}" hint-placeholder-val="{{ true }}">
+                <div style="height:6px; border-radius:999px; width:{{ c.pct }}; background:{{ c.corBarra }}"></div>
+              </sc-if>
+            </div>
+            <p style="margin:6px 0 0 0; font-size:12px; color:var(--text-muted)"><span style="color:var(--text-secondary)">{{ c.enviadas }} env</span> · <span style="color:var(--status-delivered)">{{ c.entregues }} ent</span> · <span style="color:var(--status-read)">{{ c.lidas }} lidas</span> · <span style="color:var(--status-failed)">{{ c.falhas }} falhas</span></p>
+          </div>
+          <p style="margin:0; font-size:12px; color:var(--text-muted); text-align:right">{{ c.data }}</p>
+        </div>
+      </sc-for>
+
+      <sc-if value="{{ semResultados }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:48px 20px; text-align:center">
+          <p style="margin:0; font-size:14px; color:var(--text-secondary)">Nenhuma campanha encontrada com esse filtro.</p>
+        </div>
+      </sc-if>
+
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 20px">
+        <span style="font-size:12px; color:var(--text-muted)">Mostrando {{ totalFiltrado }} de 7</span>
+        <div style="display:flex; gap:6px">
+          <button style="padding:6px 12px; border-radius:8px; border:1px solid #3f3f46; background:transparent; color:var(--text-muted); font-size:12px; font-family:var(--font-family); cursor:default">Anterior</button>
+          <button style="padding:6px 12px; border-radius:8px; border:1px solid #3f3f46; background:transparent; color:var(--text-muted); font-size:12px; font-family:var(--font-family); cursor:default">Próxima</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { filtro: 'todas', busca: '' };
+
+  campanhas = [
+    { nome: 'Black Friday — VIPs', template: 'black_friday_vip', status: 'sending', statusLabel: 'Enviando', pct: 62, enviadas: '1.240', entregues: '1.198', lidas: '812', falhas: '12', data: 'hoje, 14:32', total: 2000 },
+    { nome: 'Reengajamento julho', template: 'reengajamento_30d', status: 'scheduled', statusLabel: 'Agendada', pct: 0, enviadas: '0', entregues: '0', lidas: '0', falhas: '0', data: '08 jul, 09:00', total: 3412 },
+    { nome: 'Lançamento Curso Turbo', template: 'boas_vindas_promo', status: 'completed', statusLabel: 'Concluída', pct: 99.5, enviadas: '5.180', entregues: '5.102', lidas: '3.644', falhas: '24', data: '28 jun', total: 5204 },
+    { nome: 'Promo fim de semana', template: 'oferta_relampago', status: 'paused', statusLabel: 'Pausada', pct: 45, enviadas: '918', entregues: '887', lidas: '512', falhas: '6', data: '21 jun', total: 2040 },
+    { nome: 'Aviso de manutenção', template: 'confirmacao_pedido', status: 'failed', statusLabel: 'Falhou', pct: 9, enviadas: '132', entregues: '118', lidas: '44', falhas: '1.368', data: '14 jun', total: 1500 },
+    { nome: 'Rascunho Dia dos Pais', template: 'boas_vindas_promo', status: 'draft', statusLabel: 'Rascunho', pct: 0, enviadas: '—', entregues: '—', lidas: '—', falhas: '—', data: '12 jun', total: 0 },
+    { nome: 'Teste interno QA', template: 'teste_qa', status: 'cancelled', statusLabel: 'Cancelada', pct: 20, enviadas: '40', entregues: '38', lidas: '21', falhas: '0', data: '02 jun', total: 200 },
+  ];
+
+  cores = {
+    draft:     { cor: '#a1a1aa', bg: 'rgba(161,161,170,0.12)', borda: 'rgba(161,161,170,0.25)', barra: '#52525b' },
+    scheduled: { cor: '#60a5fa', bg: 'rgba(96,165,250,0.12)',  borda: 'rgba(96,165,250,0.25)',  barra: '#60a5fa' },
+    sending:   { cor: '#34d399', bg: 'rgba(52,211,153,0.12)',  borda: 'rgba(52,211,153,0.25)',  barra: '#10b981' },
+    completed: { cor: '#10b981', bg: 'rgba(16,185,129,0.12)',  borda: 'rgba(16,185,129,0.25)',  barra: '#047857' },
+    paused:    { cor: '#fbbf24', bg: 'rgba(251,191,36,0.12)',  borda: 'rgba(251,191,36,0.25)',  barra: '#fbbf24' },
+    failed:    { cor: '#f87171', bg: 'rgba(248,113,113,0.12)', borda: 'rgba(248,113,113,0.25)', barra: '#f87171' },
+    cancelled: { cor: '#71717a', bg: 'rgba(113,113,122,0.10)', borda: 'rgba(113,113,122,0.22)', barra: '#3f3f46' },
+  };
+
+  chipsDef = [
+    { chave: 'todas', rotulo: 'Todas' },
+    { chave: 'draft', rotulo: 'Rascunho' },
+    { chave: 'scheduled', rotulo: 'Agendada' },
+    { chave: 'sending', rotulo: 'Enviando' },
+    { chave: 'paused', rotulo: 'Pausada' },
+    { chave: 'completed', rotulo: 'Concluída' },
+    { chave: 'failed', rotulo: 'Falhou' },
+    { chave: 'cancelled', rotulo: 'Cancelada' },
+  ];
+
+  renderVals() {
+    const { filtro, busca } = this.state;
+    const q = busca.trim().toLowerCase();
+
+    const linhas = this.campanhas
+      .filter(c => (filtro === 'todas' || c.status === filtro) && (!q || c.nome.toLowerCase().includes(q)))
+      .map(c => {
+        const p = this.cores[c.status];
+        const aoVivo = c.status === 'sending';
+        return {
+          ...c,
+          e: { [c.status]: true },
+          corBarra: p.barra,
+          pct: c.pct + '%',
+          aoVivo, estatico: !aoVivo,
+        };
+      });
+
+    const chips = this.chipsDef.map(ch => {
+      const ativo = filtro === ch.chave;
+      return {
+        rotulo: ch.rotulo,
+        ativa: ativo,
+        inativa: !ativo,
+        aplicar: () => this.setState({ filtro: ch.chave }),
+      };
+    });
+
+    return {
+      linhas,
+      chips,
+      busca,
+      aoBuscar: (e) => this.setState({ busca: e.target.value }),
+      semResultados: linhas.length === 0,
+      totalFiltrado: linhas.length,
+    };
+  }
+}
+
+</script>
+</body>
+</html>

@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<!-- @template name="Dashboard" description="Home do SmartZap: 4 stat cards + campanhas recentes, com estado vazio" -->
+<helmet>
+  <script src="./ds-base.js"></script>
+  <style>
+    @keyframes sz-listras { from { background-position: 0 0; } to { background-position: 16px 0; } }
+    @keyframes sz-pulso { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+  </style>
+</helmet>
+
+<div data-screen-label="Dashboard" style="display:flex; min-height:100vh; background:var(--surface-page); color:var(--text-primary); font-family:var(--font-family)">
+
+  <aside style="width:224px; flex-shrink:0; background:var(--surface-raised); border-right:1px solid #1f1f23; display:flex; flex-direction:column; padding:16px 12px; gap:2px">
+    <div style="display:flex; align-items:center; gap:10px; padding:6px 10px 20px 10px">
+      <div style="width:30px; height:30px; border-radius:8px; background:var(--color-primary-500); display:flex; align-items:center; justify-content:center; color:#022c22; font-weight:800; font-size:15px">S</div>
+      <div style="display:flex; flex-direction:column; line-height:1.2">
+        <span style="font-weight:700; font-size:15px; letter-spacing:-0.01em">SmartZap</span>
+        <span style="font-size:10px; color:var(--text-muted); letter-spacing:0.1em; text-transform:uppercase">Cloudflare</span>
+      </div>
+    </div>
+    <a href="#" style="display:flex; align-items:center; padding:8px 10px; border-radius:8px; font-size:14px; font-weight:600; color:var(--color-primary-400); background:rgba(16,185,129,0.10); text-decoration:none">Dashboard</a>
+    <a href="../campanhas/Campanhas.dc.html" style="display:flex; align-items:center; padding:8px 10px; border-radius:8px; font-size:14px; color:var(--text-secondary); text-decoration:none" style-hover="background:#1f1f23; color:var(--text-primary)">Campanhas</a>
+    <a href="../contatos/Contatos.dc.html" style="display:flex; align-items:center; padding:8px 10px; border-radius:8px; font-size:14px; color:var(--text-secondary); text-decoration:none" style-hover="background:#1f1f23; color:var(--text-primary)">Contatos</a>
+    <a href="../templates-meta/TemplatesMeta.dc.html" style="display:flex; align-items:center; padding:8px 10px; border-radius:8px; font-size:14px; color:var(--text-secondary); text-decoration:none" style-hover="background:#1f1f23; color:var(--text-primary)">Templates</a>
+    <a href="../settings/Settings.dc.html" style="display:flex; align-items:center; padding:8px 10px; border-radius:8px; font-size:14px; color:var(--text-secondary); text-decoration:none" style-hover="background:#1f1f23; color:var(--text-primary)">Configurações</a>
+    <div style="margin-top:auto; display:flex; align-items:center; gap:8px; padding:10px; border-top:1px solid #1f1f23">
+      <span style="width:7px; height:7px; border-radius:50%; background:var(--color-primary-400)"></span>
+      <span style="font-size:12px; color:var(--text-secondary)">Meta conectada</span>
+    </div>
+  </aside>
+
+  <main style="flex:1; padding:32px 40px; max-width:1160px">
+    <div style="display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:24px">
+      <div>
+        <h1 style="margin:0; font-size:22px; font-weight:700; letter-spacing:-0.01em">Dashboard</h1>
+        <p style="margin:4px 0 0 0; font-size:13px; color:var(--text-secondary)">Últimos 30 dias</p>
+      </div>
+      <a href="../nova-campanha/NovaCampanha.dc.html" style="display:inline-flex; align-items:center; gap:8px; padding:9px 16px; border-radius:8px; background:var(--color-primary-500); color:#022c22; font-size:14px; font-weight:600; text-decoration:none" style-hover="background:var(--color-primary-600); color:#ecfdf5">Nova campanha</a>
+    </div>
+
+    <sc-if value="{{ mostrarDados }}" hint-placeholder-val="{{ true }}">
+      <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; margin-bottom:24px">
+        <div style="background:var(--surface-raised); border:1px solid #27272a; border-radius:var(--radius); padding:18px 20px">
+          <p style="margin:0; font-size:13px; color:var(--text-secondary)">Mensagens enviadas</p>
+          <p style="margin:8px 0 0 0; font-size:28px; font-weight:700; letter-spacing:-0.02em">12.847</p>
+          <p style="margin:6px 0 0 0; font-size:12px; color:var(--color-primary-400)">+18% vs. mês anterior</p>
+        </div>
+        <div style="background:var(--surface-raised); border:1px solid #27272a; border-radius:var(--radius); padding:18px 20px">
+          <p style="margin:0; font-size:13px; color:var(--text-secondary)">Taxa de entrega</p>
+          <p style="margin:8px 0 0 0; font-size:28px; font-weight:700; letter-spacing:-0.02em">97,4%</p>
+          <p style="margin:6px 0 0 0; font-size:12px; color:var(--text-muted)">12.512 entregues</p>
+        </div>
+        <div style="background:var(--surface-raised); border:1px solid #27272a; border-radius:var(--radius); padding:18px 20px">
+          <p style="margin:0; font-size:13px; color:var(--text-secondary)">Taxa de leitura</p>
+          <p style="margin:8px 0 0 0; font-size:28px; font-weight:700; letter-spacing:-0.02em">68,2%</p>
+          <p style="margin:6px 0 0 0; font-size:12px; color:var(--text-muted)">8.533 lidas</p>
+        </div>
+        <div style="background:var(--surface-raised); border:1px solid #27272a; border-radius:var(--radius); padding:18px 20px">
+          <p style="margin:0; font-size:13px; color:var(--text-secondary)">Falhas</p>
+          <p style="margin:8px 0 0 0; font-size:28px; font-weight:700; letter-spacing:-0.02em">214</p>
+          <p style="margin:6px 0 0 0; font-size:12px; color:var(--status-failed)">1,7% do total</p>
+        </div>
+      </div>
+
+      <div style="background:var(--surface-raised); border:1px solid #27272a; border-radius:var(--radius); overflow:hidden">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:16px 20px">
+          <h2 style="margin:0; font-size:15px; font-weight:600">Campanhas recentes</h2>
+          <a href="../campanhas/Campanhas.dc.html" style="font-size:13px; color:var(--color-primary-400); text-decoration:none" style-hover="text-decoration:underline">Ver todas</a>
+        </div>
+
+        <div style="display:grid; grid-template-columns:minmax(200px,1.3fr) 130px 1fr 110px; align-items:center; gap:16px; padding:14px 20px; border-top:1px solid #1f1f23">
+          <div>
+            <p style="margin:0; font-size:14px; font-weight:500">Black Friday — VIPs</p>
+            <p style="margin:2px 0 0 0; font-size:12px; color:var(--text-muted); font-family:ui-monospace, monospace">black_friday_vip</p>
+          </div>
+          <span style="display:inline-flex; align-items:center; gap:6px; padding:2px 10px; border-radius:999px; font-size:12px; font-weight:500; color:var(--status-delivered); background:rgba(52,211,153,0.12); border:1px solid rgba(52,211,153,0.25); justify-self:start"><span style="width:6px; height:6px; border-radius:50%; background:var(--status-delivered); animation:sz-pulso 1.2s ease-in-out infinite"></span>Enviando</span>
+          <div>
+            <div style="height:6px; border-radius:999px; background:#27272a; overflow:hidden">
+              <div style="height:6px; width:62%; border-radius:999px; background:var(--color-primary-500); background-image:linear-gradient(90deg, rgba(255,255,255,0.18) 0 8px, transparent 8px 16px); background-size:16px 6px; animation:sz-listras 0.8s linear infinite"></div>
+            </div>
+            <p style="margin:6px 0 0 0; font-size:12px; color:var(--text-secondary)">1.240 / 2.000 enviadas</p>
+          </div>
+          <p style="margin:0; font-size:12px; color:var(--text-muted); text-align:right">hoje, 14:32</p>
+        </div>
+
+        <div style="display:grid; grid-template-columns:minmax(200px,1.3fr) 130px 1fr 110px; align-items:center; gap:16px; padding:14px 20px; border-top:1px solid #1f1f23">
+          <div>
+            <p style="margin:0; font-size:14px; font-weight:500">Reengajamento julho</p>
+            <p style="margin:2px 0 0 0; font-size:12px; color:var(--text-muted); font-family:ui-monospace, monospace">reengajamento_30d</p>
+          </div>
+          <span style="display:inline-flex; align-items:center; gap:6px; padding:2px 10px; border-radius:999px; font-size:12px; font-weight:500; color:var(--status-sent); background:rgba(96,165,250,0.12); border:1px solid rgba(96,165,250,0.25); justify-self:start"><span style="width:6px; height:6px; border-radius:50%; background:var(--status-sent)"></span>Agendada</span>
+          <div>
+            <div style="height:6px; border-radius:999px; background:#27272a; overflow:hidden">
+              <div style="height:6px; width:0%; background:var(--color-primary-500)"></div>
+            </div>
+            <p style="margin:6px 0 0 0; font-size:12px; color:var(--text-secondary)">0 / 3.412 enviadas</p>
+          </div>
+          <p style="margin:0; font-size:12px; color:var(--text-muted); text-align:right">08 jul, 09:00</p>
+        </div>
+
+        <div style="display:grid; grid-template-columns:minmax(200px,1.3fr) 130px 1fr 110px; align-items:center; gap:16px; padding:14px 20px; border-top:1px solid #1f1f23">
+          <div>
+            <p style="margin:0; font-size:14px; font-weight:500">Lançamento Curso Turbo</p>
+            <p style="margin:2px 0 0 0; font-size:12px; color:var(--text-muted); font-family:ui-monospace, monospace">boas_vindas_promo</p>
+          </div>
+          <span style="display:inline-flex; align-items:center; gap:6px; padding:2px 10px; border-radius:999px; font-size:12px; font-weight:500; color:var(--status-read); background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.25); justify-self:start"><span style="width:6px; height:6px; border-radius:50%; background:var(--status-read)"></span>Concluída</span>
+          <div>
+            <div style="height:6px; border-radius:999px; background:#27272a; overflow:hidden">
+              <div style="height:6px; width:99.5%; border-radius:999px; background:var(--color-primary-700)"></div>
+            </div>
+            <p style="margin:6px 0 0 0; font-size:12px; color:var(--text-secondary)">5.180 / 5.204 enviadas</p>
+          </div>
+          <p style="margin:0; font-size:12px; color:var(--text-muted); text-align:right">28 jun</p>
+        </div>
+
+        <div style="display:grid; grid-template-columns:minmax(200px,1.3fr) 130px 1fr 110px; align-items:center; gap:16px; padding:14px 20px; border-top:1px solid #1f1f23">
+          <div>
+            <p style="margin:0; font-size:14px; font-weight:500">Promo fim de semana</p>
+            <p style="margin:2px 0 0 0; font-size:12px; color:var(--text-muted); font-family:ui-monospace, monospace">oferta_relampago</p>
+          </div>
+          <span style="display:inline-flex; align-items:center; gap:6px; padding:2px 10px; border-radius:999px; font-size:12px; font-weight:500; color:var(--status-skipped); background:rgba(251,191,36,0.12); border:1px solid rgba(251,191,36,0.25); justify-self:start"><span style="width:6px; height:6px; border-radius:50%; background:var(--status-skipped)"></span>Pausada</span>
+          <div>
+            <div style="height:6px; border-radius:999px; background:#27272a; overflow:hidden">
+              <div style="height:6px; width:45%; border-radius:999px; background:var(--status-skipped)"></div>
+            </div>
+            <p style="margin:6px 0 0 0; font-size:12px; color:var(--text-secondary)">918 / 2.040 enviadas</p>
+          </div>
+          <p style="margin:0; font-size:12px; color:var(--text-muted); text-align:right">21 jun</p>
+        </div>
+
+        <div style="display:grid; grid-template-columns:minmax(200px,1.3fr) 130px 1fr 110px; align-items:center; gap:16px; padding:14px 20px; border-top:1px solid #1f1f23">
+          <div>
+            <p style="margin:0; font-size:14px; font-weight:500">Aviso de manutenção</p>
+            <p style="margin:2px 0 0 0; font-size:12px; color:var(--text-muted); font-family:ui-monospace, monospace">confirmacao_pedido</p>
+          </div>
+          <span style="display:inline-flex; align-items:center; gap:6px; padding:2px 10px; border-radius:999px; font-size:12px; font-weight:500; color:var(--status-failed); background:rgba(248,113,113,0.12); border:1px solid rgba(248,113,113,0.25); justify-self:start"><span style="width:6px; height:6px; border-radius:50%; background:var(--status-failed)"></span>Falhou</span>
+          <div>
+            <div style="height:6px; border-radius:999px; background:#27272a; overflow:hidden">
+              <div style="height:6px; width:9%; border-radius:999px; background:var(--status-failed)"></div>
+            </div>
+            <p style="margin:6px 0 0 0; font-size:12px; color:var(--text-secondary)">132 / 1.500 enviadas</p>
+          </div>
+          <p style="margin:0; font-size:12px; color:var(--text-muted); text-align:right">14 jun</p>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ mostrarVazio }}" hint-placeholder-val="{{ false }}">
+      <div style="background:var(--surface-raised); border:1px dashed #3f3f46; border-radius:var(--radius); padding:72px 40px; display:flex; flex-direction:column; align-items:center; text-align:center">
+        <div style="width:48px; height:48px; border-radius:50%; border:2px solid var(--color-primary-500); display:flex; align-items:center; justify-content:center; margin-bottom:20px">
+          <span style="width:14px; height:14px; border-radius:50%; background:var(--color-primary-500)"></span>
+        </div>
+        <h2 style="margin:0; font-size:18px; font-weight:600">Nenhum contato ainda</h2>
+        <p style="margin:8px 0 24px 0; font-size:14px; color:var(--text-secondary); max-width:380px">Importe seus contatos para criar sua primeira campanha de WhatsApp.</p>
+        <a href="#" style="display:inline-flex; align-items:center; padding:10px 18px; border-radius:8px; background:var(--color-primary-500); color:#022c22; font-size:14px; font-weight:600; text-decoration:none" style-hover="background:var(--color-primary-600); color:#ecfdf5">Importar contatos</a>
+      </div>
+    </sc-if>
+  </main>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;estadoVazio&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: false, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Estado&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const vazio = this.props.estadoVazio ?? false;
+    return { mostrarVazio: vazio, mostrarDados: !vazio };
+  }
+}
+
+</script>
+</body>
+</html>

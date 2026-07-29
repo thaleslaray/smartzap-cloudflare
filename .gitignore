@@ -1,6 +1,16 @@
 node_modules
 dist
-.dev.vars
+.DS_Store
+.claude/
+.meta-whatsapp-cache/
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example
 .wrangler
 test-results
+playwright-report
+blob-report
+qa/.state/
+qa/reports/
 ds.zip

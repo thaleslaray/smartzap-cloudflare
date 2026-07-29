@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<!-- @template name="Configurações" description="Credenciais Meta, webhook, throttle, API keys, sessões e health check" -->
+<helmet>
+  <script src="./ds-base.js"></script>
+  <style>
+    @keyframes sz-toast { from { transform: translateY(8px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  </style>
+</helmet>
+
+<div data-screen-label="Configurações" style="display:flex; min-height:100vh; background:var(--surface-page); color:var(--text-primary); font-family:var(--font-family)">
+
+  <aside style="width:224px; flex-shrink:0; background:var(--surface-raised); border-right:1px solid #1f1f23; display:flex; flex-direction:column; padding:16px 12px; gap:2px">
+    <div style="display:flex; align-items:center; gap:10px; padding:6px 10px 20px 10px">
+      <div style="width:30px; height:30px; border-radius:8px; background:var(--color-primary-500); display:flex; align-items:center; justify-content:center; color:#022c22; font-weight:800; font-size:15px">S</div>
+      <div style="display:flex; flex-direction:column; line-height:1.2">
+        <span style="font-weight:700; font-size:15px; letter-spacing:-0.01em">SmartZap</span>
+        <span style="font-size:10px; color:var(--text-muted); letter-spacing:0.1em; text-transform:uppercase">Cloudflare</span>
+      </div>
+    </div>
+    <a href="../dashboard/Dashboard.dc.html" style="display:flex; align-items:center; padding:8px 10px; border-radius:8px; font-size:14px; color:var(--text-secondary); text-decoration:none" style-hover="background:#1f1f23; color:var(--text-primary)">Dashboard</a>
+    <a href="../campanhas/Campanhas.dc.html" style="display:flex; align-items:center; padding:8px 10px; border-radius:8px; font-size:14px; color:var(--text-secondary); text-decoration:none" style-hover="background:#1f1f23; color:var(--text-primary)">Campanhas</a>
+    <a href="../contatos/Contatos.dc.html" style="display:flex; align-items:center; padding:8px 10px; border-radius:8px; font-size:14px; color:var(--text-secondary); text-decoration:none" style-hover="background:#1f1f23; color:var(--text-primary)">Contatos</a>
+    <a href="../templates-meta/TemplatesMeta.dc.html" style="display:flex; align-items:center; padding:8px 10px; border-radius:8px; font-size:14px; color:var(--text-secondary); text-decoration:none" style-hover="background:#1f1f23; color:var(--text-primary)">Templates</a>
+    <a href="#" style="display:flex; align-items:center; padding:8px 10px; border-radius:8px; font-size:14px; font-weight:600; color:var(--color-primary-400); background:rgba(16,185,129,0.10); text-decoration:none">Configurações</a>
+    <div style="margin-top:auto; display:flex; align-items:center; gap:8px; padding:10px; border-top:1px solid #1f1f23">
+      <span style="width:7px; height:7px; border-radius:50%; background:var(--color-primary-400)"></span>
+      <span style="font-size:12px; color:var(--text-secondary)">Meta conectada</span>
+    </div>
+  </aside>
+
+  <main style="flex:1; padding:32px 40px; max-width:880px">
+    <h1 style="margin:0 0 20px 0; font-size:22px; font-weight:700; letter-spacing:-0.01em">Configurações</h1>
+
+    <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; margin-bottom:24px">
+      <div style="display:flex; align-items:center; gap:10px; padding:14px 16px; background:var(--surface-raised); border:1px solid rgba(52,211,153,0.3); border-radius:var(--radius)">
+        <span style="width:8px; height:8px; border-radius:50%; background:var(--status-delivered)"></span>
+        <div>
+          <p style="margin:0; font-size:13px; font-weight:600">Conexão Meta</p>
+          <p style="margin:2px 0 0 0; font-size:11px; color:var(--text-muted)">OK · 42 ms</p>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px; padding:14px 16px; background:var(--surface-raised); border:1px solid rgba(52,211,153,0.3); border-radius:var(--radius)">
+        <span style="width:8px; height:8px; border-radius:50%; background:var(--status-delivered)"></span>
+        <div>
+          <p style="margin:0; font-size:13px; font-weight:600">Webhook</p>
+          <p style="margin:2px 0 0 0; font-size:11px; color:var(--text-muted)">OK · verificado</p>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px; padding:14px 16px; background:var(--surface-raised); border:1px solid rgba(52,211,153,0.3); border-radius:var(--radius)">
+        <span style="width:8px; height:8px; border-radius:50%; background:var(--status-delivered)"></span>
+        <div>
+          <p style="margin:0; font-size:13px; font-weight:600">Banco (D1)</p>
+          <p style="margin:2px 0 0 0; font-size:11px; color:var(--text-muted)">OK · 8 ms</p>
+        </div>
+      </div>
+    </div>
+
+    <div style="background:var(--surface-raised); border:1px solid #27272a; border-radius:var(--radius); padding:20px; margin-bottom:16px">
+      <h2 style="margin:0 0 4px 0; font-size:15px; font-weight:600">Credenciais Meta</h2>
+      <p style="margin:0 0 16px 0; font-size:12px; color:var(--text-muted)">Usadas para enviar mensagens pela API oficial do WhatsApp Business.</p>
+      <div style="display:flex; flex-direction:column; gap:10px">
+        <div style="display:grid; grid-template-columns:160px 1fr auto; gap:12px; align-items:center">
+          <span style="font-size:13px; color:var(--text-secondary)">Phone number ID</span>
+          <span style="padding:8px 12px; border-radius:8px; background:var(--surface-page); border:1px solid #27272a; font-size:12px; font-family:ui-monospace, monospace; color:var(--text-secondary)">10945••••••••312</span>
+          <span></span>
+        </div>
+        <div style="display:grid; grid-template-columns:160px 1fr auto; gap:12px; align-items:center">
+          <span style="font-size:13px; color:var(--text-secondary)">WABA ID</span>
+          <span style="padding:8px 12px; border-radius:8px; background:var(--surface-page); border:1px solid #27272a; font-size:12px; font-family:ui-monospace, monospace; color:var(--text-secondary)">11238••••••••790</span>
+          <span></span>
+        </div>
+        <div style="display:grid; grid-template-columns:160px 1fr auto; gap:12px; align-items:center">
+          <span style="font-size:13px; color:var(--text-secondary)">Access token</span>
+          <sc-if value="{{ tokenOculto }}" hint-placeholder-val="{{ true }}">
+            <span style="padding:8px 12px; border-radius:8px; background:var(--surface-page); border:1px solid #27272a; font-size:12px; font-family:ui-monospace, monospace; color:var(--text-secondary)">EAAG••••••••••••••••••••••••••••</span>
+          </sc-if>
+          <sc-if value="{{ tokenVisivel }}" hint-placeholder-val="{{ false }}">
+            <span style="padding:8px 12px; border-radius:8px; background:var(--surface-page); border:1px solid #27272a; font-size:12px; font-family:ui-monospace, monospace; color:var(--text-primary); overflow:hidden; text-overflow:ellipsis">EAAG••••••••••••••••••••••••••••</span>
+          </sc-if>
+          <button onClick="{{ alternarToken }}" style="padding:7px 12px; border-radius:8px; border:1px solid #3f3f46; background:transparent; color:var(--text-secondary); font-size:12px; cursor:pointer; font-family:var(--font-family)" style-hover="border-color:#52525b; color:var(--text-primary)">{{ rotuloToken }}</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="background:var(--surface-raised); border:1px solid #27272a; border-radius:var(--radius); padding:20px; margin-bottom:16px">
+      <h2 style="margin:0 0 4px 0; font-size:15px; font-weight:600">Webhook</h2>
+      <p style="margin:0 0 16px 0; font-size:12px; color:var(--text-muted)">Recebe os status de entrega e leitura da Meta em tempo real.</p>
+      <div style="display:flex; align-items:center; gap:10px">
+        <span style="flex:1; padding:8px 12px; border-radius:8px; background:var(--surface-page); border:1px solid #27272a; font-size:12px; font-family:ui-monospace, monospace; color:var(--text-secondary)">https://smartzap.laray.com.br/api/webhook/meta</span>
+        <span style="display:inline-flex; align-items:center; gap:6px; padding:2px 10px; border-radius:999px; font-size:11px; font-weight:500; color:#34d399; background:rgba(52,211,153,0.12); border:1px solid rgba(52,211,153,0.25)"><span style="width:5px; height:5px; border-radius:50%; background:currentColor"></span>Verificado</span>
+        <button onClick="{{ reverificar }}" style="padding:7px 12px; border-radius:8px; border:1px solid #3f3f46; background:transparent; color:var(--text-secondary); font-size:12px; cursor:pointer; font-family:var(--font-family)" style-hover="border-color:#52525b; color:var(--text-primary)">Reverificar</button>
+      </div>
+    </div>
+
+    <div style="background:var(--surface-raised); border:1px solid #27272a; border-radius:var(--radius); padding:20px; margin-bottom:16px">
+      <h2 style="margin:0 0 4px 0; font-size:15px; font-weight:600">Throttle de envio</h2>
+      <p style="margin:0 0 16px 0; font-size:12px; color:var(--text-muted)">Limite de mensagens por segundo para respeitar o rate limit da Meta e aquecer o número.</p>
+      <div style="display:flex; align-items:center; gap:16px">
+        <input type="range" min="1" max="80" value="{{ throttle }}" onChange="{{ aoMudarThrottle }}" style="flex:1; accent-color:#10b981" />
+        <span style="width:110px; text-align:right; font-size:14px; font-weight:600; font-family:ui-monospace, monospace; color:var(--color-primary-300)">{{ throttle }} msg/s</span>
+      </div>
+      <p style="margin:10px 0 0 0; font-size:11px; color:var(--text-muted)">Recomendado: até 20 msg/s para números com menos de 30 dias.</p>
+    </div>
+
+    <div style="background:var(--surface-raised); border:1px solid #27272a; border-radius:var(--radius); padding:20px; margin-bottom:16px">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px">
+        <div>
+          <h2 style="margin:0 0 4px 0; font-size:15px; font-weight:600">API keys do SmartZap</h2>
+          <p style="margin:0; font-size:12px; color:var(--text-muted)">Para integrar disparos a partir dos seus sistemas.</p>
+        </div>
+        <button onClick="{{ novaChave }}" style="padding:7px 14px; border-radius:8px; border:1px solid #3f3f46; background:transparent; color:var(--text-primary); font-size:12px; font-weight:500; cursor:pointer; font-family:var(--font-family)" style-hover="border-color:#52525b; background:#1f1f23">Nova chave</button>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:8px">
+        <sc-for list="{{ chaves }}" as="k" hint-placeholder-count="2">
+          <div style="display:grid; grid-template-columns:1fr auto auto auto; gap:10px; align-items:center; padding:9px 12px; border-radius:8px; background:var(--surface-page); border:1px solid #27272a">
+            <div>
+              <p style="margin:0; font-size:13px; font-weight:500">{{ k.nome }}</p>
+              <p style="margin:2px 0 0 0; font-size:11px; font-family:ui-monospace, monospace; color:var(--text-muted)">{{ k.prefixo }}</p>
+            </div>
+            <span style="font-size:11px; color:var(--text-muted)">{{ k.uso }}</span>
+            <button onClick="{{ k.copiar }}" style="padding:6px 10px; border-radius:8px; border:1px solid #3f3f46; background:transparent; color:var(--text-secondary); font-size:11px; cursor:pointer; font-family:var(--font-family)" style-hover="border-color:#52525b; color:var(--text-primary)">Copiar</button>
+            <button onClick="{{ k.revogar }}" style="padding:6px 10px; border-radius:8px; border:1px solid rgba(248,113,113,0.35); background:transparent; color:var(--status-failed); font-size:11px; cursor:pointer; font-family:var(--font-family)" style-hover="background:rgba(248,113,113,0.08)">Revogar</button>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="background:var(--surface-raised); border:1px solid #27272a; border-radius:var(--radius); padding:20px; margin-bottom:16px">
+      <h2 style="margin:0 0 4px 0; font-size:15px; font-weight:600">Sessões ativas</h2>
+      <p style="margin:0 0 16px 0; font-size:12px; color:var(--text-muted)">Dispositivos autenticados com a senha mestra.</p>
+      <div style="display:flex; flex-direction:column; gap:8px">
+        <sc-for list="{{ sessoes }}" as="ss" hint-placeholder-count="2">
+          <div style="display:grid; grid-template-columns:1fr auto auto; gap:10px; align-items:center; padding:9px 12px; border-radius:8px; background:var(--surface-page); border:1px solid #27272a">
+            <div>
+              <p style="margin:0; font-size:13px; font-weight:500">{{ ss.dispositivo }} <sc-if value="{{ ss.atual }}" hint-placeholder-val="{{ false }}"><span style="margin-left:6px; padding:1px 8px; border-radius:999px; font-size:10px; font-weight:600; color:#34d399; background:rgba(52,211,153,0.12); border:1px solid rgba(52,211,153,0.25)">esta sessão</span></sc-if></p>
+              <p style="margin:2px 0 0 0; font-size:11px; font-family:ui-monospace, monospace; color:var(--text-muted)">{{ ss.ip }}</p>
+            </div>
+            <span style="font-size:11px; color:var(--text-muted)">{{ ss.ativa }}</span>
+            <sc-if value="{{ ss.podeEncerrar }}" hint-placeholder-val="{{ true }}">
+              <button onClick="{{ ss.encerrar }}" style="padding:6px 10px; border-radius:8px; border:1px solid #3f3f46; background:transparent; color:var(--text-secondary); font-size:11px; cursor:pointer; font-family:var(--font-family)" style-hover="border-color:rgba(248,113,113,0.35); color:var(--status-failed)">Encerrar</button>
+            </sc-if>
+            <sc-if value="{{ ss.atual }}" hint-placeholder-val="{{ false }}"><span></span></sc-if>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </main>
+
+  <sc-if value="{{ temToast }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed; bottom:24px; right:24px; z-index:60; display:flex; align-items:center; gap:10px; padding:12px 16px; background:var(--surface-overlay); border:1px solid #3f3f46; border-radius:var(--radius); animation:sz-toast 0.2s ease-out">
+      <span style="width:7px; height:7px; border-radius:50%; background:var(--color-primary-400)"></span>
+      <span style="font-size:13px; color:var(--text-primary)">{{ toast }}</span>
+    </div>
+  </sc-if>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = {
+    tokenVisivel: false,
+    throttle: 20,
+    toast: '',
+    sessoes: [
+      { id: 1, dispositivo: 'Chrome · macOS', ip: '187.94.12.101 · São Paulo', ativa: 'agora', atual: true },
+      { id: 2, dispositivo: 'Safari · iPhone', ip: '187.94.12.101 · São Paulo', ativa: 'há 2 h', atual: false },
+      { id: 3, dispositivo: 'Firefox · Windows', ip: '201.17.88.240 · Curitiba', ativa: 'há 3 dias', atual: false },
+    ],
+    chaves: [
+      { id: 1, nome: 'Integração loja', prefixo: 'szk_live_8f2a••••••••', uso: 'usada há 12 min' },
+      { id: 2, nome: 'Zapier', prefixo: 'szk_live_c91d••••••••', uso: 'usada há 4 dias' },
+    ],
+  };
+
+  componentWillUnmount() { clearTimeout(this._toastTimer); }
+
+  mostrarToast(msg) {
+    clearTimeout(this._toastTimer);
+    this.setState({ toast: msg });
+    this._toastTimer = setTimeout(() => this.setState({ toast: '' }), 2500);
+  }
+
+  renderVals() {
+    const s = this.state;
+    return {
+      tokenOculto: !s.tokenVisivel,
+      tokenVisivel: s.tokenVisivel,
+      rotuloToken: s.tokenVisivel ? 'Ocultar' : 'Mostrar',
+      alternarToken: () => this.setState(st => ({ tokenVisivel: !st.tokenVisivel })),
+      reverificar: () => this.mostrarToast('Webhook verificado com sucesso'),
+      throttle: s.throttle,
+      aoMudarThrottle: (e) => this.setState({ throttle: Number(e.target.value) }),
+      chaves: s.chaves.map(k => ({
+        ...k,
+        copiar: () => this.mostrarToast('Chave copiada para a área de transferência'),
+        revogar: () => {
+          this.setState(st => ({ chaves: st.chaves.filter(x => x.id !== k.id) }));
+          this.mostrarToast('Chave "' + k.nome + '" revogada');
+        },
+      })),
+      novaChave: () => {
+        this.setState(st => ({ chaves: [...st.chaves, { id: Date.now(), nome: 'Nova chave', prefixo: 'szk_live_' + Math.random().toString(16).slice(2, 6) + '••••••••', uso: 'nunca usada' }] }));
+        this.mostrarToast('Nova API key criada — copie agora, ela não será exibida de novo');
+      },
+      sessoes: s.sessoes.map(ss => ({
+        ...ss,
+        podeEncerrar: !ss.atual,
+        encerrar: () => {
+          this.setState(st => ({ sessoes: st.sessoes.filter(x => x.id !== ss.id) }));
+          this.mostrarToast('Sessão encerrada');
+        },
+      })),
+      toast: s.toast,
+      temToast: !!s.toast,
+    };
+  }
+}
+
+</script>
+</body>
+</html>

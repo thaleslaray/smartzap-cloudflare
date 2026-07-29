@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<!-- @template name="Login" description="Senha mestra + Turnstile da Cloudflare, single-tenant" -->
+<helmet>
+  <script src="./ds-base.js"></script>
+  <style>
+    @keyframes sz-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  </style>
+</helmet>
+
+<div data-screen-label="Login" style="min-height:100vh; display:flex; align-items:center; justify-content:center; background:var(--surface-page); color:var(--text-primary); font-family:var(--font-family); background-image:radial-gradient(ellipse 600px 400px at 50% -10%, rgba(16,185,129,0.08), transparent)">
+
+  <div style="width:380px; padding:0 24px">
+    <div style="display:flex; flex-direction:column; align-items:center; margin-bottom:28px">
+      <div style="width:48px; height:48px; border-radius:12px; background:var(--color-primary-500); display:flex; align-items:center; justify-content:center; color:#022c22; font-weight:800; font-size:24px; margin-bottom:14px">S</div>
+      <h1 style="margin:0; font-size:20px; font-weight:700; letter-spacing:-0.01em">SmartZap</h1>
+      <p style="margin:4px 0 0 0; font-size:12px; color:var(--text-muted); letter-spacing:0.1em; text-transform:uppercase">Campanhas de WhatsApp</p>
+    </div>
+
+    <div style="background:var(--surface-raised); border:1px solid #27272a; border-radius:var(--radius); padding:24px">
+      <label style="display:block; font-size:13px; font-weight:500; color:var(--text-secondary); margin-bottom:8px">Senha mestra</label>
+      <input type="password" placeholder="••••••••••••" value="{{ senha }}" onChange="{{ aoDigitar }}" style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid #3f3f46; background:var(--surface-page); color:var(--text-primary); font-size:14px; outline:none; font-family:var(--font-family); margin-bottom:14px" style-focus="border-color:var(--color-primary-400)" />
+
+      <button onClick="{{ alternarTurnstile }}" style="width:100%; display:flex; align-items:center; gap:12px; padding:14px 16px; border-radius:8px; border:1px solid #3f3f46; background:var(--surface-page); cursor:pointer; font-family:var(--font-family); margin-bottom:14px; text-align:left">
+        <span style="display:flex; width:22px; height:22px; align-items:center; justify-content:center">
+          <sc-if value="{{ tsPendente }}" hint-placeholder-val="{{ true }}"><span style="width:20px; height:20px; border-radius:4px; border:1px solid #52525b; display:block"></span></sc-if>
+          <sc-if value="{{ tsVerificando }}" hint-placeholder-val="{{ false }}"><span style="width:18px; height:18px; border-radius:50%; border:2px solid #3f3f46; border-top-color:var(--color-primary-400); display:block; animation:sz-spin 0.7s linear infinite"></span></sc-if>
+          <sc-if value="{{ tsOk }}" hint-placeholder-val="{{ false }}"><span style="width:20px; height:20px; border-radius:4px; background:var(--color-primary-500); color:#022c22; font-size:13px; font-weight:800; display:flex; align-items:center; justify-content:center">✓</span></sc-if>
+        </span>
+        <span style="flex:1">
+          <span style="display:block; font-size:13px; color:var(--text-primary)">{{ tsRotulo }}</span>
+          <span style="display:block; margin-top:2px; font-size:10px; color:var(--text-muted); letter-spacing:0.04em">Cloudflare Turnstile · Privacidade · Termos</span>
+        </span>
+        <span style="width:22px; height:22px; border-radius:50%; border:5px solid #f6821f; display:block; opacity:0.85"></span>
+      </button>
+
+      <sc-if value="{{ podeEntrar }}" hint-placeholder-val="{{ false }}">
+        <button onClick="{{ entrar }}" style="width:100%; padding:11px 16px; border-radius:8px; border:none; background:var(--color-primary-500); color:#022c22; font-size:14px; font-weight:600; cursor:pointer; font-family:var(--font-family)" style-hover="background:var(--color-primary-600); color:#ecfdf5">Entrar</button>
+      </sc-if>
+      <sc-if value="{{ naoPodeEntrar }}" hint-placeholder-val="{{ true }}">
+        <button style="width:100%; padding:11px 16px; border-radius:8px; border:none; background:#27272a; color:#71717a; font-size:14px; font-weight:600; cursor:not-allowed; font-family:var(--font-family)">Entrar</button>
+      </sc-if>
+
+      <sc-if value="{{ temErro }}" hint-placeholder-val="{{ false }}">
+        <p style="margin:12px 0 0 0; font-size:12px; color:var(--status-failed); text-align:center">Senha incorreta. Aguarde 5 s para tentar de novo.</p>
+      </sc-if>
+    </div>
+
+    <p style="margin:20px 0 0 0; font-size:11px; color:var(--text-muted); text-align:center">Instância single-tenant self-hosted na Cloudflare.<br />Sem cadastro — a senha mestra está no seu painel de deploy.</p>
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { senha: '', ts: 'pendente', erro: false };
+
+  componentWillUnmount() { clearTimeout(this._t); }
+
+  renderVals() {
+    const s = this.state;
+    const pode = s.senha.length > 0 && s.ts === 'ok';
+    return {
+      senha: s.senha,
+      aoDigitar: (e) => this.setState({ senha: e.target.value, erro: false }),
+      tsPendente: s.ts === 'pendente',
+      tsVerificando: s.ts === 'verificando',
+      tsOk: s.ts === 'ok',
+      tsRotulo: s.ts === 'ok' ? 'Verificado — você é humano' : (s.ts === 'verificando' ? 'Verificando…' : 'Confirme que você é humano'),
+      alternarTurnstile: () => {
+        if (this.state.ts !== 'pendente') return;
+        this.setState({ ts: 'verificando' });
+        this._t = setTimeout(() => this.setState({ ts: 'ok' }), 900);
+      },
+      podeEntrar: pode,
+      naoPodeEntrar: !pode,
+      entrar: () => { window.location.href = '../dashboard/Dashboard.dc.html'; },
+      temErro: s.erro,
+    };
+  }
+}
+
+</script>
+</body>
+</html>

@@ -1,7 +1,27 @@
 ENVIRONMENT=development
+META_GRAPH_VERSION=v25.0
+META_APP_ID=your-meta-app-id
+META_EXPECTED_PHONE_ID=your-phone-number-id
+META_EXPECTED_WABA_ID=your-whatsapp-business-account-id
+META_EXPECTED_CALLBACK_URL=https://your-worker.example/webhook
+# Google Calendar (opcional; necessário somente para MiniApps de agenda dinâmica)
+# GOOGLE_CALENDAR_CLIENT_ID=...
+# GOOGLE_CALENDAR_CLIENT_SECRET=...
+# GOOGLE_CALENDAR_ENCRYPTION_KEY=gere-uma-chave-aleatoria-longa
+TURNSTILE_ENABLED=false
+AI_ENABLED=false
+AI_MODEL=google/gemini-3.5-flash
+AI_GATEWAY_ID=smartzap
+AI_MAX_DRAFTS_PER_CONVERSATION_HOUR=20
+AI_MAX_DRAFTS_PER_DAY=200
 MASTER_PASSWORD=dev
 META_APP_SECRET=dev-meta-secret
 META_VERIFY_TOKEN=dev-verify
 WHATSAPP_TOKEN=dev-token
+FLOW_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nreplace-me\n-----END PRIVATE KEY-----"
+FLOW_PUBLIC_KEY="-----BEGIN PUBLIC KEY-----\nreplace-me\n-----END PUBLIC KEY-----"
 TURNSTILE_SECRET=
+TURNSTILE_SITE_KEY=
 SMARTZAP_API_KEY=dev-api-key
+# Token Cloudflare com Account Analytics Read; exigido para métricas reais de Workers e D1.
+CLOUDFLARE_ANALYTICS_TOKEN=replace-with-account-analytics-read-token

@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<!-- @template name="Contatos" description="Tabela de contatos com ações em massa e import CSV com declaração de opt-in (LGPD)" -->
+<helmet>
+  <script src="./ds-base.js"></script>
+  <style>
+    @keyframes sz-toast { from { transform: translateY(8px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  </style>
+</helmet>
+
+<div data-screen-label="Contatos" style="display:flex; min-height:100vh; background:var(--surface-page); color:var(--text-primary); font-family:var(--font-family)">
+
+  <aside style="width:224px; flex-shrink:0; background:var(--surface-raised); border-right:1px solid #1f1f23; display:flex; flex-direction:column; padding:16px 12px; gap:2px">
+    <div style="display:flex; align-items:center; gap:10px; padding:6px 10px 20px 10px">
+      <div style="width:30px; height:30px; border-radius:8px; background:var(--color-primary-500); display:flex; align-items:center; justify-content:center; color:#022c22; font-weight:800; font-size:15px">S</div>
+      <div style="display:flex; flex-direction:column; line-height:1.2">
+        <span style="font-weight:700; font-size:15px; letter-spacing:-0.01em">SmartZap</span>
+        <span style="font-size:10px; color:var(--text-muted); letter-spacing:0.1em; text-transform:uppercase">Cloudflare</span>
+      </div>
+    </div>
+    <a href="../dashboard/Dashboard.dc.html" style="display:flex; align-items:center; padding:8px 10px; border-radius:8px; font-size:14px; color:var(--text-secondary); text-decoration:none" style-hover="background:#1f1f23; color:var(--text-primary)">Dashboard</a>
+    <a href="../campanhas/Campanhas.dc.html" style="display:flex; align-items:center; padding:8px 10px; border-radius:8px; font-size:14px; color:var(--text-secondary); text-decoration:none" style-hover="background:#1f1f23; color:var(--text-primary)">Campanhas</a>
+    <a href="#" style="display:flex; align-items:center; padding:8px 10px; border-radius:8px; font-size:14px; font-weight:600; color:var(--color-primary-400); background:rgba(16,185,129,0.10); text-decoration:none">Contatos</a>
+    <a href="../templates-meta/TemplatesMeta.dc.html" style="display:flex; align-items:center; padding:8px 10px; border-radius:8px; font-size:14px; color:var(--text-secondary); text-decoration:none" style-hover="background:#1f1f23; color:var(--text-primary)">Templates</a>
+    <a href="../settings/Settings.dc.html" style="display:flex; align-items:center; padding:8px 10px; border-radius:8px; font-size:14px; color:var(--text-secondary); text-decoration:none" style-hover="background:#1f1f23; color:var(--text-primary)">Configurações</a>
+    <div style="margin-top:auto; display:flex; align-items:center; gap:8px; padding:10px; border-top:1px solid #1f1f23">
+      <span style="width:7px; height:7px; border-radius:50%; background:var(--color-primary-400)"></span>
+      <span style="font-size:12px; color:var(--text-secondary)">Meta conectada</span>
+    </div>
+  </aside>
+
+  <main style="flex:1; padding:32px 40px; max-width:1240px">
+    <div style="display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:20px">
+      <div>
+        <h1 style="margin:0; font-size:22px; font-weight:700; letter-spacing:-0.01em">Contatos</h1>
+        <p style="margin:4px 0 0 0; font-size:13px; color:var(--text-secondary)">2.847 opt-in · 96 opt-out</p>
+      </div>
+      <div style="display:flex; gap:8px">
+        <button onClick="{{ abrirCampos }}" style="padding:9px 16px; border-radius:8px; border:1px solid #3f3f46; background:transparent; color:var(--text-primary); font-size:14px; font-weight:500; cursor:pointer; font-family:var(--font-family)" style-hover="border-color:#52525b; background:#1f1f23">Campos custom</button>
+        <button onClick="{{ abrirImport }}" style="padding:9px 16px; border-radius:8px; border:none; background:var(--color-primary-500); color:#022c22; font-size:14px; font-weight:600; cursor:pointer; font-family:var(--font-family)" style-hover="background:var(--color-primary-600); color:#ecfdf5">Importar CSV</button>
+      </div>
+    </div>
+
+    <sc-if value="{{ temSelecao }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex; align-items:center; gap:12px; padding:10px 16px; margin-bottom:12px; background:rgba(16,185,129,0.07); border:1px solid rgba(52,211,153,0.35); border-radius:var(--radius)">
+        <span style="font-size:13px; font-weight:600; color:var(--color-primary-300)">{{ qtdSelecao }} selecionado(s)</span>
+        <button onClick="{{ acaoTag }}" style="padding:6px 12px; border-radius:8px; border:1px solid #3f3f46; background:transparent; color:var(--text-primary); font-size:12px; font-weight:500; cursor:pointer; font-family:var(--font-family)" style-hover="border-color:#52525b; background:#1f1f23">Adicionar tag</button>
+        <button onClick="{{ acaoOptOut }}" style="padding:6px 12px; border-radius:8px; border:1px solid rgba(251,191,36,0.4); background:transparent; color:var(--status-skipped); font-size:12px; font-weight:500; cursor:pointer; font-family:var(--font-family)" style-hover="background:rgba(251,191,36,0.08)">Marcar opt-out</button>
+        <button onClick="{{ limparSelecao }}" style="margin-left:auto; padding:6px 12px; border-radius:8px; border:none; background:transparent; color:var(--text-muted); font-size:12px; cursor:pointer; font-family:var(--font-family)" style-hover="color:var(--text-primary)">Limpar</button>
+      </div>
+    </sc-if>
+
+    <div style="background:var(--surface-raised); border:1px solid #27272a; border-radius:var(--radius); overflow:hidden">
+      <div style="display:grid; grid-template-columns:36px minmax(150px,1fr) 180px 110px minmax(180px,1.2fr) 90px; gap:14px; padding:10px 20px; border-bottom:1px solid #1f1f23; font-size:11px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:var(--text-muted); align-items:center">
+        <span></span><span>Nome</span><span>Telefone</span><span>Status</span><span>Tags</span><span style="text-align:right">Criado</span>
+      </div>
+
+      <sc-for list="{{ contatos }}" as="r" hint-placeholder-count="8">
+        <div style="display:grid; grid-template-columns:36px minmax(150px,1fr) 180px 110px minmax(180px,1.2fr) 90px; gap:14px; align-items:center; padding:11px 20px; border-bottom:1px solid #1f1f23" style-hover="background:#1c1c1f">
+          <span style="display:flex">
+            <sc-if value="{{ r.sel }}" hint-placeholder-val="{{ false }}">
+              <button onClick="{{ r.alternar }}" style="width:16px; height:16px; border-radius:4px; border:1px solid var(--color-primary-400); background:var(--color-primary-500); color:#022c22; font-size:11px; font-weight:800; line-height:1; cursor:pointer; padding:0; display:flex; align-items:center; justify-content:center">✓</button>
+            </sc-if>
+            <sc-if value="{{ r.naoSel }}" hint-placeholder-val="{{ true }}">
+              <button onClick="{{ r.alternar }}" style="width:16px; height:16px; border-radius:4px; border:1px solid #52525b; background:transparent; cursor:pointer; padding:0" style-hover="border-color:var(--color-primary-400)"></button>
+            </sc-if>
+          </span>
+          <p style="margin:0; font-size:13px; font-weight:500">{{ r.nome }}</p>
+          <p style="margin:0; font-size:12px; color:var(--text-secondary); font-family:ui-monospace, monospace">{{ r.tel }}</p>
+          <span style="display:flex">
+            <sc-if value="{{ r.optin }}" hint-placeholder-val="{{ true }}"><span style="display:inline-flex; align-items:center; gap:6px; padding:1px 9px; border-radius:999px; font-size:11px; font-weight:500; color:#34d399; background:rgba(52,211,153,0.12); border:1px solid rgba(52,211,153,0.25)"><span style="width:5px; height:5px; border-radius:50%; background:currentColor"></span>Opt-in</span></sc-if>
+            <sc-if value="{{ r.optout }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex; align-items:center; gap:6px; padding:1px 9px; border-radius:999px; font-size:11px; font-weight:500; color:#fbbf24; background:rgba(251,191,36,0.12); border:1px solid rgba(251,191,36,0.25)"><span style="width:5px; height:5px; border-radius:50%; background:currentColor"></span>Opt-out</span></sc-if>
+          </span>
+          <span style="display:flex; gap:6px; flex-wrap:wrap">
+            <sc-for list="{{ r.tags }}" as="tg" hint-placeholder-count="2">
+              <span style="padding:1px 8px; border-radius:999px; font-size:11px; color:#a1a1aa; border:1px solid #3f3f46">{{ tg.nome }}</span>
+            </sc-for>
+          </span>
+          <p style="margin:0; font-size:12px; color:var(--text-muted); text-align:right">{{ r.data }}</p>
+        </div>
+      </sc-for>
+
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 20px">
+        <span style="font-size:12px; color:var(--text-muted)">Página 1 de 356</span>
+        <div style="display:flex; gap:6px">
+          <button style="padding:6px 12px; border-radius:8px; border:1px solid #3f3f46; background:transparent; color:var(--text-muted); font-size:12px; font-family:var(--font-family); cursor:default">Anterior</button>
+          <button style="padding:6px 12px; border-radius:8px; border:1px solid #3f3f46; background:transparent; color:var(--text-secondary); font-size:12px; font-family:var(--font-family); cursor:pointer" style-hover="border-color:#52525b; color:var(--text-primary)">Próxima</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <sc-if value="{{ modalImport }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed; inset:0; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:50">
+      <div style="width:520px; background:var(--surface-overlay); border:1px solid #3f3f46; border-radius:var(--radius); padding:24px">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px">
+          <h3 style="margin:0; font-size:16px; font-weight:600">Importar contatos (CSV)</h3>
+          <button onClick="{{ fecharImport }}" style="border:none; background:transparent; color:var(--text-muted); font-size:16px; cursor:pointer; padding:4px; line-height:1; font-family:var(--font-family)" style-hover="color:var(--text-primary)">✕</button>
+        </div>
+        <p style="margin:0 0 18px 0; font-size:12px; color:var(--text-muted)">{{ etapaRotulo }}</p>
+
+        <sc-if value="{{ etapaUpload }}" hint-placeholder-val="{{ true }}">
+          <button onClick="{{ simularUpload }}" style="width:100%; padding:44px 20px; border-radius:var(--radius); border:1px dashed #52525b; background:var(--surface-raised); color:var(--text-secondary); font-size:13px; cursor:pointer; font-family:var(--font-family); text-align:center" style-hover="border-color:var(--color-primary-400); color:var(--text-primary)">
+            Arraste um arquivo .csv aqui ou clique para selecionar
+            <span style="display:block; margin-top:6px; font-size:11px; color:var(--text-muted)">Colunas esperadas: nome, telefone (E.164) e campos custom</span>
+          </button>
+        </sc-if>
+
+        <sc-if value="{{ etapaMapear }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px; padding:8px 12px; background:var(--surface-raised); border:1px solid #27272a; border-radius:8px">
+            <span style="font-size:12px; font-family:ui-monospace, monospace; color:var(--text-secondary)">contatos-vip.csv</span>
+            <span style="font-size:11px; color:var(--text-muted)">· 1.312 linhas</span>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:16px">
+            <sc-for list="{{ mapeamento }}" as="m" hint-placeholder-count="4">
+              <div style="display:grid; grid-template-columns:1fr 20px 1fr; align-items:center; gap:8px">
+                <span style="padding:7px 10px; border-radius:8px; background:var(--surface-raised); border:1px solid #27272a; font-size:12px; font-family:ui-monospace, monospace; color:var(--text-secondary)">{{ m.coluna }}</span>
+                <span style="text-align:center; color:var(--text-muted); font-size:12px">→</span>
+                <select style="padding:7px 10px; border-radius:8px; border:1px solid #3f3f46; background:var(--surface-raised); color:var(--text-primary); font-size:12px; font-family:var(--font-family); outline:none">
+                  <option>{{ m.sugestao }}</option>
+                  <option>Nome completo</option>
+                  <option>Telefone</option>
+                  <option>Cidade (custom)</option>
+                  <option>Plano (custom)</option>
+                  <option>Ignorar coluna</option>
+                </select>
+              </div>
+            </sc-for>
+          </div>
+          <button onClick="{{ alternarLgpd }}" style="display:flex; align-items:flex-start; gap:10px; width:100%; text-align:left; padding:12px 14px; border-radius:var(--radius); border:1px solid rgba(251,191,36,0.35); background:rgba(251,191,36,0.06); cursor:pointer; font-family:var(--font-family)">
+            <span style="display:flex; margin-top:1px">
+              <sc-if value="{{ lgpdOk }}" hint-placeholder-val="{{ false }}"><span style="width:16px; height:16px; border-radius:4px; border:1px solid var(--color-primary-400); background:var(--color-primary-500); color:#022c22; font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center">✓</span></sc-if>
+              <sc-if value="{{ lgpdPendente }}" hint-placeholder-val="{{ true }}"><span style="width:16px; height:16px; border-radius:4px; border:1px solid #52525b; background:transparent; display:block"></span></sc-if>
+            </span>
+            <span style="font-size:12px; line-height:1.5; color:var(--text-secondary)"><strong style="color:var(--text-primary)">Declaração de opt-in obrigatória:</strong> confirmo que esta lista tem consentimento documentado dos titulares para receber mensagens de marketing — LGPD art. 7º.</span>
+          </button>
+          <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:18px">
+            <button onClick="{{ voltarUpload }}" style="padding:8px 16px; border-radius:8px; border:1px solid #3f3f46; background:transparent; color:var(--text-primary); font-size:13px; font-weight:500; cursor:pointer; font-family:var(--font-family)" style-hover="background:#3f3f46">Voltar</button>
+            <sc-if value="{{ lgpdOk }}" hint-placeholder-val="{{ false }}">
+              <button onClick="{{ concluirImport }}" style="padding:8px 16px; border-radius:8px; border:none; background:var(--color-primary-500); color:#022c22; font-size:13px; font-weight:600; cursor:pointer; font-family:var(--font-family)" style-hover="background:var(--color-primary-600); color:#ecfdf5">Importar 1.312 contatos</button>
+            </sc-if>
+            <sc-if value="{{ lgpdPendente }}" hint-placeholder-val="{{ true }}">
+              <button style="padding:8px 16px; border-radius:8px; border:none; background:#27272a; color:#71717a; font-size:13px; font-weight:600; cursor:not-allowed; font-family:var(--font-family)">Importar 1.312 contatos</button>
+            </sc-if>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ etapaResultado }}" hint-placeholder-val="{{ false }}">
+          <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-bottom:18px">
+            <div style="padding:14px; border-radius:var(--radius); background:rgba(16,185,129,0.07); border:1px solid rgba(52,211,153,0.3); text-align:center">
+              <p style="margin:0; font-size:22px; font-weight:700; color:var(--color-primary-300)">1.207</p>
+              <p style="margin:4px 0 0 0; font-size:11px; color:var(--text-secondary)">importados</p>
+            </div>
+            <div style="padding:14px; border-radius:var(--radius); background:rgba(251,191,36,0.06); border:1px solid rgba(251,191,36,0.3); text-align:center">
+              <p style="margin:0; font-size:22px; font-weight:700; color:var(--status-skipped)">83</p>
+              <p style="margin:4px 0 0 0; font-size:11px; color:var(--text-secondary)">duplicados</p>
+            </div>
+            <div style="padding:14px; border-radius:var(--radius); background:rgba(248,113,113,0.06); border:1px solid rgba(248,113,113,0.3); text-align:center">
+              <p style="margin:0; font-size:22px; font-weight:700; color:var(--status-failed)">22</p>
+              <p style="margin:4px 0 0 0; font-size:11px; color:var(--text-secondary)">inválidos</p>
+            </div>
+          </div>
+          <p style="margin:0 0 18px 0; font-size:12px; color:var(--text-muted)">Números inválidos não estavam em formato E.164. Baixe o relatório para corrigir e reimportar.</p>
+          <div style="display:flex; justify-content:flex-end; gap:8px">
+            <button style="padding:8px 16px; border-radius:8px; border:1px solid #3f3f46; background:transparent; color:var(--text-primary); font-size:13px; font-weight:500; cursor:pointer; font-family:var(--font-family)" style-hover="background:#3f3f46">Baixar relatório</button>
+            <button onClick="{{ fecharImport }}" style="padding:8px 16px; border-radius:8px; border:none; background:var(--color-primary-500); color:#022c22; font-size:13px; font-weight:600; cursor:pointer; font-family:var(--font-family)" style-hover="background:var(--color-primary-600); color:#ecfdf5">Concluir</button>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ modalCampos }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed; inset:0; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:50">
+      <div style="width:420px; background:var(--surface-overlay); border:1px solid #3f3f46; border-radius:var(--radius); padding:24px">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px">
+          <h3 style="margin:0; font-size:16px; font-weight:600">Campos customizados</h3>
+          <button onClick="{{ fecharCampos }}" style="border:none; background:transparent; color:var(--text-muted); font-size:16px; cursor:pointer; padding:4px; line-height:1; font-family:var(--font-family)" style-hover="color:var(--text-primary)">✕</button>
+        </div>
+        <p style="margin:0 0 16px 0; font-size:12px; color:var(--text-muted)">Usados no mapeamento de variáveis dos templates.</p>
+        <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px">
+          <sc-for list="{{ camposCustom }}" as="f" hint-placeholder-count="4">
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:9px 12px; border-radius:8px; background:var(--surface-raised); border:1px solid #27272a">
+              <span style="font-size:13px; font-family:ui-monospace, monospace">{{ f.nome }}</span>
+              <span style="font-size:11px; color:var(--text-muted)">texto</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex; gap:8px">
+          <input placeholder="novo_campo" value="{{ novoCampo }}" onChange="{{ aoDigitarCampo }}" style="flex:1; padding:8px 12px; border-radius:8px; border:1px solid #3f3f46; background:var(--surface-raised); color:var(--text-primary); font-size:13px; font-family:ui-monospace, monospace; outline:none" style-focus="border-color:var(--color-primary-400)" />
+          <button onClick="{{ adicionarCampo }}" style="padding:8px 16px; border-radius:8px; border:none; background:var(--color-primary-500); color:#022c22; font-size:13px; font-weight:600; cursor:pointer; font-family:var(--font-family)" style-hover="background:var(--color-primary-600); color:#ecfdf5">Adicionar</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ temToast }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed; bottom:24px; right:24px; z-index:60; display:flex; align-items:center; gap:10px; padding:12px 16px; background:var(--surface-overlay); border:1px solid #3f3f46; border-radius:var(--radius); animation:sz-toast 0.2s ease-out">
+      <span style="width:7px; height:7px; border-radius:50%; background:var(--color-primary-400)"></span>
+      <span style="font-size:13px; color:var(--text-primary)">{{ toast }}</span>
+    </div>
+  </sc-if>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = {
+    selecionados: {},
+    modalImport: false,
+    etapa: 1,
+    lgpd: false,
+    modalCampos: false,
+    novoCampo: '',
+    camposCustom: ['cidade', 'plano', 'cupom', 'data_compra'],
+    toast: '',
+    contatos: [
+      { id: 1, nome: 'Maria Souza', tel: '+5511912345678', optin: true, tags: ['VIP', 'Black Friday'], data: '02 jul' },
+      { id: 2, nome: 'João Pereira', tel: '+5521998761122', optin: true, tags: ['Cliente ativo'], data: '28 jun' },
+      { id: 3, nome: 'Ana Beatriz Lima', tel: '+5531988114433', optin: true, tags: ['VIP'], data: '27 jun' },
+      { id: 4, nome: 'Carlos Eduardo', tel: '+5541991238899', optin: false, tags: [], data: '25 jun' },
+      { id: 5, nome: 'Fernanda Alves', tel: '+5511987652211', optin: true, tags: ['Curso Turbo', 'Lead frio'], data: '21 jun' },
+      { id: 6, nome: 'Ricardo Santos', tel: '+5551994327788', optin: false, tags: ['Lead frio'], data: '18 jun' },
+      { id: 7, nome: 'Paula Rodrigues', tel: '+5562993115566', optin: true, tags: ['Black Friday'], data: '15 jun' },
+      { id: 8, nome: 'Bruno Carvalho', tel: '+5585981223344', optin: true, tags: ['Cliente ativo', 'VIP'], data: '11 jun' },
+    ],
+  };
+
+  componentWillUnmount() { clearTimeout(this._toastTimer); }
+
+  mostrarToast(msg) {
+    clearTimeout(this._toastTimer);
+    this.setState({ toast: msg });
+    this._toastTimer = setTimeout(() => this.setState({ toast: '' }), 2500);
+  }
+
+  mapeamentoDef = [
+    { coluna: 'nome_completo', sugestao: 'Nome completo' },
+    { coluna: 'whatsapp', sugestao: 'Telefone' },
+    { coluna: 'cidade', sugestao: 'Cidade (custom)' },
+    { coluna: 'origem_lead', sugestao: 'Ignorar coluna' },
+  ];
+
+  renderVals() {
+    const s = this.state;
+    const qtd = Object.keys(s.selecionados).filter(k => s.selecionados[k]).length;
+    const rotulos = { 1: 'Etapa 1 de 3 — upload do arquivo', 2: 'Etapa 2 de 3 — mapeamento de colunas e consentimento', 3: 'Etapa 3 de 3 — resultado da importação' };
+
+    return {
+      contatos: s.contatos.map(c => ({
+        nome: c.nome, tel: c.tel, data: c.data,
+        optin: c.optin, optout: !c.optin,
+        tags: c.tags.map(t => ({ nome: t })),
+        sel: !!s.selecionados[c.id],
+        naoSel: !s.selecionados[c.id],
+        alternar: () => this.setState(st => ({ selecionados: { ...st.selecionados, [c.id]: !st.selecionados[c.id] } })),
+      })),
+      temSelecao: qtd > 0,
+      qtdSelecao: qtd,
+      limparSelecao: () => this.setState({ selecionados: {} }),
+      acaoTag: () => { this.mostrarToast('Tag "Black Friday" adicionada a ' + qtd + ' contato(s)'); this.setState({ selecionados: {} }); },
+      acaoOptOut: () => {
+        this.setState(st => ({
+          contatos: st.contatos.map(c => st.selecionados[c.id] ? { ...c, optin: false } : c),
+          selecionados: {},
+        }));
+        this.mostrarToast(qtd + ' contato(s) marcados como opt-out');
+      },
+      modalImport: s.modalImport,
+      abrirImport: () => this.setState({ modalImport: true, etapa: 1, lgpd: false }),
+      fecharImport: () => this.setState({ modalImport: false }),
+      etapaRotulo: rotulos[s.etapa],
+      etapaUpload: s.etapa === 1,
+      etapaMapear: s.etapa === 2,
+      etapaResultado: s.etapa === 3,
+      simularUpload: () => this.setState({ etapa: 2 }),
+      voltarUpload: () => this.setState({ etapa: 1 }),
+      concluirImport: () => this.setState({ etapa: 3 }),
+      mapeamento: this.mapeamentoDef,
+      lgpdOk: s.lgpd,
+      lgpdPendente: !s.lgpd,
+      alternarLgpd: () => this.setState(st => ({ lgpd: !st.lgpd })),
+      modalCampos: s.modalCampos,
+      abrirCampos: () => this.setState({ modalCampos: true }),
+      fecharCampos: () => this.setState({ modalCampos: false }),
+      camposCustom: s.camposCustom.map(nome => ({ nome })),
+      novoCampo: s.novoCampo,
+      aoDigitarCampo: (e) => this.setState({ novoCampo: e.target.value }),
+      adicionarCampo: () => {
+        const nome = s.novoCampo.trim().toLowerCase().replace(/\s+/g, '_');
+        if (!nome) return;
+        this.setState(st => ({ camposCustom: [...st.camposCustom, nome], novoCampo: '' }));
+        this.mostrarToast('Campo "' + nome + '" criado');
+      },
+      toast: s.toast,
+      temToast: !!s.toast,
+    };
+  }
+}
+
+</script>
+</body>
+</html>

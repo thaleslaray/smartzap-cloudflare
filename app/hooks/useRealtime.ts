@@ -26,10 +26,24 @@ export function useRealtime() {
         pingTimer = setInterval(() => ws?.readyState === WebSocket.OPEN && ws.send('ping'), 30_000)
       }
       ws.onmessage = (e) => {
-        const event = JSON.parse(e.data as string) as RealtimeEvent
+        let event: RealtimeEvent
+        try {
+          const parsed: unknown = JSON.parse(String(e.data))
+          if (!parsed || typeof parsed !== 'object' || !('type' in parsed)) return
+          event = parsed as RealtimeEvent
+        } catch {
+          // Evento corrompido não derruba a interface; a próxima invalidação ou
+          // o polling de fallback reconcilia o estado.
+          return
+        }
         if (event.type === 'invalidate') {
-          for (const key of event.keys) qc.invalidateQueries({ queryKey: key })
+          if (!Array.isArray(event.keys)) return
+          for (const key of event.keys) {
+            if (Array.isArray(key) && key.every((part) => typeof part === 'string'))
+              qc.invalidateQueries({ queryKey: key })
+          }
         } else if (event.type === 'progress') {
+          if (typeof event.campaignId !== 'string' || !event.counters) return
           qc.setQueryData(['campaign', event.campaignId], (old: object | undefined) =>
             old ? { ...old, ...event.counters } : old)
           qc.invalidateQueries({ queryKey: ['campaigns'] })

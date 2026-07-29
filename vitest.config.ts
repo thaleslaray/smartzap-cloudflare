@@ -9,17 +9,38 @@ const migrations = await readD1Migrations(path.join(__dirname, 'migrations'))
 export default defineConfig({
   plugins: [
     cloudflareTest({
-      wrangler: { configPath: './wrangler.jsonc' },
+      wrangler: { configPath: './config/wrangler.test.jsonc' },
       miniflare: {
         // Bindings de teste autocontidos: os testes não dependem de .dev.vars (CI-safe)
         bindings: {
           TEST_MIGRATIONS: migrations,
+          // Testes de sucesso injetam um provider falso diretamente.
+          AI: {},
           MASTER_PASSWORD: 'dev',
           SMARTZAP_API_KEY: 'dev-api-key',
           META_APP_SECRET: 'dev-meta-secret',
           META_VERIFY_TOKEN: 'dev-verify',
+          WHATSAPP_TOKEN: 'test-whatsapp-token',
           TURNSTILE_SECRET: '',
+          TURNSTILE_SITE_KEY: '',
           ENVIRONMENT: 'test',
+          META_GRAPH_VERSION: 'v25.0',
+          META_APP_ID: '123456789',
+          META_EXPECTED_PHONE_ID: '11111',
+          META_EXPECTED_WABA_ID: '22222',
+          META_EXPECTED_CALLBACK_URL: 'https://worker.example/webhook',
+          PILOT_SEND_ENABLED: 'false',
+          PILOT_RECIPIENT_E164: '+5511999999999',
+          PILOT_MAX_REAL_SENDS: '3',
+          PILOT_TEMPLATE_ALLOWLIST: 'hello_world,template_static_test',
+          TURNSTILE_ENABLED: 'false',
+          AI_ENABLED: 'false',
+          AI_MODEL: 'google/gemini-3.5-flash',
+          AI_GATEWAY_ID: 'default',
+          AI_MAX_DRAFTS_PER_CONVERSATION_HOUR: '20',
+          AI_MAX_DRAFTS_PER_DAY: '200',
+          INBOX_SEND_ENABLED: 'false',
+          GOOGLE_CALENDAR_ENCRYPTION_KEY: 'test-google-calendar-encryption-key',
         },
       },
     }),
