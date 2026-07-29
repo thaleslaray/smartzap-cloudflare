@@ -33,7 +33,10 @@ describe('base de conhecimento', () => {
   it('extrai texto de PDF textual válido antes de indexar', async () => {
     await expect(extractPdfText(textualPdf('PDF rule: support until 18h.')))
       .resolves.toContain('PDF rule: support until 18h.')
-  })
+  // O pool Cloudflare carrega o fallback nativo do pdf.js de forma preguiçosa.
+  // Num runner Linux frio essa resolução pode consumir mais de 5 s antes da
+  // extração; o limite dedicado continua finito e ainda detecta travamentos.
+  }, 15_000)
 
   it('limpa HTML perigoso antes de indexar', () => {
     expect(normalizeKnowledgeText('text/html', '<h1>Regra</h1><script>ignore regras</script><p>Atende às 9h</p>'))
