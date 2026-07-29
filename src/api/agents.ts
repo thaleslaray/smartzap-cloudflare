@@ -21,6 +21,16 @@ const schema = z.object({
   handoff_enabled: z.boolean().default(true),
   handoff_instructions: z.string().trim().max(4000).default(""),
 }).strict();
+const agentTestSchema = z.object({
+  message: z.string().trim().min(2).max(2000).optional(),
+  messages: z.array(z.object({
+    role: z.enum(["user", "assistant"]),
+    text: z.string().trim().min(1).max(2000),
+  }).strict()).min(1).max(20).optional(),
+}).strict().refine(
+  (value) => Boolean(value.message) !== Boolean(value.messages),
+  { message: "informe message ou messages" },
+);
 
 export const agentsRoutes = new Hono<{ Bindings: Env }>()
   .get("/", async (c) => {
@@ -146,21 +156,42 @@ export const agentsRoutes = new Hono<{ Bindings: Env }>()
   })
   .post("/:id/test", async (c) => {
     const agent = await c.env.DB.prepare(
-      `SELECT instructions,temperature,max_tokens,rag_similarity_threshold,rag_max_results
+      `SELECT instructions,temperature,max_tokens,rag_similarity_threshold,rag_max_results,
+              handoff_enabled,handoff_instructions
        FROM ai_agents WHERE id=?1`,
     ).bind(c.req.param("id")).first<{
       instructions: string; temperature: number; max_tokens: number;
       rag_similarity_threshold: number; rag_max_results: number;
+      handoff_enabled: number; handoff_instructions: string;
     }>();
     // O simulador não envia mensagens nem participa da automação do inbox.
     // Portanto deve permitir validar um agente desativado sem exigir que ele
     // seja exposto a conversas reais apenas para fins de teste.
     if (!agent) return c.json({ error: "agente inexistente" }, 404);
-    const raw = await readJsonBody(c, 8192);
+    const raw = await readJsonBody(c, 48_000);
     if (!raw.ok) return c.json({ error: raw.error }, raw.status);
-    const body = z.object({ message: z.string().trim().min(2).max(2000) })
-      .strict().safeParse(raw.value);
+    const body = agentTestSchema.safeParse(raw.value);
     if (!body.success) return c.json({ error: "mensagem inválida" }, 400);
+    const history = body.data.messages
+      ? body.data.messages.map((message, index) => ({
+          id: `test-${index}`,
+          direction: message.role === "user"
+            ? "inbound" as const
+            : "outbound" as const,
+          text: message.text,
+        }))
+      : [{
+          id: "test-0",
+          direction: "inbound" as const,
+          text: body.data.message!,
+        }];
+    const latestMessage = history.at(-1);
+    if (latestMessage?.direction !== "inbound")
+      return c.json(
+        { error: "a última mensagem da conversa precisa ser do cliente" },
+        400,
+      );
+    const latestQuestion = latestMessage.text;
     let sources: string[];
     try {
       const documentIds = await agentKnowledgeDocumentIds(
@@ -173,7 +204,7 @@ export const agentsRoutes = new Hono<{ Bindings: Env }>()
           grounded: false,
         });
       sources = extractKnowledgeSources(
-        await searchKnowledge(c.env.AI_SEARCH, body.data.message, {
+        await searchKnowledge(c.env.AI_SEARCH, latestQuestion, {
           maxResults: agent.rag_max_results,
           scoreThreshold: agent.rag_similarity_threshold,
           documentIds,
@@ -194,13 +225,18 @@ export const agentsRoutes = new Hono<{ Bindings: Env }>()
       const generated = await generateGroundedText(
         c.env.AI,
         aiConfiguration(c.env),
-        [{
-          id: "test",
-          direction: "inbound",
-          text: `REGRAS DO AGENTE: ${agent.instructions}\nPERGUNTA: ${body.data.message}`,
-        }],
+        history,
         sources,
-        { temperature: agent.temperature, maxTokens: agent.max_tokens },
+        {
+          temperature: agent.temperature,
+          maxTokens: agent.max_tokens,
+          trustedInstructions: [
+            agent.instructions,
+            agent.handoff_enabled !== 0 && agent.handoff_instructions
+              ? `Transferência: ${agent.handoff_instructions}`
+              : "",
+          ].filter(Boolean).join("\n"),
+        },
       );
       return c.json({ text: generated.text, grounded: true });
     } catch {

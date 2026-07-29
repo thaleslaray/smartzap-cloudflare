@@ -12,5 +12,6 @@ test-results
 playwright-report
 blob-report
 qa/.state/
+qa/.ledger/
 qa/reports/
 ds.zip

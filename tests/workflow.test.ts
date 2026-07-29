@@ -78,6 +78,7 @@ describe('sendCampaignBatch', () => {
       ENVIRONMENT: 'production',
       PILOT_SEND_ENABLED: 'true',
       PILOT_RECIPIENT_E164: allowed,
+      PILOT_RECIPIENT_ALLOWLIST: allowed,
       PILOT_MAX_REAL_SENDS: '3',
       PILOT_TEMPLATE_ALLOWLIST: 'promo_wf',
     } as Env
@@ -154,6 +155,7 @@ describe('sendCampaignBatch', () => {
       ENVIRONMENT: 'production',
       PILOT_SEND_ENABLED: 'true',
       PILOT_RECIPIENT_E164: allowed,
+      PILOT_RECIPIENT_ALLOWLIST: allowed,
       PILOT_MAX_REAL_SENDS: '3',
       PILOT_TEMPLATE_ALLOWLIST: 'promo_wf',
     } as Env
@@ -208,6 +210,7 @@ describe('sendCampaignBatch', () => {
       ENVIRONMENT: 'production',
       PILOT_SEND_ENABLED: 'true',
       PILOT_RECIPIENT_E164: allowed,
+      PILOT_RECIPIENT_ALLOWLIST: allowed,
       PILOT_MAX_REAL_SENDS: '3',
       PILOT_TEMPLATE_ALLOWLIST: 'promo_wf',
     } as Env
@@ -252,6 +255,7 @@ describe('sendCampaignBatch', () => {
       ENVIRONMENT: 'production',
       PILOT_SEND_ENABLED: 'true',
       PILOT_RECIPIENT_E164: '+5511999999999',
+      PILOT_RECIPIENT_ALLOWLIST: '+5511999999999',
       PILOT_MAX_REAL_SENDS: '3',
       PILOT_TEMPLATE_ALLOWLIST: 'promo_wf',
     } as Env

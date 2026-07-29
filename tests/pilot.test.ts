@@ -1,11 +1,14 @@
 import { env } from 'cloudflare:test'
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
-  assertPilotAudience, assertPilotCampaign, assertPilotRecipient, finishPilotAttempt,
+  assertPilotAudience, assertPilotCampaign, assertPilotRecipient, assertPilotTimeWindow, finishPilotAttempt,
   PilotSafetyError, pilotLimit, pilotThrottleRate, reservePilotAttempt,
 } from '../src/domain/pilot'
 
 const ALLOWED = '+5511999999999'
+const ALLOWED_2 = '+5521999999999'
+const ALLOWED_3 = '+5531999999999'
+const ALLOWED_4 = '+5541999999999'
 
 function productionEnv(overrides: Partial<Env> = {}): Env {
   return {
@@ -14,7 +17,10 @@ function productionEnv(overrides: Partial<Env> = {}): Env {
     PILOT_GUARDS_ENABLED: 'true',
     PILOT_SEND_ENABLED: 'true',
     PILOT_RECIPIENT_E164: ALLOWED,
+    PILOT_RECIPIENT_ALLOWLIST: [ALLOWED, ALLOWED_2, ALLOWED_3, ALLOWED_4].join(','),
     PILOT_MAX_REAL_SENDS: '3',
+    PILOT_MAX_RUNS_PER_DAY: '2',
+    PILOT_TIME_WINDOW_ENABLED: 'false',
     PILOT_TEMPLATE_ALLOWLIST: 'hello_world,template_static_test',
     ...overrides,
   } as Env
@@ -29,15 +35,34 @@ beforeEach(async () => {
 })
 
 describe('travas do piloto real', () => {
-  it('cardinalidade e allowlist continuam falhando fechados', () => {
+  it('aceita até três destinatários da allowlist e falha fechado fora dela', () => {
     expect(() => assertPilotAudience(productionEnv({ PILOT_SEND_ENABLED: 'false' }), [
       { phone: ALLOWED },
+    ])).toThrow(/Kill switch/)
+    expect(() => assertPilotAudience(productionEnv(), [])).toThrow(/entre 1 e 3/)
+    expect(() => assertPilotAudience(productionEnv(), [
+      { phone: ALLOWED }, { phone: ALLOWED_2 }, { phone: ALLOWED_3 },
     ])).not.toThrow()
-    expect(() => assertPilotAudience(productionEnv(), [])).toThrow(/exatamente um/)
+    expect(() => assertPilotAudience(productionEnv(), [
+      { phone: ALLOWED }, { phone: ALLOWED_2 }, { phone: ALLOWED_3 }, { phone: ALLOWED_4 },
+    ])).toThrow(/entre 1 e 3/)
     expect(() => assertPilotAudience(productionEnv(), [
       { phone: ALLOWED }, { phone: ALLOWED },
-    ])).toThrow(/exatamente um/)
-    expect(() => assertPilotRecipient(productionEnv(), '+5521999999999')).toThrow(/allowlist/)
+    ])).toThrow(/duplicados/)
+    expect(() => assertPilotRecipient(productionEnv(), '+5551999999999')).toThrow(/allowlist/)
+    expect(() => assertPilotRecipient(productionEnv(), ALLOWED_4)).not.toThrow()
+  })
+
+  it('mantém compatibilidade com o destinatário único legado', () => {
+    const legacy = productionEnv({ PILOT_RECIPIENT_ALLOWLIST: undefined })
+    expect(() => assertPilotRecipient(legacy, ALLOWED)).not.toThrow()
+    expect(() => assertPilotRecipient(legacy, ALLOWED_2)).toThrow(/allowlist/)
+  })
+
+  it('bloqueia configuração de allowlist malformada', () => {
+    expect(() => assertPilotRecipient(productionEnv({
+      PILOT_RECIPIENT_ALLOWLIST: `${ALLOWED},telefone-invalido`,
+    }), ALLOWED)).toThrow(/não está configurada corretamente/)
   })
 
   it('exige prefixo, template permitido e força throttle unitário', () => {
@@ -57,6 +82,32 @@ describe('travas do piloto real', () => {
   it('não aplica orçamento legado quando o modo piloto não está explicitamente ativo', () => {
     expect(pilotLimit(env)).toBe(Number.MAX_SAFE_INTEGER)
     expect(pilotLimit(productionEnv())).toBe(3)
+  })
+
+  it('bloqueia o canário fora da janela de 09:00 a 20:00 BRT', () => {
+    const guarded = productionEnv({ PILOT_TIME_WINDOW_ENABLED: 'true' })
+    expect(() => assertPilotTimeWindow(guarded, new Date('2026-07-29T11:59:00Z')))
+      .toThrow(/09:00 e 20:00/)
+    expect(() => assertPilotTimeWindow(guarded, new Date('2026-07-29T12:00:00Z')))
+      .not.toThrow()
+    expect(() => assertPilotTimeWindow(guarded, new Date('2026-07-29T22:59:00Z')))
+      .not.toThrow()
+    expect(() => assertPilotTimeWindow(guarded, new Date('2026-07-29T23:00:00Z')))
+      .toThrow(/09:00 e 20:00/)
+  })
+
+  it('bloqueia tentativa quando a rodada ativa excede duas rodadas no dia', async () => {
+    await env.DB.prepare(
+      "INSERT INTO pilot_runs (id, label, status, max_attempts, created_at) VALUES ('run-old-1', 'Anterior 1', 'closed', 1, datetime('now'))",
+    ).run()
+    await env.DB.prepare(
+      "INSERT INTO pilot_runs (id, label, status, max_attempts, created_at) VALUES ('run-old-2', 'Anterior 2', 'closed', 1, datetime('now'))",
+    ).run()
+    await expect(reservePilotAttempt(productionEnv(), {
+      campaignId: 'daily-limit-campaign',
+      contactId: 'daily-limit-contact',
+      phone: ALLOWED,
+    })).rejects.toThrow(/limite diário/)
   })
 
   it('reserva no máximo três tentativas de forma atômica', async () => {

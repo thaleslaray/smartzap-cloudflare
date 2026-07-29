@@ -184,24 +184,23 @@ export async function processAutomationEvent(
           .bind(conversation.contact_id)
           .first<{ summary: string }>()
       : null;
-    const instructions = [
+    const trustedInstructions = [
       conversation.ai_agent_instructions
-        ? `REGRAS DO AGENTE ${conversation.ai_agent_name || ""}: ${conversation.ai_agent_instructions}`
+        ? `${conversation.ai_agent_name || "Agente"}: ${conversation.ai_agent_instructions}`
         : "",
       conversation.ai_agent_handoff_enabled !== 0 &&
       conversation.ai_agent_handoff_instructions
-        ? `REGRAS DE TRANSFERÊNCIA: ${conversation.ai_agent_handoff_instructions}`
+        ? `Transferência: ${conversation.ai_agent_handoff_instructions}`
         : "",
-      memory?.summary ? `MEMÓRIA REVISADA DO CONTATO: ${memory.summary}` : "",
     ]
       .filter(Boolean)
       .join("\n");
-    const enriched = instructions
+    const enriched = memory?.summary
       ? [
           {
-            id: "agent-context",
+            id: "contact-memory",
             direction: "inbound" as const,
-            text: instructions,
+            text: `MEMÓRIA REVISADA DO CONTATO: ${memory.summary}`,
           },
           ...context.messages,
         ]
@@ -214,6 +213,7 @@ export async function processAutomationEvent(
       {
         temperature: conversation.ai_agent_temperature ?? 0.7,
         maxTokens: conversation.ai_agent_max_tokens ?? 1024,
+        trustedInstructions,
       },
     );
     const draft = await db.completeAiDraft(pending.draft.id, {

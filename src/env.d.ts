@@ -22,14 +22,19 @@ interface Env {
   /** Compatibilidade exclusiva para testes antigos; não faz parte da operação. */
   PILOT_SEND_ENABLED?: string;
   PILOT_RECIPIENT_E164?: string;
+  PILOT_RECIPIENT_ALLOWLIST?: string;
   PILOT_MAX_REAL_SENDS?: string;
+  PILOT_MAX_RUNS_PER_DAY?: string;
+  PILOT_TIME_WINDOW_ENABLED?: string;
   PILOT_TEMPLATE_ALLOWLIST?: string;
   INBOX_SEND_ENABLED?: string;
   INBOX_AUTOMATION_ENABLED?: string;
+  AUTOMATION_QUEUE_NAME?: string;
   TURNSTILE_ENABLED: string;
   AI_ENABLED: string;
   AI_MODEL: string;
   AI_GATEWAY_ID: string;
+  AI_PROVIDER_TIMEOUT_MS?: string;
   AI_MAX_DRAFTS_PER_CONVERSATION_HOUR: string;
   AI_MAX_DRAFTS_PER_DAY: string;
   /**

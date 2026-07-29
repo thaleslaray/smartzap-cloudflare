@@ -48,6 +48,70 @@ describe("geração de MiniApp com Workers AI", () => {
     );
   });
 
+  it("preserva JSON estruturado maior que o limite de um rascunho conversacional", async () => {
+    const screens = Array.from({ length: 5 }, (_, index) => ({
+      title: `Etapa ${index + 1}`,
+      text: `Instrução detalhada ${index + 1}: ${"contexto ".repeat(35)}`,
+      buttonText: index === 4 ? "Concluir" : "Continuar",
+    }));
+    const serialized = JSON.stringify({ screens });
+    expect(serialized.length).toBeGreaterThan(700);
+    const run = vi.fn().mockResolvedValue({ response: serialized });
+
+    const definition = await generateFlowDefinition(
+      {
+        AI: { run },
+        AI_ENABLED: "true",
+        AI_MODEL: "@cf/meta/llama-3.2-3b-instruct",
+        AI_GATEWAY_ID: "smartzap",
+      },
+      "Crie um formulário detalhado em cinco etapas.",
+    );
+
+    expect(definition.screens).toHaveLength(5);
+    expect(definition.screens.at(-1)).toMatchObject({
+      title: "Etapa 5",
+      final: true,
+      next: null,
+    });
+  });
+
+  it("adapta geração estruturada para o contrato Chat Completions atual", async () => {
+    const run = vi.fn().mockResolvedValue({
+      choices: [{
+        message: {
+          content: JSON.stringify({
+            screens: [{
+              title: "Cadastro",
+              text: "Informe seus dados.",
+              buttonText: "Continuar",
+            }],
+          }),
+        },
+      }],
+    });
+
+    await expect(generateFlowDefinition(
+      {
+        AI: { run },
+        AI_ENABLED: "true",
+        AI_MODEL: "@cf/zai-org/glm-4.7-flash",
+        AI_GATEWAY_ID: "smartzap",
+      },
+      "Crie um cadastro curto.",
+    )).resolves.toMatchObject({
+      screens: [expect.objectContaining({ title: "Cadastro", final: true })],
+    });
+    expect(run).toHaveBeenCalledWith(
+      "@cf/zai-org/glm-4.7-flash",
+      expect.objectContaining({
+        max_completion_tokens: 756,
+        reasoning_effort: "low",
+      }),
+      expect.any(Object),
+    );
+  });
+
   it("recusa saída fora do contrato", async () => {
     await expect(
       generateFlowDefinition(

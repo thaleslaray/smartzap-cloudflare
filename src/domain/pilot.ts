@@ -15,6 +15,33 @@ function pilotIsEnforced(env: Env): boolean {
   return (env as Env & { PILOT_GUARDS_ENABLED?: string }).PILOT_GUARDS_ENABLED === 'true'
 }
 
+function assertPilotSendingEnabled(env: Env): void {
+  if (pilotIsEnforced(env) && env.PILOT_SEND_ENABLED !== 'true')
+    throw new PilotSafetyError('Kill switch do piloto está desligado.', 503)
+}
+
+export function assertPilotTimeWindow(env: Env, now = new Date()): void {
+  if (!pilotIsEnforced(env) || env.PILOT_TIME_WINDOW_ENABLED !== 'true') return
+  const hour = Number(new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Sao_Paulo',
+    hour: '2-digit',
+    hourCycle: 'h23',
+  }).format(now))
+  if (!Number.isInteger(hour) || hour < 9 || hour >= 20)
+    throw new PilotSafetyError(
+      'Canário real permitido somente entre 09:00 e 20:00 no horário de São Paulo.',
+      503,
+    )
+}
+
+function pilotDailyRunLimit(env: Env): number {
+  if (!pilotIsEnforced(env)) return Number.MAX_SAFE_INTEGER
+  const parsed = Number(env.PILOT_MAX_RUNS_PER_DAY)
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 2)
+    throw new PilotSafetyError('PILOT_MAX_RUNS_PER_DAY deve estar entre 1 e 2.', 503)
+  return parsed
+}
+
 export function pilotLimit(env: Env): number {
   // Fora do modo explícito de piloto não existe orçamento artificial de
   // mensagens. O limite legado continua restrito ao ambiente de compatibilidade
@@ -26,11 +53,15 @@ export function pilotLimit(env: Env): number {
   return parsed
 }
 
-function configuredRecipient(env: Env): string {
-  const recipient = normalizePhone(env.PILOT_RECIPIENT_E164 ?? '')
-  if (!recipient)
-    throw new PilotSafetyError('Destinatário do piloto não está configurado.', 503)
-  return recipient
+function configuredRecipients(env: Env): Set<string> {
+  const configured = env.PILOT_RECIPIENT_ALLOWLIST?.trim()
+    ? env.PILOT_RECIPIENT_ALLOWLIST.split(',')
+    : [env.PILOT_RECIPIENT_E164 ?? '']
+  const rawRecipients = configured.map((recipient) => recipient.trim()).filter(Boolean)
+  const recipients = rawRecipients.map((recipient) => normalizePhone(recipient))
+  if (!rawRecipients.length || recipients.some((recipient) => !recipient))
+    throw new PilotSafetyError('Allowlist de destinatários do piloto não está configurada corretamente.', 503)
+  return new Set(recipients as string[])
 }
 
 function templateAllowlist(env: Env): Set<string> {
@@ -40,6 +71,7 @@ function templateAllowlist(env: Env): Set<string> {
 
 export function assertPilotCampaign(env: Env, input: { name: string; templateName: string }): void {
   if (!pilotIsEnforced(env)) return
+  assertPilotSendingEnabled(env)
   if (!input.name.startsWith('[PILOT REAL]'))
     throw new PilotSafetyError('Campanha real precisa do prefixo [PILOT REAL].')
   const allowed = templateAllowlist(env)
@@ -56,27 +88,33 @@ export function assertPilotAudience(
   recipients: { phone: string }[],
 ): void {
   if (!pilotIsEnforced(env)) return
-  const allowed = configuredRecipient(env)
-  if (recipients.length !== 1)
-    throw new PilotSafetyError('Piloto permite exatamente um destinatário por campanha.')
-  const actual = normalizePhone(recipients[0]?.phone ?? '')
-  if (!actual || actual !== allowed)
+  assertPilotSendingEnabled(env)
+  const allowed = configuredRecipients(env)
+  const limit = pilotLimit(env)
+  if (recipients.length < 1 || recipients.length > limit)
+    throw new PilotSafetyError(`Piloto permite entre 1 e ${limit} destinatários por campanha.`)
+  const actual = recipients.map((recipient) => normalizePhone(recipient.phone))
+  if (actual.some((recipient) => !recipient || !allowed.has(recipient)))
     throw new PilotSafetyError('Destinatário fora da allowlist do piloto.', 403)
+  if (new Set(actual).size !== actual.length)
+    throw new PilotSafetyError('Piloto não permite destinatários duplicados.')
 }
 
 export function assertPilotRecipient(env: Env, phone: string): void {
   if (!pilotIsEnforced(env)) return
+  assertPilotSendingEnabled(env)
   const actual = normalizePhone(phone)
-  if (!actual || actual !== configuredRecipient(env))
+  if (!actual || !configuredRecipients(env).has(actual))
     throw new PilotSafetyError('Destinatário fora da allowlist do piloto.', 403)
 }
 
 export function assertPilotInboxRecipient(env: Env, phone: string): void {
   if (!pilotIsEnforced(env)) return
+  assertPilotSendingEnabled(env)
   if (env.INBOX_SEND_ENABLED !== 'true')
     throw new PilotSafetyError('Envio manual da Inbox está desligado.', 503)
   const actual = normalizePhone(phone)
-  if (!actual || actual !== configuredRecipient(env))
+  if (!actual || !configuredRecipients(env).has(actual))
     throw new PilotSafetyError('Destinatário fora da allowlist do piloto.', 403)
 }
 
@@ -107,8 +145,10 @@ export async function reservePilotAttempt(
 ): Promise<string | null> {
   if (!pilotIsEnforced(env)) return null
   assertPilotRecipient(env, input.phone)
+  assertPilotTimeWindow(env)
   const normalized = normalizePhone(input.phone)!
   const id = crypto.randomUUID()
+  const dailyRunLimit = pilotDailyRunLimit(env)
   const result = await env.DB.prepare(
     `INSERT INTO pilot_send_ledger
        (id, campaign_id, contact_id, phone_hash, status, pilot_run_id)
@@ -118,12 +158,25 @@ export async function reservePilotAttempt(
        AND r.max_attempts <= ?5
        AND (SELECT COUNT(*) FROM pilot_send_ledger l WHERE l.pilot_run_id = r.id)
          < r.max_attempts
+       AND (
+         SELECT COUNT(*) FROM pilot_runs daily
+         WHERE date(daily.created_at, '-3 hours') = date('now', '-3 hours')
+       ) <= ?6
        AND NOT EXISTS (
          SELECT 1 FROM pilot_send_ledger WHERE campaign_id = ?2 AND contact_id = ?3
        )`
-  ).bind(id, input.campaignId, input.contactId, await sha256(normalized), pilotLimit(env)).run()
+  ).bind(
+    id,
+    input.campaignId,
+    input.contactId,
+    await sha256(normalized),
+    pilotLimit(env),
+    dailyRunLimit,
+  ).run()
   if ((result.meta.changes ?? 0) !== 1)
-    throw new PilotSafetyError('Rodada ausente, orçamento esgotado ou tentativa já registrada.')
+    throw new PilotSafetyError(
+      'Rodada ausente, limite diário/orçamento esgotado ou tentativa já registrada.',
+    )
   return id
 }
 
@@ -146,16 +199,34 @@ export async function finishPilotAttempt(
 
 export function pilotConfiguration(env: Env): {
   enforced: boolean; enabled: boolean; recipientConfigured: boolean
-  inboxEnabled: boolean; templateAllowlistConfigured: boolean; maxAttempts: number | null
+  recipientAllowlistSize: number; inboxEnabled: boolean
+  templateAllowlistConfigured: boolean; maxAttempts: number | null
+  timeWindowEnabled: boolean; maxRunsPerDay: number | null
 } {
   const rawLimit = Number(env.PILOT_MAX_REAL_SENDS)
+  const rawDailyLimit = Number(env.PILOT_MAX_RUNS_PER_DAY)
   const enforced = pilotIsEnforced(env)
+  let recipientAllowlistSize = 0
+  try {
+    recipientAllowlistSize = configuredRecipients(env).size
+  } catch {
+    recipientAllowlistSize = 0
+  }
   return {
     enforced,
     enabled: env.PILOT_SEND_ENABLED === 'true',
     inboxEnabled: env.INBOX_SEND_ENABLED === 'true',
-    recipientConfigured: Boolean(normalizePhone(env.PILOT_RECIPIENT_E164 ?? '')),
+    recipientConfigured: recipientAllowlistSize > 0,
+    recipientAllowlistSize,
     templateAllowlistConfigured: templateAllowlist(env).size > 0,
     maxAttempts: enforced && Number.isInteger(rawLimit) && rawLimit >= 1 && rawLimit <= 3 ? rawLimit : null,
+    timeWindowEnabled: env.PILOT_TIME_WINDOW_ENABLED === 'true',
+    maxRunsPerDay:
+      enforced &&
+      Number.isInteger(rawDailyLimit) &&
+      rawDailyLimit >= 1 &&
+      rawDailyLimit <= 2
+        ? rawDailyLimit
+        : null,
   }
 }

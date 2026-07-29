@@ -4,7 +4,7 @@ import {
   automationDebounceSeconds,
   processAutomationEvent,
 } from "../src/ai/automation";
-import { processAutomationMessages } from "../src";
+import { isAutomationQueue, processAutomationMessages } from "../src";
 
 async function createConversation(mode = "bot") {
   const contactId = crypto.randomUUID();
@@ -172,9 +172,16 @@ describe("automação da Inbox", () => {
       sourceMessageId,
     ).run();
     let searchCalled = false;
+    let modelCalled = false;
     const result = await processAutomationEvent(
       {
         ...env,
+        AI: {
+          run: async () => {
+            modelCalled = true;
+            throw new Error("a cota deve bloquear antes do provider");
+          },
+        },
         AI_ENABLED: "true",
         AI_MODEL: "@cf/meta/llama-3.2-3b-instruct",
         INBOX_AUTOMATION_ENABLED: "true",
@@ -194,6 +201,7 @@ describe("automação da Inbox", () => {
     );
     expect(result).toBe("skipped");
     expect(searchCalled).toBe(false);
+    expect(modelCalled).toBe(false);
     expect(
       await env.DB.prepare(
         "SELECT status,error_code FROM ai_drafts WHERE request_key=?1",
@@ -320,6 +328,18 @@ describe("automação da Inbox", () => {
 });
 
 describe("consumo individual da Queue de automação", () => {
+  it("usa o nome configurado para isolar a fila de staging", () => {
+    expect(isAutomationQueue(
+      { AUTOMATION_QUEUE_NAME: "inbox-automation-staging" },
+      "inbox-automation-staging",
+    )).toBe(true);
+    expect(isAutomationQueue(
+      { AUTOMATION_QUEUE_NAME: "inbox-automation-staging" },
+      "inbox-automation",
+    )).toBe(false);
+    expect(isAutomationQueue({}, "inbox-automation")).toBe(true);
+  });
+
   it("faz retry somente do evento que falhou e confirma os demais", async () => {
     const first = {
       body: { kind: "inbound_automation" as const, conversationId: crypto.randomUUID(), sourceMessageId: crypto.randomUUID() },

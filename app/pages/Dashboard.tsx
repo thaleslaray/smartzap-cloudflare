@@ -105,7 +105,10 @@ export default function Dashboard() {
                     : "Quando a primeira campanha for enviada, o resumo aparecerá aqui."}
               </p>
             </div>
-            <div className={`dashboard-status-mark ${needsAttention ? "dashboard-status-mark--attention" : ""}`} aria-label={needsAttention ? `${d.failed30d} ${d.failed30d === 1 ? "falha" : "falhas"} no envio` : "Operação monitorada"}>
+            <div
+              className={`dashboard-status-mark ${needsAttention ? "dashboard-status-mark--attention" : ""}`}
+              aria-hidden="true"
+            >
               {needsAttention ? <AlertCircle size={22} aria-hidden="true" /> : <CheckCircle2 size={22} aria-hidden="true" />}
             </div>
           </div>

@@ -117,6 +117,13 @@ export async function uploadKnowledgeDocument(
   if (documentId && searchInstance.update)
     await searchInstance.update({
       custom_metadata: [{ field_name: 'document_id', data_type: 'text' }],
+      chunk: true,
+      chunk_size: 256,
+      chunk_overlap: 20,
+      index_method: { vector: true, keyword: true },
+      fusion_method: 'rrf',
+      indexing_options: { keyword_tokenizer: 'porter' },
+      retrieval_options: { keyword_match_mode: 'or' },
     })
   const items = searchInstance.items
   const item = await items.upload(

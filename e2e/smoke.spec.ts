@@ -273,8 +273,12 @@ test("campanha usa segmento salvo, busca contatos no servidor e mapeia variávei
   await page.getByLabel("Valor de button.0.1").fill("destino-e2e");
   await page.getByRole("button", { name: "Continuar" }).click();
 
-  await page.getByRole("button", { name: /Segmentos Segmento salvo/ }).click();
-  await page.getByLabel("Segmento salvo").selectOption({ label: segmentName });
+  await page
+    .getByRole("button", {
+      name: /Público personalizado Público salvo, tags, DDI ou UF/,
+    })
+    .click();
+  await page.getByLabel("Público salvo").selectOption({ label: segmentName });
   await expect(page.getByRole("button", { name: "Continuar" })).toBeEnabled();
   await expect(page.getByText("Preview com contato real")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Gerar preview" })).toHaveCount(0);
@@ -599,7 +603,7 @@ test("Dashboard exibe estados sem dados, erro e recuperação sem depender da ba
   });
   await page.goto("/");
   await expect(page.getByText("Nenhuma campanha ainda")).toBeVisible();
-  await expect(page.getByText("Total Enviado")).toBeVisible();
+  await expect(page.getByText("Enviadas", { exact: true })).toBeVisible();
 
   await page.unroute("**/api/dashboard");
   await page.route("**/api/dashboard", async (route) => {
@@ -753,7 +757,11 @@ test("Inbox bloqueia ativação quando a IA global está indisponível", async (
   });
   await page.goto(`/inbox/${conversationId}`);
   await page.getByRole("button", { name: "Contexto e memória" }).click();
-  await expect(page.getByText("IA indisponível pela configuração global.")).toBeVisible();
+  await expect(
+    page.getByText(
+      "O provedor de IA ainda não está pronto. Verifique a Central de IA.",
+    ),
+  ).toBeVisible();
   await expect(page.getByRole("button", { name: "Ativar" })).toHaveCount(0);
 });
 

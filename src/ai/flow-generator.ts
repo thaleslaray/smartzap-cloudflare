@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { aiConfiguration } from "./drafts";
+import {
+  aiConfiguration,
+  aiResponseText,
+  runAiProvider,
+} from "./drafts";
 
 const generatedSchema = z.object({
   screens: z
@@ -23,12 +27,6 @@ type FlowAiEnv = {
   AI_MODEL?: string;
   AI_GATEWAY_ID?: string;
 };
-
-function responseText(value: unknown) {
-  if (!value || typeof value !== "object") return "";
-  const response = (value as { response?: unknown }).response;
-  return typeof response === "string" ? response : "";
-}
 
 function parseJson(text: string) {
   const normalized = text
@@ -55,8 +53,9 @@ export async function generateFlowDefinition(env: FlowAiEnv, prompt: string) {
   } catch { /* defaults seguros */ }
   if (!routeEnabled) throw new Error("route_disabled");
   try {
-    result = await env.AI.run(
-      config.model,
+    result = await runAiProvider(
+      env.AI,
+      config,
       {
         messages: [
           {
@@ -77,21 +76,14 @@ export async function generateFlowDefinition(env: FlowAiEnv, prompt: string) {
         temperature: 0.2,
         max_tokens: 500,
       },
-      {
-        gateway: {
-          id: config.gatewayId,
-          skipCache: true,
-          collectLog: false,
-          metadata: { app: "smartzap", feature: "flow-generator" },
-        },
-      },
+      "flow-generator",
     );
   } catch {
     throw new Error("provider_error");
   }
   let parsed: z.infer<typeof generatedSchema>;
   try {
-    parsed = generatedSchema.parse(parseJson(responseText(result)));
+    parsed = generatedSchema.parse(parseJson(aiResponseText(result)));
   } catch {
     throw new Error("invalid_ai_output");
   }

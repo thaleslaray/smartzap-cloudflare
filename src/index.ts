@@ -88,10 +88,17 @@ export async function processAutomationMessages(
   }
 }
 
+export function isAutomationQueue(
+  env: Pick<Env, "AUTOMATION_QUEUE_NAME">,
+  queueName: string,
+): boolean {
+  return queueName === (env.AUTOMATION_QUEUE_NAME?.trim() || "inbox-automation");
+}
+
 export default {
   fetch: app.fetch,
   async queue(batch, env) {
-    if (batch.queue === "inbox-automation") {
+    if (isAutomationQueue(env, batch.queue)) {
       await processAutomationMessages(
         batch.messages as unknown as QueueMessageLike<AutomationQueueEvent>[],
         env,

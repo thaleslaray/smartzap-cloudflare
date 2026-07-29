@@ -831,19 +831,19 @@ html[data-theme="light"] select option {
 
 .legacy-primary-action {
   border-color: rgba(110, 231, 183, 0.22);
-  background: #059669;
-  color: #ecfdf5;
+  background: #047857;
+  color: #ffffff;
   box-shadow: none;
 }
 
 .legacy-primary-action:hover {
   border-color: rgba(167, 243, 208, 0.34);
-  background: #047857;
+  background: #065f46;
   color: #ffffff;
 }
 
 .legacy-primary-action:active {
-  background: #065f46;
+  background: #064e3b;
 }
 
 .legacy-app .premium-sidebar {

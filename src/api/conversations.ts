@@ -11,7 +11,11 @@ import {
   generateGroundedText,
 } from "../ai/drafts";
 import { aiUsageLimits } from "../ai/limits";
-import { extractKnowledgeSources, searchKnowledge } from "../knowledge/service";
+import {
+  agentKnowledgeDocumentIds,
+  extractKnowledgeSources,
+  searchKnowledge,
+} from "../knowledge/service";
 import { readJsonBody } from "./body";
 import {
   conversationSendsDb,
@@ -744,8 +748,13 @@ export const conversationsRoutes = new Hono<{ Bindings: Env }>()
     const conversation = (await db.get(id.data)) as {
       ai_enabled?: number;
       contact_id?: string;
+      ai_agent_id?: string | null;
       ai_agent_instructions?: string | null;
       ai_agent_name?: string | null;
+      ai_agent_rag_similarity_threshold?: number | null;
+      ai_agent_rag_max_results?: number | null;
+      ai_agent_handoff_enabled?: number | null;
+      ai_agent_handoff_instructions?: string | null;
     } | null;
     if (!conversation) return c.json({ error: "conversa não encontrada" }, 404);
     const config = aiConfiguration(c.env);
@@ -811,20 +820,23 @@ export const conversationsRoutes = new Hono<{ Bindings: Env }>()
             .bind(conversation.contact_id)
             .first<{ summary: string }>()
         : null;
-      const instructions = [
+      const trustedInstructions = [
         conversation.ai_agent_instructions
-          ? `REGRAS DO AGENTE ${conversation.ai_agent_name || ""}: ${conversation.ai_agent_instructions}`
+          ? `${conversation.ai_agent_name || "Agente"}: ${conversation.ai_agent_instructions}`
           : "",
-        memory?.summary ? `MEMÓRIA REVISADA DO CONTATO: ${memory.summary}` : "",
+        conversation.ai_agent_handoff_enabled !== 0 &&
+        conversation.ai_agent_handoff_instructions
+          ? `Transferência: ${conversation.ai_agent_handoff_instructions}`
+          : "",
       ]
         .filter(Boolean)
         .join("\n");
-      const enriched = instructions
+      const enriched = memory?.summary
         ? [
             {
-              id: "agent-context",
+              id: "contact-memory",
               direction: "inbound" as const,
-              text: instructions,
+              text: `MEMÓRIA REVISADA DO CONTATO: ${memory.summary}`,
             },
             ...context.messages,
           ]
@@ -833,12 +845,26 @@ export const conversationsRoutes = new Hono<{ Bindings: Env }>()
         context.messages
           .filter((message) => message.direction === "inbound")
           .at(-1)?.text ?? "";
-      const sources = extractKnowledgeSources(
-        await searchKnowledge(c.env.AI_SEARCH, latestText).catch(() => null),
-      );
+      const documentIds = conversation.ai_agent_id
+        ? await agentKnowledgeDocumentIds(c.env.DB, conversation.ai_agent_id)
+        : [];
+      const sources = documentIds.length
+        ? extractKnowledgeSources(
+            await searchKnowledge(c.env.AI_SEARCH, latestText, {
+              documentIds,
+              maxResults: conversation.ai_agent_rag_max_results ?? 5,
+              scoreThreshold:
+                conversation.ai_agent_rag_similarity_threshold ?? 0.5,
+            }).catch(() => null),
+          ).slice(0, conversation.ai_agent_rag_max_results ?? 5)
+        : [];
       const generated = sources.length
-        ? await generateGroundedText(c.env.AI, config, enriched, sources)
-        : await generateDraftText(c.env.AI, config, enriched);
+        ? await generateGroundedText(c.env.AI, config, enriched, sources, {
+            trustedInstructions,
+          })
+        : await generateDraftText(c.env.AI, config, enriched, {
+            trustedInstructions,
+          });
       const draft = await db.completeAiDraft(pending.draft.id, {
         text: generated.text,
         promptTokens: generated.usage.promptTokens,

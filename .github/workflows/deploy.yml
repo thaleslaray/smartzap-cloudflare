@@ -1,19 +1,68 @@
-name: Deploy
+name: Qualidade e promoção
 
-# Deploy automático na Cloudflare via wrangler a cada push na main.
-# Requer os secrets do repo: CLOUDFLARE_API_TOKEN e CLOUDFLARE_ACCOUNT_ID.
 on:
+  pull_request:
   push:
     branches: [main]
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      deploy_production:
+        description: "Publicar em produção depois de staging e de todos os gates?"
+        required: true
+        default: "false"
+        type: choice
+        options: ["false", "true"]
+
+permissions:
+  contents: read
 
 concurrency:
-  group: deploy-${{ github.ref }}
+  group: quality-promotion-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  quality:
+    name: Gate determinístico
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      QA_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium webkit
+      - run: npm run qa:all
+      - name: Guardar evidências
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-deterministico-${{ github.run_id }}-${{ github.run_attempt }}
+          path: qa/reports/
+          if-no-files-found: ignore
+          retention-days: 21
+
+  preview:
+    name: Cloudflare preview isolado
+    needs: quality
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: preview
+    concurrency:
+      group: smartzap-shared-preview
+      cancel-in-progress: true
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      QA_API_KEY: ${{ secrets.SMARTZAP_API_KEY_PREVIEW }}
+      QA_BASE_URL: https://smartzap-cf-preview.thales2581.workers.dev
+      QA_REMOTE_BASE_URL: https://smartzap-cf-preview.thales2581.workers.dev
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -21,22 +70,134 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      # Gate: só deploya se a suíte de worker passar
-      - run: npm test
-      - run: npx tsc --noEmit
-      - run: npm run build
-      - run: npm audit --audit-level=moderate
-      - run: git diff --check
-      # Gate de produto: login, import com consentimento, estimativa/preflight e cancelamento.
       - run: npx playwright install --with-deps chromium
-      - run: npm run e2e
-      # Schema antes do código; migrations precisam ser retrocompatíveis com a versão anterior.
-      - run: npx wrangler d1 migrations apply smartzap --remote
+      - run: npm run build
+      - name: Migrar D1 exclusivo de preview
+        run: npx wrangler d1 migrations apply smartzap-preview --config config/wrangler.preview.jsonc --remote
+      - name: Publicar o código do PR sem tocar staging ou produção
+        run: npx wrangler deploy --config config/wrangler.preview.jsonc
+      - name: Aguardar health e autenticação estabilizarem
+        run: |
+          node - <<'NODE'
+          const healthUrl = `${process.env.QA_BASE_URL}/api/health`;
+          const authUrl = `${process.env.QA_BASE_URL}/api/auth/status`;
+          let consecutive = 0;
+          for (let attempt = 1; attempt <= 18; attempt++) {
+            const [health, auth] = await Promise.all([
+              fetch(`${healthUrl}?ci=${Date.now()}`).catch(() => null),
+              fetch(`${authUrl}?ci=${Date.now()}`, {
+                headers: { "x-api-key": process.env.QA_API_KEY },
+              }).catch(() => null),
+            ]);
+            const authenticated = auth?.ok
+              ? (await auth.json().catch(() => null))?.authenticated === true
+              : false;
+            consecutive = health?.ok && authenticated ? consecutive + 1 : 0;
+            if (consecutive >= 3) process.exit(0);
+            await new Promise((resolve) => setTimeout(resolve, 5_000));
+          }
+          throw new Error("Preview não estabilizou em 90 segundos");
+          NODE
+      - name: Smoke real no Worker de preview
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      # npm run deploy = vite build (worker + SPA) && wrangler deploy
-      - run: npm run deploy
+          QA_REPORT_DIR: qa/reports/preview-ui-${{ github.run_id }}-${{ github.run_attempt }}
+        run: npx playwright test e2e/qa-remote-smoke.spec.ts --project chromium
+      - name: Guardar evidências do preview
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-preview-${{ github.run_id }}-${{ github.run_attempt }}
+          path: qa/reports/
+          if-no-files-found: ignore
+          retention-days: 21
+
+  staging:
+    name: Cloudflare staging
+    needs: quality
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: staging
+    concurrency:
+      group: smartzap-staging-mutating
+      cancel-in-progress: false
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      QA_API_KEY: ${{ secrets.SMARTZAP_API_KEY_STAGING }}
+      QA_BASE_URL: https://smartzap-cf-staging.thales2581.workers.dev
+      QA_REMOTE_BASE_URL: https://smartzap-cf-staging.thales2581.workers.dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - name: Migrar D1 de staging
+        run: npx wrangler d1 migrations apply smartzap-staging --config config/wrangler.staging.jsonc --remote
+      - name: Publicar versão em staging
+        run: npx wrangler deploy --config config/wrangler.staging.jsonc
+      - name: Aguardar health do Worker publicado
+        run: |
+          node - <<'NODE'
+          const url = `${process.env.QA_BASE_URL}/api/health`;
+          for (let attempt = 1; attempt <= 12; attempt++) {
+            const response = await fetch(`${url}?ci=${Date.now()}`).catch(() => null);
+            if (response?.ok) process.exit(0);
+            await new Promise((resolve) => setTimeout(resolve, 5_000));
+          }
+          throw new Error("Staging não ficou saudável em 60 segundos");
+          NODE
+      - name: Smoke autenticado e somente leitura
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          QA_REPORT_DIR: qa/reports/staging-ui-${{ github.run_id }}-${{ github.run_attempt }}
+        run: npx playwright test e2e/qa-remote-smoke.spec.ts --project chromium
+      - name: 84 sessões reais de IA no Workers AI
+        env:
+          QA_AI_MODE: staging
+          QA_REPORT_DIR: qa/reports/staging-ai-${{ github.run_id }}-${{ github.run_attempt }}
+        run: npm run qa:ai
+      - name: Limpar e provar zero resíduo
+        if: always()
+        env:
+          QA_CLEANUP_MODE: staging
+          QA_CLEANUP_SWEEP: "1"
+          QA_REPORT_DIR: qa/reports/staging-cleanup-${{ github.run_id }}-${{ github.run_attempt }}
+        run: npm run qa:cleanup
+      - name: Guardar evidências de staging
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-staging-${{ github.run_id }}-${{ github.run_attempt }}
+          path: qa/reports/
+          if-no-files-found: ignore
+          retention-days: 21
+
+  production:
+    name: Produção — aprovação manual
+    needs: staging
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy_production == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    concurrency:
+      group: smartzap-production-deploy
+      cancel-in-progress: false
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Migrar D1 de produção
+        run: npx wrangler d1 migrations apply smartzap --remote
+      - name: Publicar produção
+        run: npx wrangler deploy

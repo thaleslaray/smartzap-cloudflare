@@ -1687,70 +1687,70 @@ export default function Inbox() {
                           : "Gerar rascunho com IA"}
                       </button>
                     )}
-                    {latestDraft?.text_body && (
-                      <div className="mt-2 rounded-lg bg-[var(--ds-bg-base)] p-2.5">
-                        <p className="text-[10px] font-medium text-[var(--ds-text-muted)]">
-                          {latestDraft.status === "approved"
-                            ? "Rascunho aprovado"
-                            : "Aguardando revisão"}
-                        </p>
-                        <p className="mt-1 whitespace-pre-wrap text-xs text-[var(--ds-text-primary)]">
-                          {latestDraft.text_body}
-                        </p>
-                        <div className="mt-2 flex justify-end gap-1.5">
-                          {latestDraft.status === "pending_review" && (
-                            <>
-                              <button
-                                className={`${btnSecondary} px-2 py-1 text-[10px]`}
-                                onClick={() =>
-                                  reviewDraft.mutate({
-                                    draftId: latestDraft.id,
-                                    status: "discarded",
-                                  })
-                                }
-                              >
-                                Descartar
-                              </button>
-                              <button
-                                className="rounded-full bg-emerald-500 px-2.5 py-1 text-[10px] font-medium text-emerald-950"
-                                onClick={() =>
-                                  reviewDraft.mutate({
-                                    draftId: latestDraft.id,
-                                    status: "approved",
-                                  })
-                                }
-                              >
-                                Aprovar
-                              </button>
-                            </>
-                          )}
-                          {latestDraft.status === "approved" &&
-                            !latestDraft.send_status && (
-                              <button
-                                ref={sendMessageButton}
-                                aria-label="Enviar mensagem"
-                                className="rounded-full bg-emerald-500 px-2.5 py-1 text-[10px] font-medium text-emerald-950 disabled:opacity-40"
-                                disabled={
-                                  !ai.data.sending.enabled ||
-                                  !ai.data.sending.serviceWindowOpen
-                                }
-                                onClick={() =>
-                                  setSendConfirmation({
-                                    draftId: latestDraft.id,
-                                    requestKey: crypto.randomUUID(),
-                                  })
-                                }
-                              >
-                                Enviar
-                              </button>
-                            )}
-                          {latestDraft.send_status && (
-                            <StatusBadge status={latestDraft.send_status} />
-                          )}
-                        </div>
-                      </div>
-                    )}
                   </>
+                )}
+                {latestDraft?.text_body && (
+                  <div className="mt-2 rounded-lg bg-[var(--ds-bg-base)] p-2.5">
+                    <p className="text-[10px] font-medium text-[var(--ds-text-muted)]">
+                      {latestDraft.status === "approved"
+                        ? "Rascunho aprovado"
+                        : "Aguardando revisão"}
+                    </p>
+                    <p className="mt-1 whitespace-pre-wrap text-xs text-[var(--ds-text-primary)]">
+                      {latestDraft.text_body}
+                    </p>
+                    <div className="mt-2 flex justify-end gap-1.5">
+                      {latestDraft.status === "pending_review" && (
+                        <>
+                          <button
+                            className={`${btnSecondary} px-2 py-1 text-[10px]`}
+                            onClick={() =>
+                              reviewDraft.mutate({
+                                draftId: latestDraft.id,
+                                status: "discarded",
+                              })
+                            }
+                          >
+                            Descartar
+                          </button>
+                          <button
+                            className="rounded-full bg-emerald-500 px-2.5 py-1 text-[10px] font-medium text-emerald-950"
+                            onClick={() =>
+                              reviewDraft.mutate({
+                                draftId: latestDraft.id,
+                                status: "approved",
+                              })
+                            }
+                          >
+                            Aprovar
+                          </button>
+                        </>
+                      )}
+                      {latestDraft.status === "approved" &&
+                        !latestDraft.send_status && (
+                          <button
+                            ref={sendMessageButton}
+                            aria-label="Enviar mensagem"
+                            className="rounded-full bg-emerald-500 px-2.5 py-1 text-[10px] font-medium text-emerald-950 disabled:opacity-40"
+                            disabled={
+                              !ai.data?.sending.enabled ||
+                              !ai.data.sending.serviceWindowOpen
+                            }
+                            onClick={() =>
+                              setSendConfirmation({
+                                draftId: latestDraft.id,
+                                requestKey: crypto.randomUUID(),
+                              })
+                            }
+                          >
+                            Enviar
+                          </button>
+                        )}
+                      {latestDraft.send_status && (
+                        <StatusBadge status={latestDraft.send_status} />
+                      )}
+                    </div>
+                  </div>
                 )}
               </div>
             </section>

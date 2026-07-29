@@ -470,8 +470,9 @@ export default function SettingsPage() {
                     className={`${credentialsInputClass} pr-11`}
                   />
                   <button
+                    type="button"
                     aria-label="Exibir segredo"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500"
+                    className="absolute right-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center text-zinc-500"
                     onClick={() => setShowSecret(!showSecret)}
                   >
                     {showSecret ? <EyeOff size={16} /> : <Eye size={16} />}

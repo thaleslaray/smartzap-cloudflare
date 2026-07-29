@@ -386,6 +386,8 @@ export const settingsRoutes = new Hono<{ Bindings: Env }>()
         pilot.recipientConfigured &&
         pilot.templateAllowlistConfigured &&
         pilot.maxAttempts !== null &&
+        pilot.maxRunsPerDay !== null &&
+        pilot.timeWindowEnabled &&
         pilotRun.active);
     return c.json({
       databaseOk,
