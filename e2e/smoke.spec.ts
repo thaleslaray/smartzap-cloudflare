@@ -500,51 +500,49 @@ test("layout móvel, menu e modal permanecem acessíveis sem conteúdo cortado",
   await expectNoHorizontalOverflow(page, 320);
 });
 
-test("todas as rotas operacionais preservam a largura do viewport em mobile", async ({
-  page,
-}) => {
-  // A primeira navegação de cada lazy chunk pode compilar sob demanda no Vite;
-  // o gate deve aguardar a interface, não transformar compilação fria em falso
-  // defeito de responsividade.
-  test.setTimeout(120_000);
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/login");
-  await page.getByLabel("Senha mestra").fill("dev");
-  await page.getByRole("button", { name: "Entrar" }).click();
-  await expect(page).toHaveURL(/\/$/);
+const operationalRoutes = [
+  "/",
+  "/campaigns",
+  "/campaigns/new",
+  "/contacts",
+  "/templates",
+  "/templates/drafts/new",
+  "/templates/new",
+  "/segments",
+  "/knowledge",
+  "/forms",
+  "/submissions",
+  "/flows",
+  "/flows/builder",
+  "/settings",
+  "/settings/attendants",
+  "/settings/meta-diagnostics",
+  "/settings/performance",
+  "/settings/ai",
+  "/settings/ai/agents",
+  "/inbox",
+];
+const responsiveViewports = [
+  { width: 360, height: 800 },
+  { width: 390, height: 844 },
+  { width: 620, height: 900 },
+  { width: 768, height: 1024 },
+  { width: 1440, height: 900 },
+  { width: 1920, height: 1080 },
+];
 
-  const operationalRoutes = [
-    "/",
-    "/campaigns",
-    "/campaigns/new",
-    "/contacts",
-    "/templates",
-    "/templates/drafts/new",
-    "/templates/new",
-    "/segments",
-    "/knowledge",
-    "/forms",
-    "/submissions",
-    "/flows",
-    "/flows/builder",
-    "/settings",
-    "/settings/attendants",
-    "/settings/meta-diagnostics",
-    "/settings/performance",
-    "/settings/ai",
-    "/settings/ai/agents",
-    "/inbox",
-  ];
-  const viewports = [
-    { width: 360, height: 800 },
-    { width: 390, height: 844 },
-    { width: 620, height: 900 },
-    { width: 768, height: 1024 },
-    { width: 1440, height: 900 },
-    { width: 1920, height: 1080 },
-  ];
-  for (const { width, height } of viewports) {
+for (const { width, height } of responsiveViewports) {
+  test(`todas as rotas operacionais preservam a largura em ${width}×${height}`, async ({
+    page,
+  }) => {
+    // Cada viewport tem orçamento próprio: uma compilação fria não consome o
+    // tempo das outras cinco matrizes nem esconde qual resolução falhou.
+    test.setTimeout(120_000);
     await page.setViewportSize({ width, height });
+    await page.goto("/login");
+    await page.getByLabel("Senha mestra").fill("dev");
+    await page.getByRole("button", { name: "Entrar" }).click();
+    await expect(page).toHaveURL(/\/$/);
     for (const path of operationalRoutes) {
       await page.goto(path);
       await expect(page.locator("main")).toBeVisible({ timeout: 15_000 });
@@ -552,8 +550,8 @@ test("todas as rotas operacionais preservam a largura do viewport em mobile", as
       await expectNoHorizontalOverflow(page, width);
       await expectNoVisibleLayoutOverflow(page);
     }
-  }
-});
+  });
+}
 
 test("wizard de campanha mantém etapas e campos legíveis em largura reduzida", async ({
   page,

@@ -77,10 +77,10 @@ function CampaignListStatus({ status, failed }: { status: string; failed: number
   const display = getCampaignDisplayStatus(status, failed);
   return (
     <span
-      className={`inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ${status === "sending" ? "gap-1.5 animate-pulse" : ""} ${display.className}`}
+      className={`inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ${status === "sending" ? "gap-1.5" : ""} ${display.className}`}
     >
       {status === "sending" && (
-        <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
+        <span className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-[sz-pulse_1.2s_ease-in-out_infinite]" />
       )}
       {display.label}
     </span>
