@@ -56,6 +56,15 @@ if (
     "o observador externo precisa executar como ESM explícito, sem misturar require e await no topo",
   );
 }
+const monitorConfig = JSON.parse(read("config/wrangler.monitor.jsonc"));
+if (
+  !Array.isArray(monitorConfig.compatibility_flags) ||
+  !monitorConfig.compatibility_flags.includes("global_fetch_strictly_public")
+) {
+  errors.push(
+    "o observador Cloudflare precisa atravessar a entrada pública ao consultar Workers da mesma zona",
+  );
+}
 
 const playwrightConfig = read("playwright.config.ts");
 if (!playwrightConfig.includes("reuseExistingServer: false")) {
