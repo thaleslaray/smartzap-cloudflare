@@ -30,6 +30,33 @@ for (const fileName of readdirSync(workflowsDir).filter((name) =>
   }
 }
 
+const deployWorkflow = read(".github/workflows/deploy.yml");
+if (
+  !deployWorkflow.includes("recovery_deployment:") ||
+  !deployWorkflow.includes("MONITOR_RECOVERY_MODE:") ||
+  !deployWorkflow.includes(
+    "Aguardar health e shell de produção após publicação",
+  )
+) {
+  errors.push(
+    "o deploy precisa manter uma recuperação explícita e validar produção após publicar",
+  );
+}
+const monitorWorkflow = read(".github/workflows/qa-production-monitor.yml");
+if (
+  !monitorWorkflow.includes("node --input-type=module - <<'NODE'") ||
+  !monitorWorkflow.includes(
+    'import { mkdir, writeFile } from "node:fs/promises";',
+  ) ||
+  monitorWorkflow.includes(
+    'const { mkdir, writeFile } = require("node:fs/promises");',
+  )
+) {
+  errors.push(
+    "o observador externo precisa executar como ESM explícito, sem misturar require e await no topo",
+  );
+}
+
 const playwrightConfig = read("playwright.config.ts");
 if (!playwrightConfig.includes("reuseExistingServer: false")) {
   errors.push(

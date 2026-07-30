@@ -23,13 +23,13 @@ jobs:
       QA_API_KEY: ${{ secrets.SMARTZAP_API_KEY_STAGING }}
       QA_REPORT_DIR: qa/reports/monitor-staging-${{ github.run_id }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
       - run: node scripts/qa-remote-health.mjs
       - if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: monitor-staging-${{ github.run_id }}
           path: qa/reports/
@@ -45,15 +45,110 @@ jobs:
       QA_BASE_URL: https://smartzap-cf.thales2581.workers.dev
       QA_REPORT_DIR: qa/reports/monitor-production-${{ github.run_id }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
       - run: node scripts/qa-remote-health.mjs
       - if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: monitor-production-${{ github.run_id }}
+          path: qa/reports/
+          if-no-files-found: ignore
+          retention-days: 21
+
+  soak-observer:
+    name: Observador Cloudflare
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      MONITOR_URL: https://smartzap-qa-monitor.thales2581.workers.dev
+      QA_REPORT_DIR: qa/reports/monitor-soak-${{ github.run_id }}
+    steps:
+      - name: Validar último ciclo de cinco minutos
+        run: |
+          node --input-type=module - <<'NODE'
+          import { mkdir, writeFile } from "node:fs/promises";
+          import { resolve } from "node:path";
+          const baseUrl = process.env.MONITOR_URL;
+          const outputDir = resolve(process.env.QA_REPORT_DIR);
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 15_000);
+          let report;
+          try {
+            const [healthResponse, statusResponse] = await Promise.all([
+              fetch(`${baseUrl}/health?ci=${Date.now()}`, {
+                signal: controller.signal,
+              }),
+              fetch(`${baseUrl}/status?ci=${Date.now()}`, {
+                signal: controller.signal,
+              }),
+            ]);
+            if (!healthResponse.ok || !statusResponse.ok) {
+              throw new Error(
+                `observador respondeu HTTP ${healthResponse.status}/${statusResponse.status}`,
+              );
+            }
+            const health = await healthResponse.json();
+            const status = await statusResponse.json();
+            const expectedTargets = new Set([
+              "staging-health",
+              "staging-shell",
+              "production-health",
+              "production-shell",
+            ]);
+            const scheduledAt = Date.parse(status.scheduledTime);
+            const ageMs = Date.now() - scheduledAt;
+            const targets = new Set(
+              Array.isArray(status.checks)
+                ? status.checks.map((check) => check.targetId)
+                : [],
+            );
+            if (
+              health.ok !== true ||
+              status.status !== "passed" ||
+              !Number.isFinite(scheduledAt) ||
+              ageMs < 0 ||
+              ageMs > 12 * 60_000 ||
+              expectedTargets.size !== targets.size ||
+              [...expectedTargets].some((target) => !targets.has(target)) ||
+              status.checks.some((check) => check.status !== "passed")
+            ) {
+              throw new Error("último ciclo do observador está ausente, vencido ou falhou");
+            }
+            report = {
+              schemaVersion: 1,
+              status: "passed",
+              checkedAt: new Date().toISOString(),
+              ageSeconds: Math.round(ageMs / 1000),
+              monitor: status,
+            };
+          } catch (error) {
+            report = {
+              schemaVersion: 1,
+              status: "failed",
+              checkedAt: new Date().toISOString(),
+              error: error instanceof Error ? error.message : "falha desconhecida",
+            };
+          } finally {
+            clearTimeout(timeout);
+          }
+          await mkdir(outputDir, { recursive: true });
+          await writeFile(
+            resolve(outputDir, "soak-observer.json"),
+            `${JSON.stringify(report, null, 2)}\n`,
+            { mode: 0o600 },
+          );
+          if (report.status !== "passed") throw new Error(report.error);
+          console.log(
+            `Observador Cloudflare aprovado; último ciclo há ${report.ageSeconds}s.`,
+          );
+          NODE
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: monitor-soak-${{ github.run_id }}
           path: qa/reports/
           if-no-files-found: ignore
           retention-days: 21

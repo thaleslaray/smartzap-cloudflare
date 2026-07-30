@@ -240,11 +240,11 @@ export default function Contacts() {
                 className="w-full bg-transparent text-sm outline-none placeholder:text-[var(--ds-text-muted)]"
               />
             </label>
-            <div className="flex items-center gap-3">
+            <div className="grid w-full grid-cols-[44px_minmax(0,1fr)] items-center gap-3 sm:grid-cols-[44px_149px_136px] lg:flex lg:w-auto">
               <button
                 type="button"
                 onClick={() => setFiltersOpen((open) => !open)}
-                className="rounded-xl border border-[var(--ds-border-default)] p-2.5 text-[var(--ds-text-secondary)]"
+                className="h-11 w-11 rounded-xl border border-[var(--ds-border-default)] p-2.5 text-[var(--ds-text-secondary)]"
                 aria-label="Filtros"
                 aria-expanded={filtersOpen}
               >
@@ -261,7 +261,7 @@ export default function Contacts() {
                       setPage(1);
                       setSelected(new Set());
                     }}
-                    className="w-[149px] rounded-[14px] border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] px-4 py-2.5 text-sm font-medium text-zinc-100"
+                    className="min-w-0 w-full rounded-[14px] border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] px-3 py-2.5 text-sm font-medium text-zinc-100 sm:px-4 lg:w-[149px]"
                   >
                     <option value="">Todos Status</option>
                     <option value="opt_in">Opt-in</option>
@@ -277,7 +277,7 @@ export default function Contacts() {
                       setTagId(e.target.value);
                       setPage(1);
                     }}
-                    className="w-[136px] rounded-[14px] border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] px-4 py-2.5 text-sm font-medium text-zinc-100"
+                    className="col-start-2 min-w-0 w-full rounded-[14px] border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] px-3 py-2.5 text-sm font-medium text-zinc-100 sm:col-start-auto sm:px-4 lg:w-[136px]"
                   >
                     <option value="">Todas Tags</option>
                     <option value="NONE">Sem tags</option>

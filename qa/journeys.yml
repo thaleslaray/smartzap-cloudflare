@@ -211,16 +211,16 @@
     "OPS": {
       "risk": "P0",
       "owners": ["operations"],
-      "tests": ["tests/health.test.ts", "tests/cleanup.test.ts", "tests/reconcile.test.ts", "tests/infrastructure-usage.test.ts"],
-      "evidence": ["health", "queue", "cron", "cleanup", "rollback"],
-      "invalidatedBy": ["src/index.ts", "src/cron", "src/queue", "wrangler.jsonc", ".github/workflows"]
+      "tests": ["tests/health.test.ts", "tests/cleanup.test.ts", "tests/reconcile.test.ts", "tests/infrastructure-usage.test.ts", "tests/qa-monitor.test.ts"],
+      "evidence": ["health", "queue", "cron", "cleanup", "rollback", "external-monitor"],
+      "invalidatedBy": ["src/index.ts", "src/cron", "src/queue", "src/qa-monitor.ts", "wrangler.jsonc", "config/wrangler.monitor.jsonc", ".github/workflows"]
     },
     "QA": {
       "risk": "P0",
       "owners": ["quality-control"],
-      "tests": ["scripts/qa-validate.mjs"],
-      "evidence": ["report", "run-id", "gate", "cleanup"],
-      "invalidatedBy": ["qa", "scripts/qa-runner.mjs", "playwright.config.ts", "vitest.config.ts", ".github/workflows"]
+      "tests": ["scripts/qa-validate.mjs", "tests/qa-monitor.test.ts"],
+      "evidence": ["report", "run-id", "gate", "cleanup", "soak-monitor"],
+      "invalidatedBy": ["qa", "scripts/qa-runner.mjs", "scripts/qa-ci-policy.mjs", "src/qa-monitor.ts", "config/wrangler.monitor.jsonc", "playwright.config.ts", "vitest.config.ts", ".github/workflows"]
     },
     "WFL": {
       "risk": "P2",
