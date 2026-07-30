@@ -460,7 +460,14 @@ test("layout móvel, menu e modal permanecem acessíveis sem conteúdo cortado",
   await expect(menu).toBeHidden();
   await expect(openMenu).toBeFocused();
 
+  await page.setViewportSize({ width: 360, height: 800 });
   await page.goto("/contacts");
+  await expect(
+    page.getByLabel("Filtrar contatos por status"),
+  ).toBeVisible();
+  await expect(page.getByLabel("Filtrar contatos por tag")).toBeVisible();
+  await expectNoHorizontalOverflow(page, 360);
+  await expectNoVisibleLayoutOverflow(page);
   const importTrigger = page.getByRole("button", { name: "Importar CSV" });
   await importTrigger.click();
   const dialog = page.getByRole("dialog", { name: "Importar Contatos" });
@@ -468,7 +475,7 @@ test("layout móvel, menu e modal permanecem acessíveis sem conteúdo cortado",
   const dialogBox = await dialog.boundingBox();
   expect(dialogBox?.x).toBeGreaterThanOrEqual(0);
   expect((dialogBox?.x ?? 0) + (dialogBox?.width ?? 0)).toBeLessThanOrEqual(
-    390,
+    360,
   );
   const importA11y = await new AxeBuilder({ page })
     .include('[role="dialog"]')
@@ -480,6 +487,7 @@ test("layout móvel, menu e modal permanecem acessíveis sem conteúdo cortado",
   await expect(dialog).toBeHidden();
   await expect(importTrigger).toBeFocused();
 
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/campaigns");
   await expectNoHorizontalOverflow(page, 390);
   await page.getByRole("button", { name: "Abrir menu de navegação" }).click();
@@ -898,6 +906,9 @@ test("Inbox seleciona template, resolve variáveis e exige confirmação de envi
 });
 
 test("rotas críticas não têm violações WCAG A/AA detectáveis", async ({ page }, testInfo) => {
+  // O axe percorre sete rotas completas. O orçamento continua finito, mas
+  // contempla a compilação fria do Worker e a instrumentação no runner Linux.
+  test.setTimeout(90_000);
   await page.goto("/login");
   await page.getByLabel("Senha mestra").fill("dev");
   await page.getByRole("button", { name: "Entrar" }).click();

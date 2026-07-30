@@ -28,10 +28,10 @@ jobs:
     env:
       QA_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
           cache: npm
@@ -40,7 +40,7 @@ jobs:
       - run: npm run qa:all
       - name: Guardar evidências
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: qa-deterministico-${{ github.run_id }}-${{ github.run_attempt }}
           path: qa/reports/
@@ -64,8 +64,8 @@ jobs:
       QA_BASE_URL: https://smartzap-cf-preview.thales2581.workers.dev
       QA_REMOTE_BASE_URL: https://smartzap-cf-preview.thales2581.workers.dev
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
           cache: npm
@@ -104,7 +104,7 @@ jobs:
         run: npx playwright test e2e/qa-remote-smoke.spec.ts --project chromium
       - name: Guardar evidências do preview
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: qa-preview-${{ github.run_id }}-${{ github.run_attempt }}
           path: qa/reports/
@@ -128,8 +128,8 @@ jobs:
       QA_BASE_URL: https://smartzap-cf-staging.thales2581.workers.dev
       QA_REMOTE_BASE_URL: https://smartzap-cf-staging.thales2581.workers.dev
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
           cache: npm
@@ -169,16 +169,73 @@ jobs:
         run: npm run qa:cleanup
       - name: Guardar evidências de staging
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: qa-staging-${{ github.run_id }}-${{ github.run_attempt }}
           path: qa/reports/
           if-no-files-found: ignore
           retention-days: 21
 
+  monitor:
+    name: Observador Cloudflare do soak
+    needs: staging
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: staging
+    concurrency:
+      group: smartzap-qa-monitor-deploy
+      cancel-in-progress: true
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      MONITOR_RELEASE_SHA: ${{ github.sha }}
+      MONITOR_URL: https://smartzap-qa-monitor.thales2581.workers.dev
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Publicar observador isolado
+        run: npx wrangler deploy --config config/wrangler.monitor.jsonc --var MONITOR_RELEASE_SHA:${MONITOR_RELEASE_SHA}
+      - name: Aguardar primeira prova do Cron de cinco minutos
+        run: |
+          node - <<'NODE'
+          const baseUrl = process.env.MONITOR_URL;
+          const expectedRelease = process.env.MONITOR_RELEASE_SHA;
+          for (let attempt = 1; attempt <= 36; attempt++) {
+            const [healthResponse, statusResponse] = await Promise.all([
+              fetch(`${baseUrl}/health?ci=${Date.now()}`).catch(() => null),
+              fetch(`${baseUrl}/status?ci=${Date.now()}`).catch(() => null),
+            ]);
+            const health = healthResponse?.ok
+              ? await healthResponse.json().catch(() => null)
+              : null;
+            const status = statusResponse?.ok
+              ? await statusResponse.json().catch(() => null)
+              : null;
+            if (
+              health?.ok === true &&
+              health?.releaseSha === expectedRelease &&
+              status?.releaseSha === expectedRelease &&
+              status?.status === "passed" &&
+              status?.checks?.length === 4
+            ) {
+              console.log(
+                `Cron aprovado para ${status.scheduledTime}: ${status.checks.length} provas read-only.`,
+              );
+              process.exit(0);
+            }
+            await new Promise((resolve) => setTimeout(resolve, 30_000));
+          }
+          throw new Error("O observador não produziu uma prova atual em 18 minutos");
+          NODE
+
   production:
     name: Produção — aprovação manual
-    needs: staging
+    needs: [staging, monitor]
     if: github.event_name == 'workflow_dispatch' && inputs.deploy_production == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -190,8 +247,8 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
           cache: npm
