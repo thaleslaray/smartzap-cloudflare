@@ -12,6 +12,12 @@ on:
         default: "false"
         type: choice
         options: ["false", "true"]
+      recovery_deployment:
+        description: "Permitir recuperação se a produção atual já estiver indisponível?"
+        required: true
+        default: "false"
+        type: choice
+        options: ["false", "true"]
 
 permissions:
   contents: read
@@ -78,7 +84,7 @@ jobs:
         run: npx wrangler deploy --config config/wrangler.preview.jsonc
       - name: Aguardar health e autenticação estabilizarem
         run: |
-          node - <<'NODE'
+          node --input-type=module - <<'NODE'
           const healthUrl = `${process.env.QA_BASE_URL}/api/health`;
           const authUrl = `${process.env.QA_BASE_URL}/api/auth/status`;
           let consecutive = 0;
@@ -142,7 +148,7 @@ jobs:
         run: npx wrangler deploy --config config/wrangler.staging.jsonc
       - name: Aguardar health do Worker publicado
         run: |
-          node - <<'NODE'
+          node --input-type=module - <<'NODE'
           const url = `${process.env.QA_BASE_URL}/api/health`;
           for (let attempt = 1; attempt <= 12; attempt++) {
             const response = await fetch(`${url}?ci=${Date.now()}`).catch(() => null);
@@ -191,6 +197,7 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       MONITOR_RELEASE_SHA: ${{ github.sha }}
       MONITOR_URL: https://smartzap-qa-monitor.thales2581.workers.dev
+      MONITOR_RECOVERY_MODE: ${{ inputs.recovery_deployment || 'false' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -202,9 +209,10 @@ jobs:
         run: npx wrangler deploy --config config/wrangler.monitor.jsonc --var MONITOR_RELEASE_SHA:${MONITOR_RELEASE_SHA}
       - name: Aguardar primeira prova do Cron de cinco minutos
         run: |
-          node - <<'NODE'
+          node --input-type=module - <<'NODE'
           const baseUrl = process.env.MONITOR_URL;
           const expectedRelease = process.env.MONITOR_RELEASE_SHA;
+          const recoveryMode = process.env.MONITOR_RECOVERY_MODE === "true";
           for (let attempt = 1; attempt <= 36; attempt++) {
             const [healthResponse, statusResponse] = await Promise.all([
               fetch(`${baseUrl}/health?ci=${Date.now()}`).catch(() => null),
@@ -216,15 +224,45 @@ jobs:
             const status = statusResponse?.ok
               ? await statusResponse.json().catch(() => null)
               : null;
+            const checks = Array.isArray(status?.checks) ? status.checks : [];
+            const expectedTargets = new Set([
+              "staging-health",
+              "staging-shell",
+              "production-health",
+              "production-shell",
+            ]);
+            const observedTargets = new Set(
+              checks.map((check) => check.targetId),
+            );
+            const complete =
+              expectedTargets.size === observedTargets.size &&
+              [...expectedTargets].every((target) =>
+                observedTargets.has(target),
+              );
+            const stagingPassed = ["staging-health", "staging-shell"].every(
+              (target) =>
+                checks.some(
+                  (check) =>
+                    check.targetId === target && check.status === "passed",
+                ),
+            );
+            const allPassed =
+              status?.status === "passed" &&
+              checks.every((check) => check.status === "passed");
             if (
               health?.ok === true &&
               health?.releaseSha === expectedRelease &&
               status?.releaseSha === expectedRelease &&
-              status?.status === "passed" &&
-              status?.checks?.length === 4
+              complete &&
+              (allPassed || (recoveryMode && stagingPassed))
             ) {
+              if (recoveryMode && !allPassed) {
+                console.warn(
+                  "Modo de recuperação: staging está saudável e a indisponibilidade prévia de produção não bloqueará a correção.",
+                );
+              }
               console.log(
-                `Cron aprovado para ${status.scheduledTime}: ${status.checks.length} provas read-only.`,
+                `Cron observado para ${status.scheduledTime}: ${checks.length} provas read-only.`,
               );
               process.exit(0);
             }
@@ -258,3 +296,36 @@ jobs:
         run: npx wrangler d1 migrations apply smartzap --remote
       - name: Publicar produção
         run: npx wrangler deploy
+      - name: Aguardar health e shell de produção após publicação
+        env:
+          PRODUCTION_URL: https://smartzap-cf.thales2581.workers.dev
+        run: |
+          node --input-type=module - <<'NODE'
+          const baseUrl = process.env.PRODUCTION_URL;
+          for (let attempt = 1; attempt <= 18; attempt++) {
+            const [healthResponse, shellResponse] = await Promise.all([
+              fetch(`${baseUrl}/api/health?ci=${Date.now()}`).catch(() => null),
+              fetch(`${baseUrl}/?ci=${Date.now()}`).catch(() => null),
+            ]);
+            const health = healthResponse?.ok
+              ? await healthResponse.json().catch(() => null)
+              : null;
+            const shell = shellResponse?.ok
+              ? await shellResponse.text().catch(() => "")
+              : "";
+            if (
+              health?.ok === true &&
+              shellResponse?.headers
+                .get("content-type")
+                ?.includes("text/html") &&
+              shell.includes('id="root"')
+            ) {
+              console.log("Produção saudável após a publicação.");
+              process.exit(0);
+            }
+            await new Promise((resolve) => setTimeout(resolve, 5_000));
+          }
+          throw new Error(
+            "Produção não apresentou health e shell válidos em 90 segundos",
+          );
+          NODE

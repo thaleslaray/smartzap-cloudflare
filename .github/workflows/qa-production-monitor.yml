@@ -68,9 +68,9 @@ jobs:
     steps:
       - name: Validar último ciclo de cinco minutos
         run: |
-          node - <<'NODE'
-          const { mkdir, writeFile } = require("node:fs/promises");
-          const { resolve } = require("node:path");
+          node --input-type=module - <<'NODE'
+          import { mkdir, writeFile } from "node:fs/promises";
+          import { resolve } from "node:path";
           const baseUrl = process.env.MONITOR_URL;
           const outputDir = resolve(process.env.QA_REPORT_DIR);
           const controller = new AbortController();
