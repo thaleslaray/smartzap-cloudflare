@@ -8,6 +8,9 @@ import { assertPlaywrightReportClean } from "./lib/playwright-report.mjs";
 const root = resolve(import.meta.dirname, "..");
 const mode = process.argv[2] || "p0";
 const a11yTestTitle = "rotas críticas não têm violações WCAG A/AA detectáveis";
+const responsiveWideTestTitle =
+  "todas as rotas operacionais preservam a largura em 1920×1080";
+const coreTestTitleExclusions = `(?:${a11yTestTitle}|${responsiveWideTestTitle})`;
 const runId = (
   process.env.QA_RUN_ID || `AUTOQA_${Date.now()}_${randomUUID().slice(0, 8)}`
 ).replace(/[^A-Za-z0-9_-]/g, "_");
@@ -20,15 +23,15 @@ const reportRoot = resolve(
 
 const matrix = {
   p0: [
-    // A suíte compartilha o mesmo Worker local, mas o teste de acessibilidade
-    // percorre sete rotas e é deliberadamente executado em um processo de
-    // navegador separado. Isso evita que o WebKit acumule estado após os
+    // A suíte compartilha o mesmo Worker local, mas as auditorias mais longas
+    // percorrem muitas rotas e são deliberadamente executadas em processos de
+    // navegador separados. Isso evita que o WebKit acumule estado após os
     // demais cenários e transforme uma queda de conexão em um falso flake.
     {
       label: "chromium-core",
       project: "chromium",
       files: ["e2e/smoke.spec.ts"],
-      grepInvert: a11yTestTitle,
+      grepInvert: coreTestTitleExclusions,
     },
     {
       label: "chromium-a11y",
@@ -37,16 +40,28 @@ const matrix = {
       grep: a11yTestTitle,
     },
     {
+      label: "chromium-responsive-wide",
+      project: "chromium",
+      files: ["e2e/smoke.spec.ts"],
+      grep: responsiveWideTestTitle,
+    },
+    {
       label: "webkit-core",
       project: "webkit",
       files: ["e2e/smoke.spec.ts"],
-      grepInvert: a11yTestTitle,
+      grepInvert: coreTestTitleExclusions,
     },
     {
       label: "webkit-a11y",
       project: "webkit",
       files: ["e2e/smoke.spec.ts"],
       grep: a11yTestTitle,
+    },
+    {
+      label: "webkit-responsive-wide",
+      project: "webkit",
+      files: ["e2e/smoke.spec.ts"],
+      grep: responsiveWideTestTitle,
     },
   ],
   matrix: [
