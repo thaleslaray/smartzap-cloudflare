@@ -107,7 +107,7 @@ jobs:
       - name: Smoke real no Worker de preview
         env:
           QA_REPORT_DIR: qa/reports/preview-ui-${{ github.run_id }}-${{ github.run_attempt }}
-        run: npx playwright test e2e/qa-remote-smoke.spec.ts --project chromium
+        run: npx playwright test e2e/qa-remote-smoke.spec.ts --project chromium --retries=0
       - name: Guardar evidências do preview
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -160,7 +160,7 @@ jobs:
       - name: Smoke autenticado e somente leitura
         env:
           QA_REPORT_DIR: qa/reports/staging-ui-${{ github.run_id }}-${{ github.run_attempt }}
-        run: npx playwright test e2e/qa-remote-smoke.spec.ts --project chromium
+        run: npx playwright test e2e/qa-remote-smoke.spec.ts --project chromium --retries=0
       - name: 84 sessões reais de IA no Workers AI
         env:
           QA_AI_MODE: staging

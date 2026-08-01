@@ -1310,3 +1310,11 @@ Cada rodada deve registrar:
 - **Preview Cloudflare:** o job `91368073216` passou em **1m32s**. A execução migrou o D1 `smartzap-preview`, publicou o Worker isolado, confirmou health e autenticação em três respostas consecutivas e executou o smoke Chromium somente leitura nas nove rotas críticas em `390×844` e `1440×900`, sem erro interno ou overflow horizontal.
 - **Segurança do escopo:** preview permaneceu com IA, automação de Inbox e envio externo desligados; nenhuma mensagem Meta foi enviada e nenhuma credencial foi registrada nos artefatos.
 - **Estado:** `QA-01` passa a `aprovada` nesta revisão, com evidência local cross-browser, gate remoto e deployment isolado. `SEG-01`, `CNT-01` e `RSP-01` permanecem `corrigida — reteste pendente` porque o smoke remoto é somente leitura e não executa suas mutações específicas. `QA-03` continua `bloqueada` pelo callback Meta apontando para produção; `QA-04` continua `em teste` pelo canário integral, calibração humana do juiz e soak de 14 dias.
+
+## 2026-08-01 — Flake revelado no smoke remoto de staging (QA-01)
+
+- **Defeito confirmado:** na execução `30699693736`, job staging `91370212702`, o smoke remoto teve uma primeira tentativa com erro de interface em uma rota crítica (`A tela encontrou um erro`) e passou no retry padrão. O GitHub marcou o resultado como `1 flaky`, mas o job ficou verde; isso contrariava a política de que qualquer flake P0/P1 reprova a promoção.
+- **Causa:** os comandos diretos `npx playwright test e2e/qa-remote-smoke.spec.ts` dos workflows de preview, staging e soak noturno não desabilitavam retries nem passavam pelo validador de flakiness do runner.
+- **Correção aplicada:** os três comandos passaram a usar `--retries=0`; QA-01 foi reaberta como `corrigida — reteste pendente`. Nenhuma regra de negócio ou integração externa foi alterada.
+- **Retestes que continuam válidos:** a matriz local no commit `f65cdec` passou com **162/162 cenários** e a prova visual dedicada com **6/6 viewports**, ambas sem retry; o staging anterior não é considerado aprovado para smoke por causa do flake descoberto.
+- **Próximo gate:** o novo CI deve provar primeiro o gate determinístico, depois preview e staging com zero flake observável. Nenhum canário Meta será iniciado até essa sequência passar novamente.

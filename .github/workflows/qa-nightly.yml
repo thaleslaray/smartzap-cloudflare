@@ -72,7 +72,7 @@ jobs:
       - name: Interface remota somente leitura
         env:
           QA_REPORT_DIR: qa/reports/nightly-ui-${{ github.run_id }}-${{ github.run_attempt }}
-        run: npx playwright test e2e/qa-remote-smoke.spec.ts --project chromium
+        run: npx playwright test e2e/qa-remote-smoke.spec.ts --project chromium --retries=0
       - name: Evals reais do Workers AI
         env:
           QA_AI_MODE: staging
