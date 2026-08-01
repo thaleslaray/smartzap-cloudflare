@@ -246,6 +246,12 @@ test("Contatos oferece selecionar todos no layout reduzido", async ({ page }) =>
 test("campanha usa segmento salvo, busca contatos no servidor e mapeia variáveis", async ({
   page,
 }) => {
+  // O primeiro request do runtime Wrangler/WebKit pode atravessar o cold start
+  // do Worker local. O limite padrão de 30 s cortava a jornada antes de o
+  // servidor terminar de criar a campanha, embora a aplicação estivesse
+  // saudável; este orçamento cobre a inicialização sem habilitar retry.
+  test.setTimeout(60_000);
+
   await page.goto("/login");
   await page.getByLabel("Senha mestra").fill("dev");
   await page.getByRole("button", { name: "Entrar" }).click();
@@ -278,11 +284,13 @@ test("campanha usa segmento salvo, busca contatos no servidor e mapeia variávei
   await page.getByLabel("Valor de button.0.1").fill("destino-e2e");
   await page.getByRole("button", { name: "Continuar" }).click();
 
-  await page
+  const customAudience = page
     .getByRole("button", {
       name: /Público personalizado Público salvo, tags, DDI ou UF/,
-    })
-    .click();
+    });
+  await expect(page.getByRole("heading", { name: "Escolha o público" })).toBeVisible();
+  await expect(customAudience).toBeVisible();
+  await customAudience.click();
   await page.getByLabel("Público salvo").selectOption({ label: segmentName });
   await expect(page.getByRole("button", { name: "Continuar" })).toBeEnabled();
   await expect(page.getByText("Preview com contato real")).toHaveCount(0);
