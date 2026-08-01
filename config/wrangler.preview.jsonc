@@ -24,7 +24,7 @@
     "AI_ENABLED": "false",
     "AI_MODEL": "@cf/openai/gpt-oss-20b",
     "AI_GATEWAY_ID": "smartzap-preview",
-    "AI_PROVIDER_TIMEOUT_MS": "20000",
+    "AI_PROVIDER_TIMEOUT_MS": "30000",
     "AI_MAX_DRAFTS_PER_CONVERSATION_HOUR": "5",
     "AI_MAX_DRAFTS_PER_DAY": "20",
     "CLOUDFLARE_ACCOUNT_ID": "4a1961760bc2292fab3733dc2b3c811c",

@@ -56,11 +56,11 @@ Histórico importado de: `docs/auditoria-jornadas.md`
 | ATD-01 | Atendimento | Fila, atribuição, disponibilidade e conversa por link direto | `/atendimento` | aprovada |
 | ATD-02 | Atendimento | Criar, editar, ativar/desativar atendentes e permissões | `/settings/attendants` | aprovada |
 | KNO-01 | Conhecimento | Criar, editar, upload, indexar, buscar, reindexar e excluir | `/knowledge` | aprovada |
-| AI-01 | IA | Configuração de um provedor, limites, indisponibilidade e erro | `/settings/ai` | corrigida — reteste pendente |
-| AI-02 | IA | Criar agente, instruções, RAG, ativar/desativar, testar e excluir | `/settings/ai/agents` | corrigida — reteste pendente |
-| AI-03 | IA | Sugestão na Inbox, contexto, memória, RAG, segurança e handoff | `/inbox/:id` | corrigida — reteste pendente |
-| AI-04 | IA | Prompt injection, isolamento entre contatos, fonte ausente, timeout e falha segura do provedor | Inbox, agentes e conhecimento | aprovada |
-| AI-05 | IA comercial | Configurar identidade, prompt, regras de qualificação, FAQ operacional, RAG, consentimento, campanha, objeção comercial e handoff por preço/contrato; validar no canal real | `/settings/ai/agents`, `/knowledge` e `/inbox/:id` | em teste |
+| AI-01 | IA | Configuração de um provedor, limites, indisponibilidade e erro; o timeout do provider cobre respostas fundamentadas lentas sem deixar chamadas penduradas | `/settings/ai` | corrigida — reteste pendente |
+| AI-02 | IA | Criar agente, instruções, RAG, ativar/desativar, testar e excluir; o prompt fundamentado impõe opt-in/consentimento para disparos e não permite inferir consentimento por importação | `/settings/ai/agents` | corrigida — reteste pendente |
+| AI-03 | IA | Sugestão na Inbox, contexto, memória, RAG, segurança e handoff; respostas fundamentadas aguardam o limite operacional de 30 segundos e falham fechadas depois dele | `/inbox/:id` | corrigida — reteste pendente |
+| AI-04 | IA | Prompt injection, isolamento entre contatos, fonte ausente, timeout e falha segura do provedor; importação ou ausência de opt-out nunca vira consentimento, e disparo em massa exige evidência | Inbox, agentes e conhecimento | corrigida — reteste pendente |
+| AI-05 | IA comercial | Configurar identidade, prompt, regras de qualificação, FAQ operacional, RAG, consentimento, campanha, objeção comercial e handoff por preço/contrato; validar no canal real. O prompt fundamentado exige consentimento explícito e segmentação antes de orientar disparos | `/settings/ai/agents`, `/knowledge` e `/inbox/:id` | corrigida — reteste pendente |
 | INB-04 | Inbox/IA | Configurar timeout humano, retenção, chave global de Atendimento IA e confirmar que desligar a chave impede a automação autônoma em conversas já habilitadas | `/inbox` e `/settings/ai/agents` | corrigida — reteste pendente |
 | AI-06 | IA | Desativar um agente e confirmar que conversas já atribuídas deixam de gerar, aprovar e enviar respostas automáticas; reativar e confirmar retomada controlada | `/settings/ai/agents` e `/inbox/:id` | corrigida — reteste pendente |
 | AI-07 | IA | Paridade entre saúde central, estado do agente, documentos indexados, metadados exibidos e prontidão real do provedor | `/settings/ai`, `/settings/ai/agents` e `/knowledge` | corrigida — reteste pendente |

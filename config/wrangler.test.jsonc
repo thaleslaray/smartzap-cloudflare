@@ -30,7 +30,7 @@
     "AI_ENABLED": "false",
     "AI_MODEL": "@cf/openai/gpt-oss-20b",
     "AI_GATEWAY_ID": "smartzap-test",
-    "AI_PROVIDER_TIMEOUT_MS": "20000",
+    "AI_PROVIDER_TIMEOUT_MS": "30000",
     "AI_MAX_DRAFTS_PER_CONVERSATION_HOUR": "20",
     "AI_MAX_DRAFTS_PER_DAY": "200",
     "INBOX_SEND_ENABLED": "true",

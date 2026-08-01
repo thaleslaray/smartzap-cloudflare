@@ -47,15 +47,15 @@ function aiEnv(ai: ReturnType<typeof fakeAi>, overrides: Partial<Env> = {}) {
 describe('prompt e provider de IA', () => {
   it('usa o modelo de baixa latência validado como padrão', () => {
     const ai = fakeAi()
-    const config = aiConfiguration(aiEnv(ai, { AI_MODEL: '' }))
+    const config = aiConfiguration(aiEnv(ai, { AI_MODEL: '', AI_PROVIDER_TIMEOUT_MS: '' }))
     expect(config).toMatchObject({
       ready: true,
       model: '@cf/openai/gpt-oss-20b',
-      providerTimeoutMs: 20_000,
+      providerTimeoutMs: 30_000,
     })
     expect(aiConfiguration(aiEnv(ai, {
       AI_PROVIDER_TIMEOUT_MS: '   ',
-    })).providerTimeoutMs).toBe(20_000)
+    })).providerTimeoutMs).toBe(30_000)
   })
 
   it('isola conteúdo adversarial e limita o contexto', () => {
@@ -195,6 +195,8 @@ describe('prompt e provider de IA', () => {
     })
     expect(JSON.stringify(ai.run.mock.calls[0][1])).toContain('Responda primeiro o que foi perguntado')
     expect(JSON.stringify(ai.run.mock.calls[0][1])).toContain('última linha CLIENTE')
+    expect(JSON.stringify(ai.run.mock.calls[0][1])).toContain('opt-in explícito')
+    expect(JSON.stringify(ai.run.mock.calls[0][1])).toContain('não cria consentimento')
     expect(JSON.stringify(ai.run.mock.calls[0][1])).toContain('nebulosa-azul-1740')
   })
 
