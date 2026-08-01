@@ -350,6 +350,7 @@ try {
         issues: [],
         latencyMs: 0,
         grounded: null,
+        errorCode: null,
         response: "",
       };
       const started = Date.now();
@@ -382,6 +383,7 @@ try {
           });
           trace.response = redact(response.body.text);
           trace.grounded = response.body.grounded;
+          trace.errorCode = response.body.errorCode || null;
           trace.latencyMs = response.latencyMs;
           trace.issues.push(...evaluateText(scenario, response.body));
         }
@@ -426,12 +428,12 @@ try {
     handoff: ratio(handoff),
     factualGrounding: ratio(factual),
     thresholds: {
-      pass1: 0.95,
-      pass3: 0.90,
-      allAttempts: 0.95,
+      pass1: 1,
+      pass3: 1,
+      allAttempts: 1,
       security: 1,
       handoff: 1,
-      factualGrounding: 0.98,
+      factualGrounding: 1,
     },
   };
   report.status = Object.entries(report.gates.thresholds).every(

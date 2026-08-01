@@ -10,6 +10,7 @@ const ALLOWED_MODELS = new Set([
 // quando conclui normalmente. O timeout precisa cobrir esse p95 sem deixar um
 // provider pendurado consumir a requisição indefinidamente.
 const DEFAULT_PROVIDER_TIMEOUT_MS = 30_000
+const MAX_GROUNDED_ATTEMPTS = 2
 const MAX_HISTORY_MESSAGES = 20
 const MAX_HISTORY_CHARS = 12_000
 const MAX_DRAFT_CHARS = 700
@@ -44,7 +45,10 @@ type AiBinding = {
 type TokenUsage = { promptTokens: number | null; outputTokens: number | null }
 
 export class AiDraftError extends Error {
-  constructor(public readonly code: 'not_configured' | 'provider_error' | 'empty_response') {
+  constructor(
+    public readonly code: 'not_configured' | 'provider_error' | 'empty_response',
+    public readonly retryable = code === 'provider_error' || code === 'empty_response',
+  ) {
     super(code)
     this.name = 'AiDraftError'
   }
@@ -261,11 +265,14 @@ export async function runAiProvider(
       }),
       new Promise<never>((_, reject) => {
         timeout = setTimeout(
-          () => reject(new AiDraftError('provider_error')),
+          () => reject(new AiDraftError('provider_error', false)),
           config.providerTimeoutMs,
         )
       }),
     ])
+  } catch (error) {
+    if (error instanceof AiDraftError) throw error
+    throw new AiDraftError('provider_error')
   } finally {
     if (timeout) clearTimeout(timeout)
   }
@@ -314,7 +321,8 @@ export async function generateDraftText(
       buildDraftPrompt(messages, options),
       'human-reviewed-draft',
     )
-  } catch {
+  } catch (error) {
+    if (error instanceof AiDraftError) throw error
     throw new AiDraftError('provider_error')
   }
   const text = redactReflectedSensitiveInput(
@@ -341,9 +349,7 @@ export async function generateGroundedText(
   if (!sources.length) throw new AiDraftError('empty_response')
   const sourceText = sources.map((source, index) => `[Fonte ${index + 1}] ${source}`).join('\n')
   const trustedInstructions = sanitizeTrustedInstructions(options.trustedInstructions)
-  let response: unknown
-  try {
-    response = await runAiProvider(ai, config, {
+  const providerPayload = {
       messages: [{ role: 'system', content: [
         'Você responde atendimento de WhatsApp em português brasileiro.',
         'Responda especificamente à última linha CLIENTE considerando toda a conversa como uma única jornada. Se a última mensagem já responder uma pergunta feita antes, reconheça o dado e avance para o próximo passo definido nas fontes, sem reiniciar o atendimento nem repetir perguntas.',
@@ -360,13 +366,33 @@ export async function generateGroundedText(
       ].filter(Boolean).join(' ') }, { role: 'user', content: `FONTES:\n${sourceText}\n\nCONVERSA:\n${sanitizeHistory(messages)}` }],
       temperature: Math.max(0, Math.min(2, options.temperature ?? 0.2)),
       max_tokens: Math.max(100, Math.min(8192, options.maxTokens ?? 256)),
-    }, 'grounded-automation')
-  } catch { throw new AiDraftError('provider_error') }
-  const text = normalizeDraft(aiResponseText(response))
-  if (!text || isDegenerateDraft(text))
-    throw new AiDraftError('empty_response')
-  return {
-    text: redactReflectedSensitiveInput(text, messages),
-    usage: tokenUsage(response),
+    }
+  let lastError: AiDraftError | undefined
+  for (let attempt = 1; attempt <= MAX_GROUNDED_ATTEMPTS; attempt++) {
+    let response: unknown
+    try {
+      response = await runAiProvider(
+        ai,
+        config,
+        providerPayload,
+        'grounded-automation',
+      )
+    } catch (error) {
+      lastError = error instanceof AiDraftError
+        ? error
+        : new AiDraftError('provider_error')
+      if (!lastError.retryable || attempt === MAX_GROUNDED_ATTEMPTS)
+        throw lastError
+      continue
+    }
+    const text = normalizeDraft(aiResponseText(response))
+    if (text && !isDegenerateDraft(text)) {
+      return {
+        text: redactReflectedSensitiveInput(text, messages),
+        usage: tokenUsage(response),
+      }
+    }
+    lastError = new AiDraftError('empty_response')
   }
+  throw lastError ?? new AiDraftError('empty_response')
 }

@@ -185,6 +185,24 @@ describe('prompt e provider de IA', () => {
     ])).rejects.toMatchObject({ code: 'empty_response' } satisfies Partial<AiDraftError>)
   })
 
+  it('repete uma vez uma saída fundamentada vazia e preserva o fallback fechado', async () => {
+    const ai = {
+      run: vi.fn()
+        .mockResolvedValueOnce({ response: '' })
+        .mockResolvedValueOnce({
+          response: 'Resposta fundamentada após uma falha transitória.',
+        }),
+    }
+    const result = await generateGroundedText(
+      ai as unknown as ReturnType<typeof fakeAi>,
+      aiConfiguration(aiEnv(ai as unknown as ReturnType<typeof fakeAi>)),
+      [{ id: 'm1', direction: 'inbound', text: 'Como funciona?' }],
+      ['O SmartZap usa a API oficial da Meta.'],
+    )
+    expect(result.text).toBe('Resposta fundamentada após uma falha transitória.')
+    expect(ai.run).toHaveBeenCalledTimes(2)
+  })
+
   it('orienta a resposta direta quando a fonte contém o fato solicitado', async () => {
     const ai = fakeAi('O código é nebulosa-azul-1740.')
     const config = aiConfiguration(aiEnv(ai))

@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { readJsonBody } from "./body";
-import { aiConfiguration, generateGroundedText } from "../ai/drafts";
+import { AiDraftError, aiConfiguration, generateGroundedText } from "../ai/drafts";
 import {
   agentKnowledgeDocumentIds,
   extractKnowledgeSources,
@@ -239,10 +239,11 @@ export const agentsRoutes = new Hono<{ Bindings: Env }>()
         },
       );
       return c.json({ text: generated.text, grounded: true });
-    } catch {
+    } catch (error) {
       return c.json({
         text: "Não consegui gerar uma resposta fundamentada. Vou encaminhar para uma pessoa.",
         grounded: false,
+        errorCode: error instanceof AiDraftError ? error.code : "provider_error",
       });
     }
   });
