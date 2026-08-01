@@ -7,6 +7,7 @@ import { assertPlaywrightReportClean } from "./lib/playwright-report.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const mode = process.argv[2] || "p0";
+const a11yTestTitle = "rotas críticas não têm violações WCAG A/AA detectáveis";
 const runId = (
   process.env.QA_RUN_ID || `AUTOQA_${Date.now()}_${randomUUID().slice(0, 8)}`
 ).replace(/[^A-Za-z0-9_-]/g, "_");
@@ -19,8 +20,34 @@ const reportRoot = resolve(
 
 const matrix = {
   p0: [
-    { project: "chromium", files: ["e2e/smoke.spec.ts"] },
-    { project: "webkit", files: ["e2e/smoke.spec.ts"] },
+    // A suíte compartilha o mesmo Worker local, mas o teste de acessibilidade
+    // percorre sete rotas e é deliberadamente executado em um processo de
+    // navegador separado. Isso evita que o WebKit acumule estado após os
+    // demais cenários e transforme uma queda de conexão em um falso flake.
+    {
+      label: "chromium-core",
+      project: "chromium",
+      files: ["e2e/smoke.spec.ts"],
+      grepInvert: a11yTestTitle,
+    },
+    {
+      label: "chromium-a11y",
+      project: "chromium",
+      files: ["e2e/smoke.spec.ts"],
+      grep: a11yTestTitle,
+    },
+    {
+      label: "webkit-core",
+      project: "webkit",
+      files: ["e2e/smoke.spec.ts"],
+      grepInvert: a11yTestTitle,
+    },
+    {
+      label: "webkit-a11y",
+      project: "webkit",
+      files: ["e2e/smoke.spec.ts"],
+      grep: a11yTestTitle,
+    },
   ],
   matrix: [
     { project: "chromium", files: [] },
@@ -43,9 +70,19 @@ const requestedProjects = new Set(
     .map((project) => project.trim())
     .filter(Boolean),
 );
-const selectedMatrix = requestedProjects.size
-  ? matrix[mode].filter((item) => requestedProjects.has(item.project))
-  : matrix[mode];
+function explicitGrepMatchesItem(item) {
+  const explicitGrep = process.env.QA_E2E_GREP;
+  if (!explicitGrep) return true;
+  if (item.grep && !new RegExp(item.grep).test(explicitGrep)) return false;
+  if (item.grepInvert && new RegExp(item.grepInvert).test(explicitGrep)) return false;
+  return true;
+}
+
+const selectedMatrix = matrix[mode].filter(
+  (item) =>
+    (!requestedProjects.size || requestedProjects.has(item.project)) &&
+    explicitGrepMatchesItem(item),
+);
 if (!selectedMatrix.length) {
   console.error(
     `Nenhum projeto selecionado para ${mode}: ${[...requestedProjects].join(", ")}`,
@@ -53,10 +90,15 @@ if (!selectedMatrix.length) {
   process.exit(2);
 }
 
-function optionalPlaywrightArgs() {
+function optionalPlaywrightArgs(item) {
   const args = [];
   if (process.env.QA_E2E_GREP) {
     args.push("--grep", process.env.QA_E2E_GREP);
+  } else if (item.grep) {
+    args.push("--grep", item.grep);
+  }
+  if (!process.env.QA_E2E_GREP && item.grepInvert) {
+    args.push("--grep-invert", item.grepInvert);
   }
   for (const [envName, cliName] of [
     ["QA_E2E_REPEAT_EACH", "--repeat-each"],
@@ -122,9 +164,10 @@ function availablePort() {
 }
 
 for (const item of selectedMatrix) {
+  const runLabel = item.label || item.project;
   const statePath = resolve(
     stateRoot,
-    `${runId}-${mode}-${item.project}`,
+    `${runId}-${mode}-${runLabel}`,
   );
   if (!statePath.startsWith(`${stateRoot}/`))
     throw new Error("Caminho de estado E2E fora de qa/.state");
@@ -134,7 +177,7 @@ for (const item of selectedMatrix) {
   const projectReportDir = resolve(
     reportRoot,
     "playwright",
-    item.project,
+    runLabel,
   );
   if (!projectReportDir.startsWith(`${reportRoot}/`))
     throw new Error("Caminho de relatório E2E fora do diretório da execução");
@@ -198,7 +241,7 @@ for (const item of selectedMatrix) {
         ...item.files,
         "--project",
         item.project,
-        ...optionalPlaywrightArgs(),
+        ...optionalPlaywrightArgs(item),
       ],
       env,
       { detectWorkerErrors: true },
@@ -222,7 +265,7 @@ for (const item of selectedMatrix) {
       item.project,
     );
     console.log(
-      `QA_PLAYWRIGHT_SUMMARY ${item.project} expected=${summary.expected} skipped=${summary.skipped} flaky=${summary.flaky} unexpected=${summary.unexpected}`,
+      `QA_PLAYWRIGHT_SUMMARY ${runLabel} expected=${summary.expected} skipped=${summary.skipped} flaky=${summary.flaky} unexpected=${summary.unexpected}`,
     );
   } finally {
     rmSync(statePath, { recursive: true, force: true });
