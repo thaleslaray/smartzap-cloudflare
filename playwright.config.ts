@@ -3,7 +3,10 @@ import { defineConfig } from '@playwright/test'
 const port = Number(process.env.E2E_PORT || 5174)
 const remoteBaseURL = process.env.QA_REMOTE_BASE_URL?.replace(/\/+$/, '')
 const baseURL = remoteBaseURL || `http://localhost:${port}`
-const reportDir = process.env.QA_REPORT_DIR || 'test-results'
+const reportDir =
+  process.env.QA_PLAYWRIGHT_REPORT_DIR ||
+  process.env.QA_REPORT_DIR ||
+  'test-results'
 
 export default defineConfig({
   testDir: 'e2e',

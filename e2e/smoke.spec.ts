@@ -1,5 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+import {
+  gotoAuthedRoute,
+  reloadAuthedRoute,
+  waitForAuthedAppReady,
+} from "./support/navigation";
 
 async function expectNoHorizontalOverflow(page: Page, viewportWidth: number) {
   const dimensions = await page.evaluate(() => ({
@@ -804,7 +809,7 @@ test("Templates permite selecionar itens e expõe ações em lote reais", async 
 
   await page.getByRole("button", { name: "Alternar para tema claro" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
-  await page.reload();
+  await reloadAuthedRoute(page);
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await page.getByRole("button", { name: "Alternar para tema escuro" }).click();
 });
@@ -844,7 +849,7 @@ test("Campanhas permite atribuir pasta e tags em desktop e mobile", async ({
   await expect(tag).toHaveAttribute("aria-checked", "true");
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.reload();
+  await reloadAuthedRoute(page);
   await page.getByRole("searchbox").fill(campaignName);
   await expect(
     page.getByRole("button", { name: `Mover ${campaignName} para pasta` }),
@@ -872,6 +877,7 @@ test("Inbox seleciona template, resolve variáveis e exige confirmação de envi
   await page.getByLabel("Senha mestra").fill("dev");
   await page.getByRole("button", { name: "Entrar" }).click();
   await expect(page).toHaveURL(/\/$/);
+  await waitForAuthedAppReady(page);
   await page.goto("/inbox/22222222-2222-4222-8222-222222222222");
   await page.getByLabel("Ações da mensagem").click();
   await page.getByRole("button", { name: "Enviar template aprovado" }).click();
@@ -930,7 +936,7 @@ test("rotas críticas não têm violações WCAG A/AA detectáveis", async ({ pa
     "/inbox/22222222-2222-4222-8222-222222222222",
     "/settings",
   ]) {
-    await page.goto(path);
+    await gotoAuthedRoute(page, path);
     await page.waitForTimeout(250);
     if (testInfo.project.name === "webkit") {
       const selectStyles = await page.locator("select:visible").evaluateAll((nodes) =>

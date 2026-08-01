@@ -1,8 +1,9 @@
 import { spawn } from "node:child_process";
-import { mkdirSync, rmSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync } from "node:fs";
 import { resolve, relative } from "node:path";
 import { randomUUID } from "node:crypto";
 import { createServer } from "node:net";
+import { assertPlaywrightReportClean } from "./lib/playwright-report.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const mode = process.argv[2] || "p0";
@@ -11,6 +12,10 @@ const runId = (
 ).replace(/[^A-Za-z0-9_-]/g, "_");
 const stateRoot = resolve(root, "qa/.state");
 mkdirSync(stateRoot, { recursive: true });
+const reportRoot = resolve(
+  root,
+  process.env.QA_REPORT_DIR || "test-results",
+);
 
 const matrix = {
   p0: [
@@ -30,6 +35,41 @@ const matrix = {
 if (!matrix[mode]) {
   console.error(`Modo E2E inválido: ${mode}`);
   process.exit(2);
+}
+
+const requestedProjects = new Set(
+  (process.env.QA_E2E_PROJECTS || "")
+    .split(",")
+    .map((project) => project.trim())
+    .filter(Boolean),
+);
+const selectedMatrix = requestedProjects.size
+  ? matrix[mode].filter((item) => requestedProjects.has(item.project))
+  : matrix[mode];
+if (!selectedMatrix.length) {
+  console.error(
+    `Nenhum projeto selecionado para ${mode}: ${[...requestedProjects].join(", ")}`,
+  );
+  process.exit(2);
+}
+
+function optionalPlaywrightArgs() {
+  const args = [];
+  if (process.env.QA_E2E_GREP) {
+    args.push("--grep", process.env.QA_E2E_GREP);
+  }
+  for (const [envName, cliName] of [
+    ["QA_E2E_REPEAT_EACH", "--repeat-each"],
+    ["QA_E2E_RETRIES", "--retries"],
+  ]) {
+    if (!process.env[envName]) continue;
+    const value = Number(process.env[envName]);
+    if (!Number.isInteger(value) || value < 0) {
+      throw new Error(`${envName} precisa ser um inteiro não negativo`);
+    }
+    args.push(cliName, String(value));
+  }
+  return args;
 }
 
 function run(executable, args, env, options = {}) {
@@ -81,7 +121,7 @@ function availablePort() {
   });
 }
 
-for (const item of matrix[mode]) {
+for (const item of selectedMatrix) {
   const statePath = resolve(
     stateRoot,
     `${runId}-${mode}-${item.project}`,
@@ -91,6 +131,15 @@ for (const item of matrix[mode]) {
   rmSync(statePath, { recursive: true, force: true });
   mkdirSync(statePath, { recursive: true });
   const stateRelative = relative(root, statePath);
+  const projectReportDir = resolve(
+    reportRoot,
+    "playwright",
+    item.project,
+  );
+  if (!projectReportDir.startsWith(`${reportRoot}/`))
+    throw new Error("Caminho de relatório E2E fora do diretório da execução");
+  rmSync(projectReportDir, { recursive: true, force: true });
+  mkdirSync(projectReportDir, { recursive: true });
   const port = await availablePort();
   let inspectorPort = await availablePort();
   while (inspectorPort === port) inspectorPort = await availablePort();
@@ -101,6 +150,7 @@ for (const item of matrix[mode]) {
     QA_RUN_ID: runId,
     QA_E2E_STATE: stateRelative,
     QA_E2E_PROJECT: item.project,
+    QA_PLAYWRIGHT_REPORT_DIR: projectReportDir,
   };
   try {
     let result = await run(
@@ -148,6 +198,7 @@ for (const item of matrix[mode]) {
         ...item.files,
         "--project",
         item.project,
+        ...optionalPlaywrightArgs(),
       ],
       env,
       { detectWorkerErrors: true },
@@ -160,6 +211,19 @@ for (const item of matrix[mode]) {
       throw new Error(
         `Playwright ${item.project} registrou erro interno no Worker`,
       );
+    const playwrightReport = JSON.parse(
+      readFileSync(
+        resolve(projectReportDir, "playwright-results.json"),
+        "utf8",
+      ),
+    );
+    const summary = assertPlaywrightReportClean(
+      playwrightReport,
+      item.project,
+    );
+    console.log(
+      `QA_PLAYWRIGHT_SUMMARY ${item.project} expected=${summary.expected} skipped=${summary.skipped} flaky=${summary.flaky} unexpected=${summary.unexpected}`,
+    );
   } finally {
     rmSync(statePath, { recursive: true, force: true });
   }

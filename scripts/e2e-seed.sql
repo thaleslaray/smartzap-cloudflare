@@ -10,6 +10,11 @@ VALUES (
 -- Garante que o smoke jamais consiga ultrapassar o preflight de disparo.
 DELETE FROM settings WHERE key IN ('whatsapp_phone_id', 'whatsapp_waba_id');
 
+-- O E2E determinístico não consulta provedores públicos de câmbio.
+INSERT OR REPLACE INTO settings (key, value) VALUES
+  ('exchange_rate_usd_brl', '5.50'),
+  ('exchange_rate_usd_brl_fetched_at', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
+
 INSERT OR REPLACE INTO campaigns (
   id, name, template_name, status, workflow_id, total, sent, delivered, read, failed
 ) VALUES (

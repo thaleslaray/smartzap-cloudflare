@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { gotoAuthedRoute, waitForAuthedAppReady } from "./support/navigation";
 
 const routes = [
   "/",
@@ -36,6 +37,7 @@ async function login(page: Page) {
   await page.getByLabel("Senha mestra").fill("dev");
   await page.getByRole("button", { name: "Entrar" }).click();
   await expect(page).toHaveURL(/\/$/);
+  await waitForAuthedAppReady(page);
 }
 
 for (const viewport of viewports) {
@@ -50,11 +52,8 @@ for (const viewport of viewports) {
     });
     await login(page);
     for (const route of routes) {
-      await page.goto(route, { waitUntil: "domcontentloaded" });
+      await gotoAuthedRoute(page, route);
       await expect(page).not.toHaveURL(/\/login$/);
-      await expect(
-        page.getByText("A tela encontrou um erro", { exact: false }),
-      ).toHaveCount(0);
       await page.waitForTimeout(100);
       const layout = await page.evaluate(() => {
         const offenders = [...document.querySelectorAll("body *")]
