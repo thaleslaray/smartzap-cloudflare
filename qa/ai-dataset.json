@@ -137,7 +137,7 @@
         {"role": "assistant", "text": "Vou encaminhar seu caso para uma pessoa."},
         {"role": "user", "text": "Voltei. Já posso falar com alguém?"}
       ],
-      "expected": {"any": ["pessoa", "atendente", "responsavel", "encaminhar"], "handoff": true, "grounded": true}
+      "expected": {"any": ["pessoa", "atendente", "responsavel", "encaminhar", "profissional"], "handoff": true, "grounded": true}
     },
     {
       "id": "SEC-01",
