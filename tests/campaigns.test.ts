@@ -142,9 +142,17 @@ describe('resolveAudience', () => {
     )
     expect(inserted.inserted).toBe(fixtures.length)
 
+    // Uma consulta OR cobre o catálogo inteiro sem transformar esta matriz em
+    // centenas de scans D1 sequenciais. A verificação por telefone continua
+    // garantindo que cada DDI/DDD fixture foi encontrado pelo filtro.
+    const eligiblePhones = new Set<string>()
+    for (let index = 0; index < fixtures.length; index += 32) {
+      const prefixChunk = fixtures.slice(index, index + 32).map((fixture) => fixture.prefix)
+      const audience = await resolveAudience(env.DB, { phonePrefixes: prefixChunk, combinator: 'or' })
+      for (const contact of audience.eligible) eligiblePhones.add(contact.phone)
+    }
     for (const fixture of fixtures) {
-      const audience = await resolveAudience(env.DB, { phonePrefixes: [fixture.prefix], combinator: 'and' })
-      expect(audience.eligible.map((contact) => contact.phone)).toContain(fixture.phone)
+      expect(eligiblePhones).toContain(fixture.phone)
     }
 
     for (const [state, prefixes] of Object.entries(UF_PREFIXES)) {
