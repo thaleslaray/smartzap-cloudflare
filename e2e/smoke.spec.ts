@@ -148,8 +148,17 @@ test("Contatos expõe carregamento, vazio e erro recuperável pela interface", a
   await page.goto("/contacts");
   await expect(page.getByRole("heading", { name: "Contatos" })).toBeVisible({ timeout: 15000 });
 
-  const listUrl = /\/api\/contacts\?q=.*&page=1/;
+  // O Firefox pode serializar a query em ordem diferente durante um reload
+  // frio. O contrato do cenário é o endpoint de lista na página 1, não a
+  // ordem dos parâmetros; um regex preso em `q=...&page=1` transforma isso em
+  // flake e deixa a segunda resposta real escapar do mock.
+  const listUrl = "**/api/contacts?*";
+  const isFirstContactsPage = (route: import("@playwright/test").Route) => {
+    const url = new URL(route.request().url());
+    return url.pathname.endsWith("/api/contacts") && url.searchParams.get("page") === "1";
+  };
   await page.route(listUrl, async (route) => {
+    if (!isFirstContactsPage(route)) return route.continue();
     await new Promise((resolve) => setTimeout(resolve, 1500));
     await route.fulfill({
       contentType: "application/json",
@@ -165,6 +174,7 @@ test("Contatos expõe carregamento, vazio e erro recuperável pela interface", a
   await page.unroute(listUrl);
 
   await page.route(listUrl, async (route) => {
+    if (!isFirstContactsPage(route)) return route.continue();
     await route.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ error: "Falha controlada" }) });
   });
   await page.reload();
