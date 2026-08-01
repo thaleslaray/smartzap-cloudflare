@@ -1336,3 +1336,12 @@ Cada rodada deve registrar:
 - **Correção do laboratório:** `profissional` foi adicionado como sinônimo válido de handoff no dataset versionado. Nenhuma regra do agente foi afrouxada e nenhuma resposta foi alterada para satisfazer artificialmente o teste.
 - **Cleanup:** aprovado, **5 ações**, resíduos finais zero para agentes, documentos, contatos, campanhas e tags `AUTOQA`.
 - **Estado:** `QA-01` e `AI-05` permanecem `corrigida — reteste pendente` até a execução repetir a avaliação com o grader corrigido. A causa do timeout foi encerrada; a execução seguinte é o reteste final desta correção.
+
+## 2026-08-01 — Reteste P0 elimina flake de cold start no WebKit (QA-01 / SEG-01)
+
+- **Ambiente:** checkout local `/Users/thaleslaray/Projetos/smartzap-cf`, branch `codex/qa-soak-evidence-2026-07-30`, commit `7145673`; bases D1 e Workers locais efêmeros isolados por `run_id`. Nenhum recurso Cloudflare compartilhado, produção ou provedor externo foi alterado.
+- **Defeito reproduzido e causa:** a execução remota `30704665293` havia reprovado antes do staging porque o cenário de segmento salvo passou somente no retry do WebKit. O trace mostrou o Worker local levando aproximadamente **10,7 s** para responder ao `POST /api/campaigns` durante o cold start, esgotando o timeout global de **30 s** antes de o card `Público personalizado` ser renderizado. Não havia falha de regra de segmento nem erro de aplicação.
+- **Correção aplicada:** a jornada de segmento recebeu timeout explícito de **60 s**, sem habilitar retry, e passou a aguardar semanticamente o heading `Escolha o público` e o card `Público personalizado` antes de interagir. A correção é exclusiva do sincronismo/orçamento do teste; não afrouxa elegibilidade nem altera o fluxo do produto.
+- **Reteste focal:** WebKit repetido **5/5** sem retry, `flaky=0`, `unexpected=0`, em **16,5 s**; a execução isolada seguinte passou **1/1** em **6,0 s**.
+- **Reteste P0 completo:** `AUTOQA_20260801T-e2e-p0-final` aprovou **64/64 cenários** — Chromium **32/32** em **2,1 min** e WebKit **32/32** em **2,0 min** — com `skipped=0`, `flaky=0`, `unexpected=0`, `--retries=0`. As jornadas de segmento, responsividade, Inbox, campanhas, IA desabilitada, configurações e WCAG passaram nos dois motores.
+- **Estado:** o flake local está encerrado e o commit `7145673` aguarda o gate remoto determinístico e o reteste de staging. `QA-01` e `SEG-01` permanecem `corrigida — reteste pendente` até essa promoção; nenhum envio externo foi executado.
