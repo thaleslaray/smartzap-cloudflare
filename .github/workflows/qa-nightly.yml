@@ -122,7 +122,18 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Direcionar callback Meta para staging durante o canário
+        env:
+          QA_META_CALLBACK_TARGET: staging
+          QA_REPORT_DIR: qa/reports/meta-callback-${{ github.run_id }}-${{ github.run_attempt }}
+        run: node scripts/qa-meta-callback-switch.mjs
       - run: npm run qa:meta:canary
+      - name: Restaurar callback Meta em produção
+        if: always()
+        env:
+          QA_META_CALLBACK_TARGET: production
+          QA_REPORT_DIR: qa/reports/meta-callback-restore-${{ github.run_id }}-${{ github.run_attempt }}
+        run: node scripts/qa-meta-callback-switch.mjs
       - name: Guardar evidências do canário
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
