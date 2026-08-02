@@ -879,6 +879,11 @@ test("Campanhas permite atribuir pasta e tags em desktop e mobile", async ({
 });
 
 test("Inbox seleciona template, resolve variáveis e exige confirmação de envio", async ({ page }) => {
+  // A Inbox carrega várias consultas em paralelo e este cenário ainda roda o
+  // axe dentro do modal. O primeiro carregamento WebKit pode passar de 30s;
+  // manter um orçamento explícito evita que o teardown feche a página antes
+  // do clique e transforme timeout de preparação em falso erro de interação.
+  test.setTimeout(60_000);
   let sentBody: Record<string, unknown> | null = null;
   await page.route(
     "**/api/conversations/22222222-2222-4222-8222-222222222222/templates/send",
