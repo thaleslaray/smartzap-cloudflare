@@ -8,6 +8,7 @@ import {
 } from "node:fs";
 import { resolve } from "node:path";
 import { randomUUID } from "node:crypto";
+import { resolveMetaCallbackPreflight } from "./lib/meta-canary-preflight.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const baseUrl = (
@@ -309,8 +310,7 @@ try {
     throw new Error("Limite local de duas rodadas reais por dia atingido.");
 
   const health = (await api("/api/settings/health")).body;
-  const callbackUrl = health.meta?.effectiveWebhookCallbackUrl || null;
-  const callbackMatchesStaging = callbackUrl === `${baseUrl}/webhook`;
+  const callback = resolveMetaCallbackPreflight(health, baseUrl);
   report.preflight = {
     databaseOk: health.databaseOk === true,
     metaConfigured: health.metaConfigured === true,
@@ -320,8 +320,10 @@ try {
     qualityRating: health.meta?.qualityRating || null,
     tokenValid: health.meta?.tokenValid === true,
     tokenRequiredScopesPresent: health.meta?.tokenRequiredScopesPresent === true,
-    callbackUrl,
-    callbackMatchesStaging,
+    callbackUrl: callback.callbackUrl,
+    appCallbackUrl: callback.appCallbackUrl,
+    phoneCallbackUrl: callback.phoneCallbackUrl,
+    callbackMatchesStaging: callback.callbackMatchesStaging,
     pilot: health.pilot,
   };
   persist(report);
@@ -334,9 +336,9 @@ try {
     !report.preflight.tokenRequiredScopesPresent
   )
     throw new Error("Preflight operacional do staging não está verde.");
-  if (!callbackMatchesStaging) {
+  if (!callback.callbackMatchesStaging) {
     report.limitation =
-      "O callback Meta efetivo aponta para produção. O staging pode provar aceite do transporte, mas não entrega/leitura/inbound isolados.";
+      "O callback global do aplicativo Meta aponta para produção. O staging pode provar aceite do transporte, mas não entrega/leitura/inbound isolados.";
     if (!transportOnly)
       throw new Error(
         "Canário completo bloqueado: callback Meta não aponta para o staging.",
