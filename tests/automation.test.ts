@@ -59,6 +59,12 @@ describe("automação da Inbox", () => {
       handoffReason: null,
     });
     expect(automationPolicyDecision(
+      "HTTP 200 quer dizer que a mensagem foi entregue e lida?",
+    )).toMatchObject({
+      text: expect.stringMatching(/sent.*delivered.*read.*failed/),
+      handoffReason: null,
+    });
+    expect(automationPolicyDecision(
       "Quanto custa e em quanto tempo vocês implantam? Quero uma proposta.",
     )).toMatchObject({
       text: expect.stringContaining("time comercial"),

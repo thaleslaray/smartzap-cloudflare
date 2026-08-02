@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { readJsonBody } from "./body";
 import { AiDraftError, aiConfiguration, generateGroundedText } from "../ai/drafts";
+import { automationPolicyDecision } from "../ai/policy";
 import {
   agentKnowledgeDocumentIds,
   extractKnowledgeSources,
@@ -192,6 +193,12 @@ export const agentsRoutes = new Hono<{ Bindings: Env }>()
         400,
       );
     const latestQuestion = latestMessage.text;
+    const policy = automationPolicyDecision(
+      latestQuestion,
+      agent.handoff_enabled !== 0,
+    );
+    if (policy)
+      return c.json({ text: policy.text, grounded: true });
     let sources: string[];
     try {
       const documentIds = await agentKnowledgeDocumentIds(
