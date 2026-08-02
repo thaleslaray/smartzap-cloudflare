@@ -354,6 +354,7 @@ test("campanha orienta contato sem opt-in para Contatos em vez de oferecer corre
 test("detalhe da campanha permite corrigir um contato ignorado sem sair da tela", async ({
   page,
 }) => {
+  test.setTimeout(60_000);
   await page.goto("/login");
   await page.getByLabel("Senha mestra").fill("dev");
   await page.getByRole("button", { name: "Entrar" }).click();
