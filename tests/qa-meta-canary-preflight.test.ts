@@ -10,7 +10,7 @@ describe("preflight do canário Meta", () => {
             appWebhookCallbackUrl:
               "https://smartzap-cf.thales2581.workers.dev/webhook",
             webhookCallbackUrl:
-              "https://smartzap-cf.thales2581.workers.dev/webhook",
+              "https://smartzap-cf-staging.thales2581.workers.dev/webhook",
             phoneWebhookCallbackUrl:
               "https://smartzap-cf-staging.thales2581.workers.dev/webhook",
             effectiveWebhookCallbackUrl:
@@ -27,7 +27,7 @@ describe("preflight do canário Meta", () => {
       appCallbackUrl:
         "https://smartzap-cf.thales2581.workers.dev/webhook",
       wabaCallbackUrl:
-        "https://smartzap-cf.thales2581.workers.dev/webhook",
+        "https://smartzap-cf-staging.thales2581.workers.dev/webhook",
       phoneCallbackUrl:
         "https://smartzap-cf-staging.thales2581.workers.dev/webhook",
       effectiveCallbackUrl:
@@ -36,7 +36,7 @@ describe("preflight do canário Meta", () => {
     });
   });
 
-  it("reprova quando o callback efetivo não acompanha o override do número", () => {
+  it("reprova quando o fallback da WABA não acompanha o override do número", () => {
     const result = resolveMetaCallbackPreflight(
       {
         meta: {
@@ -47,7 +47,7 @@ describe("preflight do canário Meta", () => {
           phoneWebhookCallbackUrl:
             "https://smartzap-cf-staging.thales2581.workers.dev/webhook",
           effectiveWebhookCallbackUrl:
-            "https://smartzap-cf.thales2581.workers.dev/webhook",
+            "https://smartzap-cf-staging.thales2581.workers.dev/webhook",
         },
       },
       "https://smartzap-cf-staging.thales2581.workers.dev/",

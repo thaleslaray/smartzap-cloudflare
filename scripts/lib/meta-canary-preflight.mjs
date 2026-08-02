@@ -15,6 +15,7 @@ export function resolveMetaCallbackPreflight(health, baseUrl) {
     effectiveCallbackUrl,
     callbackMatchesStaging:
       phoneCallbackUrl === expectedCallbackUrl &&
+      wabaCallbackUrl === expectedCallbackUrl &&
       effectiveCallbackUrl === expectedCallbackUrl,
   };
 }

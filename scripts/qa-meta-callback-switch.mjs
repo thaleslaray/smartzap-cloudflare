@@ -53,13 +53,13 @@ for (let attempt = 1; attempt <= 45; attempt += 1) {
   );
   const matches =
     healthResponse.ok &&
-    observed.phoneCallbackUrl === expected[target] &&
-    observed.effectiveCallbackUrl === expected[target];
+    observed.callbackMatchesStaging;
   consecutiveMatches = matches ? consecutiveMatches + 1 : 0;
   convergence.push({
     attempt,
     status: healthResponse.status,
     phoneCallbackUrl: observed.phoneCallbackUrl,
+    wabaCallbackUrl: observed.wabaCallbackUrl,
     effectiveCallbackUrl: observed.effectiveCallbackUrl,
     matches,
   });

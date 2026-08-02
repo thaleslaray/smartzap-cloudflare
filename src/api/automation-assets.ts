@@ -16,6 +16,7 @@ import {
   createMetaFlow,
   configureMetaAppWebhookSubscription,
   configureMetaPhoneWebhookOverride,
+  configureMetaWabaWebhookOverride,
   getMetaFlowDetails,
   getMetaFlowEncryptionPublicKeyStatus,
   getMetaFlowPreview,
@@ -309,6 +310,13 @@ export const flowsRoutes = new Hono<{ Bindings: Env }>()
     if (!callback.ok) return c.json({ error: callback.error }, callback.status);
     try {
       if (callback.target) {
+        await configureMetaWabaWebhookOverride({
+          version: credentials.graphVersion,
+          wabaId: credentials.wabaId,
+          token: credentials.token,
+          callbackUrl: callback.url,
+          verifyToken: c.env.META_VERIFY_TOKEN,
+        });
         await configureMetaPhoneWebhookOverride({
           version: credentials.graphVersion,
           phoneId: credentials.phoneId,
