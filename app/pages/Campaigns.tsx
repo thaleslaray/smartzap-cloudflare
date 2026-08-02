@@ -185,7 +185,12 @@ function CampaignActions({
   const folderMenuRef = useRef<HTMLDivElement>(null);
   const busy = duplicate.isPending || remove.isPending || move.isPending || setTags.isPending;
   const stop = (event: React.SyntheticEvent) => event.stopPropagation();
-  const selectedTagIds = campaign.tags?.map((tag) => tag.id) ?? [];
+  const campaignTagIds = campaign.tags?.map((tag) => tag.id) ?? [];
+  const [selectedTagIds, setSelectedTagIds] = useState(campaignTagIds);
+
+  useEffect(() => {
+    setSelectedTagIds(campaignTagIds);
+  }, [campaign.tags]);
 
   useEffect(() => {
     if (!foldersOpen) return;
@@ -299,13 +304,16 @@ function CampaignActions({
                   role="menuitemcheckbox"
                   aria-checked={active}
                   disabled={setTags.isPending}
-                  onClick={() =>
-                    setTags.mutate(
-                      active
-                        ? selectedTagIds.filter((id) => id !== tag.id)
-                        : [...selectedTagIds, tag.id],
-                    )
-                  }
+                  onClick={() => {
+                    const previous = selectedTagIds;
+                    const next = active
+                      ? selectedTagIds.filter((id) => id !== tag.id)
+                      : [...selectedTagIds, tag.id];
+                    setSelectedTagIds(next);
+                    setTags.mutate(next, {
+                      onError: () => setSelectedTagIds(previous),
+                    });
+                  }}
                   className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm hover:bg-[var(--ds-bg-hover)]"
                 >
                   <span

@@ -863,6 +863,10 @@ test("Campanhas permite atribuir pasta e tags em desktop e mobile", async ({
 
   await page.getByRole("button", { name: `Editar tags de ${campaignName}` }).click();
   const tag = page.getByRole("menuitemcheckbox", { name: `Tag Org ${suffix}` });
+  if ((await tag.getAttribute("aria-checked")) === "true") {
+    await tag.click();
+    await expect(tag).toHaveAttribute("aria-checked", "false");
+  }
   await tag.click();
   await expect(tag).toHaveAttribute("aria-checked", "true");
 
