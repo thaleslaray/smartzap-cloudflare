@@ -450,7 +450,14 @@ test("Inbox mantém filtros, configurações e links de atendentes operacionais"
   await page.getByRole("button", { name: "Atendentes" }).click();
   const attendantName = `Atendente E2E ${Date.now()}`;
   await page.getByLabel("Nome do atendente").fill(attendantName);
+  const attendantCreated = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === "/api/attendants" &&
+      response.request().method() === "POST",
+    { timeout: 45_000 },
+  );
   await page.getByRole("button", { name: "Criar", exact: true }).click();
+  expect((await attendantCreated).status()).toBe(201);
   await expect(page.getByText(attendantName, { exact: true })).toBeVisible();
 });
 

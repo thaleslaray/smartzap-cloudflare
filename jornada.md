@@ -52,7 +52,7 @@ Histórico importado de: `docs/auditoria-jornadas.md`
 | PRC-05 | Preços | Exibir indisponibilidade sem inventar taxa ou custo | wizard/detalhe | aprovada |
 | INB-01 | Inbox | Lista, busca, filtros, conversa, não lidas e atualização em tempo real | `/inbox` | aprovada |
 | INB-02 | Inbox | Enviar/receber texto, template e mídia; status, janela Meta e falhas | `/inbox/:id` | aprovada |
-| INB-03 | Inbox | Respostas rápidas, labels, notas, handoff, atendente e histórico | `/inbox/:id` | aprovada |
+| INB-03 | Inbox | Respostas rápidas, labels, notas, handoff, atendente e histórico. A criação ou remoção de atendente confirmada pela API não pode ser revertida visualmente por uma leitura da lista iniciada antes da mutação | `/inbox/:id` | corrigida — reteste pendente |
 | ATD-01 | Atendimento | Fila, atribuição, disponibilidade e conversa por link direto | `/atendimento` | aprovada |
 | ATD-02 | Atendimento | Criar, editar, ativar/desativar atendentes e permissões | `/settings/attendants` | aprovada |
 | KNO-01 | Conhecimento | Criar, editar, upload, indexar, buscar, reindexar e excluir | `/knowledge` | aprovada |
