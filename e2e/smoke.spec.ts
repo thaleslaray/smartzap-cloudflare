@@ -318,6 +318,53 @@ test("campanha usa segmento salvo, busca contatos no servidor e mapeia variávei
   await expect(
     page.getByRole("heading", { name: "Validação de destinatários" }),
   ).toBeVisible();
+
+  await page.getByRole("button", { name: "Voltar", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Definir público" })).toBeVisible();
+
+  const originalSegmentDeleted = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname.startsWith("/api/segments/") &&
+      response.request().method() === "DELETE",
+    { timeout: 45_000 },
+  );
+  await page.getByRole("button", { name: "Excluir este público" }).click();
+  await expect(
+    page.getByText("Excluir este público salvo? Isso não pode ser desfeito."),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Excluir agora" }).click();
+  expect((await originalSegmentDeleted).status()).toBe(200);
+  await expect(page.getByLabel("Público salvo")).toHaveValue("");
+
+  await page.getByRole("button", { name: "Selecionar países por DDI" }).click();
+  await page.getByRole("option", { name: /Brasil \(BR\).*\+55/ }).click();
+  await page.getByRole("button", { name: "SP", exact: true }).click();
+
+  const inlineSegmentName = `Público inline E2E ${Date.now()}`;
+  await page.getByRole("button", { name: "Salvar este público" }).click();
+  await page.getByLabel("Nome do público").fill(inlineSegmentName);
+  const inlineSegmentCreated = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === "/api/segments/from-audience" &&
+      response.request().method() === "POST",
+    { timeout: 45_000 },
+  );
+  await page.getByRole("button", { name: "Salvar público", exact: true }).click();
+  const inlineSegmentResponse = await inlineSegmentCreated;
+  expect(inlineSegmentResponse.status()).toBe(201);
+  const inlineSegment = (await inlineSegmentResponse.json()) as { id: string };
+  await expect(page.getByLabel("Público salvo")).toHaveValue(inlineSegment.id);
+
+  const inlineSegmentDeleted = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === `/api/segments/${inlineSegment.id}` &&
+      response.request().method() === "DELETE",
+    { timeout: 45_000 },
+  );
+  await page.getByRole("button", { name: "Excluir este público" }).click();
+  await page.getByRole("button", { name: "Excluir agora" }).click();
+  expect((await inlineSegmentDeleted).status()).toBe(200);
+  await expect(page.getByLabel("Público salvo")).toHaveValue("");
 });
 
 test("campanha orienta contato sem opt-in para Contatos em vez de oferecer correção de campo", async ({
@@ -460,6 +507,21 @@ test("Inbox mantém filtros, configurações e links de atendentes operacionais"
   await page.getByRole("button", { name: "Criar", exact: true }).click();
   expect((await attendantCreated).status()).toBe(201);
   await expect(page.getByText(attendantName, { exact: true })).toBeVisible();
+
+  const attendantRemoved = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname.startsWith("/api/attendants/") &&
+      response.request().method() === "DELETE",
+    { timeout: 45_000 },
+  );
+  await page
+    .getByText(attendantName, { exact: true })
+    .locator("..")
+    .locator("..")
+    .getByRole("button", { name: "Remover" })
+    .click();
+  expect((await attendantRemoved).status()).toBe(200);
+  await expect(page.getByText(attendantName, { exact: true })).toHaveCount(0);
 });
 
 test("Inbox alterna entre lista e conversa sem exibir dois painéis no mobile", async ({

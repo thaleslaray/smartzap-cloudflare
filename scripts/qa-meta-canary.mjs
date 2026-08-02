@@ -9,6 +9,7 @@ import {
 import { resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import { resolveMetaCallbackPreflight } from "./lib/meta-canary-preflight.mjs";
+import { shouldStopMetaCampaignPolling } from "./lib/meta-canary-lifecycle.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const baseUrl = (
@@ -534,7 +535,14 @@ try {
       });
       persist(report);
     }
-    if (["completed", "failed", "cancelled"].includes(finalCampaign.status)) break;
+    if (
+      shouldStopMetaCampaignPolling({
+        transportOnly,
+        campaignStatus: finalCampaign.status,
+        contacts: finalContacts.items,
+      })
+    )
+      break;
     await new Promise((resolveWait) => setTimeout(resolveWait, 2_000));
   }
   const observed = finalContacts?.items || [];
@@ -588,10 +596,10 @@ try {
 
 if (report.status !== "passed") {
   const detail =
-    report.status === "blocked"
-      ? "transporte aprovado, ciclo completo bloqueado pelo callback compartilhado"
-      : canaryError
-        ? redact(canaryError.message)
+    canaryError
+      ? redact(canaryError.message)
+      : report.status === "blocked"
+        ? "transporte aprovado; ciclo completo não executado"
         : "falha não especificada";
   console.error(`Canário Meta ${report.status}: ${detail}. Relatório: ${resolve(reportDir, "meta-canary.json")}`);
   process.exit(1);
