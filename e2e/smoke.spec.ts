@@ -461,6 +461,10 @@ test("Inbox alterna entre lista e conversa sem exibir dois painéis no mobile", 
 test("layout móvel, menu e modal permanecem acessíveis sem conteúdo cortado", async ({
   page,
 }) => {
+  // O cenário cruza quatro rotas e executa o axe dentro do modal. Em uma
+  // compilação fria do Firefox, 30s encerrava a página durante a última rota;
+  // o orçamento maior continua finito e evita transformar preparação em flake.
+  test.setTimeout(60_000);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/login");
   await page.getByLabel("Senha mestra").fill("dev");
