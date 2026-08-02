@@ -256,11 +256,11 @@ test("Contatos oferece selecionar todos no layout reduzido", async ({ page }) =>
 test("campanha usa segmento salvo, busca contatos no servidor e mapeia variáveis", async ({
   page,
 }) => {
-  // O primeiro request do runtime Wrangler/WebKit pode atravessar o cold start
-  // do Worker local. O limite padrão de 30 s cortava a jornada antes de o
-  // servidor terminar de criar a campanha, embora a aplicação estivesse
-  // saudável; este orçamento cobre a inicialização sem habilitar retry.
-  test.setTimeout(60_000);
+  // Esta jornada cria o segmento e depois percorre todo o wizard de campanha.
+  // O POST isolado já possui até 45 s para atravessar o cold start do Worker;
+  // o orçamento global precisa ainda cobrir login, navegações e validações da
+  // interface. Ele continua finito e nenhum retry é aceito como aprovação.
+  test.setTimeout(90_000);
 
   await page.goto("/login");
   await page.getByLabel("Senha mestra").fill("dev");
