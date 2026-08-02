@@ -1,5 +1,6 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { resolveMetaCallbackPreflight } from "./lib/meta-canary-preflight.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const baseUrl = String(
@@ -39,6 +40,38 @@ if (!response.ok || callbackUrl !== expected[target]) {
   );
 }
 
+const convergence = [];
+let consecutiveMatches = 0;
+for (let attempt = 1; attempt <= 45; attempt += 1) {
+  const healthResponse = await fetch(`${baseUrl}/api/settings/health`, {
+    headers: { "x-api-key": apiKey, "cache-control": "no-cache" },
+  });
+  const health = await healthResponse.json().catch(() => ({}));
+  const observed = resolveMetaCallbackPreflight(
+    health,
+    expected[target].replace(/\/webhook$/, ""),
+  );
+  const matches =
+    healthResponse.ok &&
+    observed.phoneCallbackUrl === expected[target] &&
+    observed.effectiveCallbackUrl === expected[target];
+  consecutiveMatches = matches ? consecutiveMatches + 1 : 0;
+  convergence.push({
+    attempt,
+    status: healthResponse.status,
+    phoneCallbackUrl: observed.phoneCallbackUrl,
+    effectiveCallbackUrl: observed.effectiveCallbackUrl,
+    matches,
+  });
+  if (consecutiveMatches >= 3) break;
+  await new Promise((resolveDelay) => setTimeout(resolveDelay, 2_000));
+}
+if (consecutiveMatches < 3) {
+  throw new Error(
+    `Callback Meta não convergiu para ${target} em três leituras consecutivas.`,
+  );
+}
+
 const reportDir = resolve(
   root,
   process.env.QA_REPORT_DIR || "qa/reports/meta-callback",
@@ -49,6 +82,7 @@ const report = {
   status: "passed",
   target,
   callbackUrl,
+  convergence,
   changedAt: new Date().toISOString(),
 };
 writeFileSync(resolve(reportDir, "meta-callback-switch.json"), `${JSON.stringify(report, null, 2)}\n`, {
