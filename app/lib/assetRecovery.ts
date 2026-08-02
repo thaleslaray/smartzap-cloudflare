@@ -18,6 +18,13 @@ export function isRecoverableAssetError(error: unknown): boolean {
   return chunkLoadPatterns.some((pattern) => pattern.test(message));
 }
 
+export function shouldAutoRecoverAssetError(
+  error: unknown,
+  isDevelopment: boolean,
+): boolean {
+  return !isDevelopment && isRecoverableAssetError(error);
+}
+
 export function buildAssetRecoveryUrl(
   currentUrl: string,
   nonce = Date.now(),

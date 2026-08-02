@@ -3,6 +3,7 @@ import {
   ASSET_RECOVERY_PARAM,
   buildAssetRecoveryUrl,
   isRecoverableAssetError,
+  shouldAutoRecoverAssetError,
 } from "../app/lib/assetRecovery";
 
 describe("recuperação de assets após deploy", () => {
@@ -23,5 +24,11 @@ describe("recuperação de assets após deploy", () => {
     expect(recovered.searchParams.get("filtro")).toBe("abertas");
     expect(recovered.searchParams.get(ASSET_RECOVERY_PARAM)).toBe("42");
     expect(recovered.hash).toBe("#ultima");
+  });
+
+  it("recupera chunks somente em builds publicados", () => {
+    const chunkError = new TypeError("Importing a module script failed.");
+    expect(shouldAutoRecoverAssetError(chunkError, false)).toBe(true);
+    expect(shouldAutoRecoverAssetError(chunkError, true)).toBe(false);
   });
 });
