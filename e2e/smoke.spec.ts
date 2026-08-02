@@ -414,6 +414,10 @@ test("Inbox exige confirmação explícita antes de enviar rascunho aprovado", a
 test("Inbox mantém filtros, configurações e links de atendentes operacionais", async ({
   page,
 }) => {
+  // O WebKit pode encontrar o Worker local ainda frio ao trocar o filtro.
+  // A prova aguarda a resposta específica em vez de confundir latência do
+  // runtime com ausência de atualização visual; retry continua proibido.
+  test.setTimeout(90_000);
   await page.goto("/login");
   await page.getByLabel("Senha mestra").fill("dev");
   await page.getByRole("button", { name: "Entrar" }).click();
@@ -421,7 +425,17 @@ test("Inbox mantém filtros, configurações e links de atendentes operacionais"
   await page.goto("/inbox");
 
   await page.getByRole("button", { name: "Filtros", exact: true }).click();
+  const closedConversationsLoaded = page.waitForResponse(
+    (response) => {
+      const url = new URL(response.url());
+      return url.pathname === "/api/conversations" &&
+        url.searchParams.get("status") === "closed" &&
+        response.request().method() === "GET";
+    },
+    { timeout: 45_000 },
+  );
   await page.getByRole("button", { name: "Fechadas", exact: true }).click();
+  expect((await closedConversationsLoaded).status()).toBe(200);
   await expect(page.getByText("Nenhuma conversa recebida.")).toBeVisible();
   await page.getByRole("button", { name: "Limpar filtros" }).click();
   await expect(page.getByText("Contato Piloto E2E")).toBeVisible();
