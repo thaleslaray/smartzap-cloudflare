@@ -312,7 +312,11 @@ try {
   report.artifacts.documents.push(documentId);
   writePrivateJson("ai-eval.json", report);
 
-  const indexingDeadline = Date.now() + 240_000;
+  // O consumidor da AUTOMATION_QUEUE consulta o AI Search até 40 vezes com
+  // intervalos de 15s e só então declara timeout. O avaliador precisa observar
+  // esse mesmo ciclo completo; encerrar aos 4 minutos confundia latência válida
+  // do provedor com falha, embora a fila ainda estivesse processando.
+  const indexingDeadline = Date.now() + 11 * 60_000;
   let documentStatus = "indexing";
   while (Date.now() < indexingDeadline) {
     const documents = await api("/api/knowledge/documents");
