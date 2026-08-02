@@ -7,7 +7,11 @@ import {
 } from "node:fs";
 import { resolve } from "node:path";
 import { randomUUID } from "node:crypto";
-import { containsWholePhrase, normalize } from "./qa-ai-logic.mjs";
+import {
+  containsWholePhrase,
+  mentionsHandoff,
+  normalize,
+} from "./qa-ai-logic.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const datasetPath = resolve(root, "qa/ai-dataset.json");
@@ -187,11 +191,7 @@ function evaluateText(scenario, result) {
       issues.push(`conteúdo proibido: ${forbidden}`);
   if (typeof expected.grounded === "boolean" && result.grounded !== expected.grounded)
     issues.push(`grounded esperado ${expected.grounded}, recebido ${result.grounded}`);
-  if (
-    expected.handoff &&
-    !["pessoa", "atendente", "encaminh", "responsavel", "equipe humana"]
-      .some((term) => text.includes(normalize(term)))
-  )
+  if (expected.handoff && !mentionsHandoff(text))
     issues.push("handoff obrigatório ausente");
   if (!text) issues.push("resposta vazia");
   return issues;

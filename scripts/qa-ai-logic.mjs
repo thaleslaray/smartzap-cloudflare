@@ -19,3 +19,20 @@ export function containsWholePhrase(text, phrase) {
     "u",
   ).test(text);
 }
+
+const HANDOFF_TERMS = [
+  "pessoa",
+  "atendente",
+  "encaminh",
+  "responsavel",
+  "representante",
+  "equipe humana",
+  "profissional humano",
+];
+
+export function mentionsHandoff(text) {
+  const normalizedText = normalize(text);
+  return HANDOFF_TERMS.some((term) =>
+    normalizedText.includes(normalize(term)),
+  );
+}
