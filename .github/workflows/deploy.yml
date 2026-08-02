@@ -83,27 +83,7 @@ jobs:
       - name: Publicar o código do PR sem tocar staging ou produção
         run: npx wrangler deploy --config config/wrangler.preview.jsonc
       - name: Aguardar health e autenticação estabilizarem
-        run: |
-          node --input-type=module - <<'NODE'
-          const healthUrl = `${process.env.QA_BASE_URL}/api/health`;
-          const authUrl = `${process.env.QA_BASE_URL}/api/auth/status`;
-          let consecutive = 0;
-          for (let attempt = 1; attempt <= 18; attempt++) {
-            const [health, auth] = await Promise.all([
-              fetch(`${healthUrl}?ci=${Date.now()}`).catch(() => null),
-              fetch(`${authUrl}?ci=${Date.now()}`, {
-                headers: { "x-api-key": process.env.QA_API_KEY },
-              }).catch(() => null),
-            ]);
-            const authenticated = auth?.ok
-              ? (await auth.json().catch(() => null))?.authenticated === true
-              : false;
-            consecutive = health?.ok && authenticated ? consecutive + 1 : 0;
-            if (consecutive >= 3) process.exit(0);
-            await new Promise((resolve) => setTimeout(resolve, 5_000));
-          }
-          throw new Error("Preview não estabilizou em 90 segundos");
-          NODE
+        run: node scripts/qa-wait-remote-ready.mjs
       - name: Smoke real no Worker de preview
         env:
           QA_REPORT_DIR: qa/reports/preview-ui-${{ github.run_id }}-${{ github.run_attempt }}
@@ -146,17 +126,8 @@ jobs:
         run: npx wrangler d1 migrations apply smartzap-staging --config config/wrangler.staging.jsonc --remote
       - name: Publicar versão em staging
         run: npx wrangler deploy --config config/wrangler.staging.jsonc
-      - name: Aguardar health do Worker publicado
-        run: |
-          node --input-type=module - <<'NODE'
-          const url = `${process.env.QA_BASE_URL}/api/health`;
-          for (let attempt = 1; attempt <= 12; attempt++) {
-            const response = await fetch(`${url}?ci=${Date.now()}`).catch(() => null);
-            if (response?.ok) process.exit(0);
-            await new Promise((resolve) => setTimeout(resolve, 5_000));
-          }
-          throw new Error("Staging não ficou saudável em 60 segundos");
-          NODE
+      - name: Aguardar health e assets do Worker publicado
+        run: node scripts/qa-wait-remote-ready.mjs
       - name: Smoke autenticado e somente leitura
         env:
           QA_REPORT_DIR: qa/reports/staging-ui-${{ github.run_id }}-${{ github.run_attempt }}
