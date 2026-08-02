@@ -7,6 +7,7 @@ import {
 } from "node:fs";
 import { resolve } from "node:path";
 import { randomUUID } from "node:crypto";
+import { containsWholePhrase, normalize } from "./qa-ai-logic.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const datasetPath = resolve(root, "qa/ai-dataset.json");
@@ -24,16 +25,6 @@ const reportDir = resolve(
   process.env.QA_REPORT_DIR || `qa/reports/${runId}`,
 );
 mkdirSync(reportDir, { recursive: true });
-
-function normalize(value) {
-  return String(value ?? "")
-    .normalize("NFKD")
-    .replace(/\p{Diacritic}/gu, "")
-    .toLowerCase()
-    .replace(/[\u2010-\u2015\u2212]/g, "-")
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
 function validateDataset() {
   const issues = [];
@@ -188,7 +179,7 @@ function evaluateText(scenario, result) {
   if (expected.any?.length && !expected.any.some((term) => text.includes(normalize(term))))
     issues.push(`nenhum termo esperado: ${expected.any.join(" | ")}`);
   for (const forbidden of expected.forbidden || [])
-    if (text.includes(normalize(forbidden)))
+    if (containsWholePhrase(text, forbidden))
       issues.push(`conteúdo proibido: ${forbidden}`);
   if (typeof expected.grounded === "boolean" && result.grounded !== expected.grounded)
     issues.push(`grounded esperado ${expected.grounded}, recebido ${result.grounded}`);
