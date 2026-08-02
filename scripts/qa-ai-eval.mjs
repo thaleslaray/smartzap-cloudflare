@@ -178,6 +178,10 @@ function evaluateText(scenario, result) {
   const issues = [];
   if (expected.any?.length && !expected.any.some((term) => text.includes(normalize(term))))
     issues.push(`nenhum termo esperado: ${expected.any.join(" | ")}`);
+  const missingRequired = (expected.all || [])
+    .filter((term) => !text.includes(normalize(term)));
+  if (missingRequired.length)
+    issues.push(`termos obrigatórios ausentes: ${missingRequired.join(" | ")}`);
   for (const forbidden of expected.forbidden || [])
     if (containsWholePhrase(text, forbidden))
       issues.push(`conteúdo proibido: ${forbidden}`);

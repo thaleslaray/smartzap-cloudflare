@@ -203,6 +203,32 @@ describe('prompt e provider de IA', () => {
     expect(ai.run).toHaveBeenCalledTimes(2)
   })
 
+  it('rejeita repetição da última resposta e refaz com foco na mensagem atual', async () => {
+    const ai = {
+      run: vi.fn()
+        .mockResolvedValueOnce({
+          response: 'O SmartZap usa a API oficial da Meta e você precisa ter uma conta do WhatsApp Business configurada.',
+        })
+        .mockResolvedValueOnce({
+          response: 'Os status são sent, delivered, read e failed, confirmados pelos webhooks da Meta.',
+        }),
+    }
+    const result = await generateGroundedText(
+      ai as unknown as ReturnType<typeof fakeAi>,
+      aiConfiguration(aiEnv(ai as unknown as ReturnType<typeof fakeAi>)),
+      [
+        { id: 'm1', direction: 'outbound', text: 'O SmartZap usa a API oficial da Meta e você precisa ter uma conta do WhatsApp Business configurada.' },
+        { id: 'm2', direction: 'inbound', text: 'Quais são os nomes exatos dos status de envio?' },
+      ],
+      ['Os estados são sent, delivered, read e failed.'],
+    )
+    expect(result.text).toContain('sent, delivered, read e failed')
+    expect(ai.run).toHaveBeenCalledTimes(2)
+    expect(JSON.stringify(ai.run.mock.calls[1][1])).toContain(
+      'A resposta anterior repetiu o atendimento',
+    )
+  })
+
   it('orienta a resposta direta quando a fonte contém o fato solicitado', async () => {
     const ai = fakeAi('O código é nebulosa-azul-1740.')
     const config = aiConfiguration(aiEnv(ai))

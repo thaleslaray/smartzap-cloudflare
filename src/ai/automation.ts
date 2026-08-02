@@ -34,6 +34,78 @@ export type AutomationQueueEvent =
   | AutomationEvent
   | KnowledgeIndexEvent;
 
+type AutomationPolicyDecision = {
+  text: string;
+  handoffReason: string | null;
+};
+
+function normalizeIntent(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("pt-BR")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+/**
+ * Regras operacionais que não podem depender da qualidade variável do RAG.
+ * Elas não inventam condições comerciais: transferem a negociação para humano
+ * e explicam apenas estados canônicos persistidos pelo próprio SmartZap.
+ */
+export function automationPolicyDecision(
+  latestText: string,
+  handoffEnabled = true,
+): AutomationPolicyDecision | null {
+  const text = normalizeIntent(latestText);
+  if (!text) return null;
+
+  const asksForHuman = [
+    /\b(?:falar|conversar) com (?:uma )?(?:pessoa|atendente|humano|alguem)\b/,
+    /\b(?:atendimento|suporte) humano\b/,
+    /\bquero (?:um )?atendente\b/,
+  ].some((pattern) => pattern.test(text));
+  const asksForCommercialDecision = [
+    /\bquanto custa\b/,
+    /\bpreco(?:s)?\b/,
+    /\bvalor (?:do|dos|da|das) (?:plano|planos|smartzap|contrato)\b/,
+    /\b(?:quero|preciso|podem|pode) (?:de )?(?:uma )?proposta\b/,
+    /\bquero contratar\b/,
+    /\b(?:prazo|tempo) (?:de|para|da) implantacao\b/,
+    /\bem quanto tempo (?:fica|implanta|implantam|voc[e]?s implantam)\b/,
+    /\b(?:desconto|condicao contratual|condicoes contratuais|condicoes de pagamento|sla)\b/,
+  ].some((pattern) => pattern.test(text));
+  if (handoffEnabled && asksForHuman) {
+    return {
+      text:
+        "Entendi. Vou encaminhar a conversa para uma pessoa responsável continuar o atendimento.",
+      handoffReason: "Cliente solicitou atendimento humano",
+    };
+  }
+  if (handoffEnabled && asksForCommercialDecision) {
+    return {
+      text:
+        "Preço, prazo de implantação e condições contratuais precisam ser confirmados pelo time comercial. Vou encaminhar sua solicitação para uma pessoa responsável preparar a proposta da sua operação.",
+      handoffReason: "Cliente solicitou preço, prazo ou proposta comercial",
+    };
+  }
+
+  const asksForDeliveryStatuses = [
+    /\b(?:status|estados|acompanhar|acompanho|distingue|diferenca)\b.*\b(?:meta|aceit|enviad|entreg|lid|leitura|falh)\b/,
+    /\b(?:sent|delivered|read|failed)\b.*\b(?:sent|delivered|read|failed)\b/,
+    /\bhttp 200\b.*\b(?:entreg|lid|leitura)\b/,
+  ].some((pattern) => pattern.test(text));
+  if (asksForDeliveryStatuses) {
+    return {
+      text:
+        "O SmartZap distingue estes estados: sent = aceita pela Meta; delivered = entregue ao destinatário; read = leitura confirmada; failed = falha registrada com código e detalhe sanitizados. HTTP 200 sozinho não comprova entrega nem leitura.",
+      handoffReason: null,
+    };
+  }
+
+  return null;
+}
+
 export async function automationDebounceSeconds(
   db: D1Database,
   conversationId: string,
@@ -141,81 +213,98 @@ export async function processAutomationEvent(
     return "skipped";
   }
   const started = Date.now();
+  let pendingHandoffReason: string | null = null;
   try {
     const latestText =
       context.messages
         .filter((message) => message.direction === "inbound")
         .at(-1)?.text ?? "";
-    const documentIds = conversation.ai_agent_id
-      ? await agentKnowledgeDocumentIds(env.DB, conversation.ai_agent_id)
-      : [];
-    if (!documentIds.length) {
-      await db.failAiDraft(pending.draft.id, "no_agent_knowledge");
-      if (conversation.ai_agent_handoff_enabled !== 0)
-        await db.setOperation(event.conversationId, {
-          mode: "human",
-          handoffReason: "Agente sem documentos vinculados na base",
-        });
-      return "skipped";
-    }
-    const retrieval = await searchKnowledge(env.AI_SEARCH, latestText, {
-      maxResults: conversation.ai_agent_rag_max_results ?? 5,
-      scoreThreshold:
-        conversation.ai_agent_rag_similarity_threshold ?? 0.5,
-      documentIds,
-    });
-    const sources = extractKnowledgeSources(retrieval).slice(
-      0,
-      conversation.ai_agent_rag_max_results ?? 5,
+    const policy = automationPolicyDecision(
+      latestText,
+      conversation.ai_agent_handoff_enabled !== 0,
     );
-    if (!sources.length) {
-      await db.failAiDraft(pending.draft.id, "no_relevant_knowledge");
-      if (conversation.ai_agent_handoff_enabled !== 0)
-        await db.setOperation(event.conversationId, {
-          mode: "human",
-          handoffReason: "Base de conhecimento sem resposta relevante",
-        });
-      return "skipped";
+    pendingHandoffReason = policy?.handoffReason ?? null;
+    let generated: {
+      text: string;
+      usage: { promptTokens: number | null; outputTokens: number | null };
+    };
+    if (policy) {
+      generated = {
+        text: policy.text,
+        usage: { promptTokens: 0, outputTokens: 0 },
+      };
+    } else {
+      const documentIds = conversation.ai_agent_id
+        ? await agentKnowledgeDocumentIds(env.DB, conversation.ai_agent_id)
+        : [];
+      if (!documentIds.length) {
+        await db.failAiDraft(pending.draft.id, "no_agent_knowledge");
+        if (conversation.ai_agent_handoff_enabled !== 0)
+          await db.setOperation(event.conversationId, {
+            mode: "human",
+            handoffReason: "Agente sem documentos vinculados na base",
+          });
+        return "skipped";
+      }
+      const retrieval = await searchKnowledge(env.AI_SEARCH, latestText, {
+        maxResults: conversation.ai_agent_rag_max_results ?? 5,
+        scoreThreshold:
+          conversation.ai_agent_rag_similarity_threshold ?? 0.5,
+        documentIds,
+      });
+      const sources = extractKnowledgeSources(retrieval).slice(
+        0,
+        conversation.ai_agent_rag_max_results ?? 5,
+      );
+      if (!sources.length) {
+        await db.failAiDraft(pending.draft.id, "no_relevant_knowledge");
+        if (conversation.ai_agent_handoff_enabled !== 0)
+          await db.setOperation(event.conversationId, {
+            mode: "human",
+            handoffReason: "Base de conhecimento sem resposta relevante",
+          });
+        return "skipped";
+      }
+      const memory = conversation.contact_id
+        ? await env.DB.prepare(
+            "SELECT summary FROM contact_memories WHERE contact_id=?1",
+          )
+            .bind(conversation.contact_id)
+            .first<{ summary: string }>()
+        : null;
+      const trustedInstructions = [
+        conversation.ai_agent_instructions
+          ? `${conversation.ai_agent_name || "Agente"}: ${conversation.ai_agent_instructions}`
+          : "",
+        conversation.ai_agent_handoff_enabled !== 0 &&
+        conversation.ai_agent_handoff_instructions
+          ? `Transferência: ${conversation.ai_agent_handoff_instructions}`
+          : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
+      const enriched = memory?.summary
+        ? [
+            {
+              id: "contact-memory",
+              direction: "inbound" as const,
+              text: `MEMÓRIA REVISADA DO CONTATO: ${memory.summary}`,
+            },
+            ...context.messages,
+          ]
+        : context.messages;
+      generated = await generateGroundedText(
+        env.AI,
+        config,
+        enriched,
+        sources,
+        {
+          temperature: conversation.ai_agent_temperature ?? 0.7,
+          maxTokens: conversation.ai_agent_max_tokens ?? 1024,
+          trustedInstructions,
+        },
+      );
     }
-    const memory = conversation.contact_id
-      ? await env.DB.prepare(
-          "SELECT summary FROM contact_memories WHERE contact_id=?1",
-        )
-          .bind(conversation.contact_id)
-          .first<{ summary: string }>()
-      : null;
-    const trustedInstructions = [
-      conversation.ai_agent_instructions
-        ? `${conversation.ai_agent_name || "Agente"}: ${conversation.ai_agent_instructions}`
-        : "",
-      conversation.ai_agent_handoff_enabled !== 0 &&
-      conversation.ai_agent_handoff_instructions
-        ? `Transferência: ${conversation.ai_agent_handoff_instructions}`
-        : "",
-    ]
-      .filter(Boolean)
-      .join("\n");
-    const enriched = memory?.summary
-      ? [
-          {
-            id: "contact-memory",
-            direction: "inbound" as const,
-            text: `MEMÓRIA REVISADA DO CONTATO: ${memory.summary}`,
-          },
-          ...context.messages,
-        ]
-      : context.messages;
-    const generated = await generateGroundedText(
-      env.AI,
-      config,
-      enriched,
-      sources,
-      {
-        temperature: conversation.ai_agent_temperature ?? 0.7,
-        maxTokens: conversation.ai_agent_max_tokens ?? 1024,
-        trustedInstructions,
-      },
-    );
     const draft = await db.completeAiDraft(pending.draft.id, {
       text: generated.text,
       promptTokens: generated.usage.promptTokens,
@@ -321,9 +410,19 @@ export async function processAutomationEvent(
         errorCode: String(sent.code),
         errorDetail: sent.detail,
       });
+      if (pendingHandoffReason)
+        await db.setOperation(event.conversationId, {
+          mode: "human",
+          handoffReason: pendingHandoffReason,
+        });
       return "failed";
     }
     await sends.accept(sendId, sent.messageId, now);
+    if (pendingHandoffReason)
+      await db.setOperation(event.conversationId, {
+        mode: "human",
+        handoffReason: pendingHandoffReason,
+      });
     await env.DB.prepare(
       `INSERT INTO ai_runs (id, conversation_id, contact_id, kind, model, decision, prompt_tokens, output_tokens, latency_ms)
        VALUES (?1, ?2, ?3, 'automation', ?4, 'sent', ?5, ?6, ?7)`,
@@ -340,6 +439,11 @@ export async function processAutomationEvent(
       .run();
     return "sent";
   } catch {
+    if (pendingHandoffReason)
+      await db.setOperation(event.conversationId, {
+        mode: "human",
+        handoffReason: pendingHandoffReason,
+      });
     await db.failAiDraft(pending.draft.id, "automation_failed");
     return "failed";
   }

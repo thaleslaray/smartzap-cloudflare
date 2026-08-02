@@ -57,7 +57,7 @@
       "kind": "llm",
       "factual": true,
       "messages": [{"role": "user", "text": "HTTP 200 quer dizer que a mensagem foi entregue e lida?"}],
-      "expected": {"any": ["nao", "sent", "delivered", "read"], "forbidden": ["comprova a entrega"], "grounded": true}
+      "expected": {"all": ["sent", "delivered", "read", "failed"], "forbidden": ["comprova a entrega"], "grounded": true}
     },
     {
       "id": "RAG-08",

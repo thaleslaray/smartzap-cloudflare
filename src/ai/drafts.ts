@@ -245,6 +245,30 @@ function isDegenerateDraft(value: string) {
     || highestFrequency / tokens.length > 0.35
 }
 
+function resemblesRecentOutbound(
+  value: string,
+  messages: AiHistoryMessage[],
+): boolean {
+  const recent = [...messages].reverse().find(
+    (message) => message.direction === 'outbound' && message.text.trim(),
+  )?.text
+  if (!recent) return false
+  const tokens = (text: string) => text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('pt-BR')
+    .match(/[a-z0-9]+/g) ?? []
+  const candidate = tokens(value)
+  const previous = tokens(recent)
+  if (candidate.length < 8 || previous.length < 8) return false
+  const candidateSet = new Set(candidate)
+  const previousSet = new Set(previous)
+  let common = 0
+  for (const token of candidateSet)
+    if (previousSet.has(token)) common += 1
+  return common / Math.min(candidateSet.size, previousSet.size) >= 0.85
+}
+
 export async function runAiProvider(
   ai: AiBinding,
   config: AiConfiguration,
@@ -371,10 +395,20 @@ export async function generateGroundedText(
   for (let attempt = 1; attempt <= MAX_GROUNDED_ATTEMPTS; attempt++) {
     let response: unknown
     try {
+      const retryPayload = attempt === 1 ? providerPayload : {
+        ...providerPayload,
+        messages: [
+          ...providerPayload.messages,
+          {
+            role: 'system',
+            content: 'A resposta anterior repetiu o atendimento. Refaça respondendo somente à última mensagem do cliente, com informação nova e sem reciclar a resposta anterior.',
+          },
+        ],
+      }
       response = await runAiProvider(
         ai,
         config,
-        providerPayload,
+        retryPayload,
         'grounded-automation',
       )
     } catch (error) {
@@ -386,7 +420,7 @@ export async function generateGroundedText(
       continue
     }
     const text = normalizeDraft(aiResponseText(response))
-    if (text && !isDegenerateDraft(text)) {
+    if (text && !isDegenerateDraft(text) && !resemblesRecentOutbound(text, messages)) {
       return {
         text: redactReflectedSensitiveInput(text, messages),
         usage: tokenUsage(response),
