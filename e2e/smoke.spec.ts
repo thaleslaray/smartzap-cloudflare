@@ -276,7 +276,15 @@ test("campanha usa segmento salvo, busca contatos no servidor e mapeia variávei
       conditions: [{ field: "name", operator: "contains", value: "E2E" }],
     }),
   );
+  const segmentCreated = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/api/segments") &&
+      response.request().method() === "POST",
+    { timeout: 45_000 },
+  );
   await page.getByRole("button", { name: "Salvar segmento" }).click();
+  const segmentResponse = await segmentCreated;
+  expect(segmentResponse.status()).toBe(201);
   await expect(page.getByText(segmentName)).toBeVisible();
 
   await page.goto("/campaigns/new");
@@ -565,27 +573,34 @@ const responsiveViewports = [
   { width: 1440, height: 900 },
   { width: 1920, height: 1080 },
 ];
+const responsiveRouteGroups = Array.from(
+  { length: Math.ceil(operationalRoutes.length / 7) },
+  (_, index) => operationalRoutes.slice(index * 7, index * 7 + 7),
+);
 
 for (const { width, height } of responsiveViewports) {
-  test(`todas as rotas operacionais preservam a largura em ${width}×${height}`, async ({
-    page,
-  }) => {
-    // Cada viewport tem orçamento próprio: uma compilação fria não consome o
-    // tempo das outras cinco matrizes nem esconde qual resolução falhou.
-    test.setTimeout(120_000);
-    await page.setViewportSize({ width, height });
-    await page.goto("/login");
-    await page.getByLabel("Senha mestra").fill("dev");
-    await page.getByRole("button", { name: "Entrar" }).click();
-    await expect(page).toHaveURL(/\/$/);
-    for (const path of operationalRoutes) {
-      await page.goto(path);
-      await expect(page.locator("main")).toBeVisible({ timeout: 15_000 });
-      await expect(page.getByText("Algo deu errado.")).toHaveCount(0);
-      await expectNoHorizontalOverflow(page, width);
-      await expectNoVisibleLayoutOverflow(page);
-    }
-  });
+  for (const [groupIndex, routes] of responsiveRouteGroups.entries()) {
+    test(`todas as rotas operacionais preservam a largura em ${width}×${height} — grupo ${groupIndex + 1}/${responsiveRouteGroups.length}`, async ({
+      page,
+    }) => {
+      // Grupos finitos impedem que a soma de vinte navegações válidas estoure
+      // um único orçamento global em runners frios. Cada rota mantém as mesmas
+      // asserções e nenhum retry passa a ser aceito como aprovação.
+      test.setTimeout(60_000);
+      await page.setViewportSize({ width, height });
+      await page.goto("/login");
+      await page.getByLabel("Senha mestra").fill("dev");
+      await page.getByRole("button", { name: "Entrar" }).click();
+      await expect(page).toHaveURL(/\/$/);
+      for (const path of routes) {
+        await page.goto(path);
+        await expect(page.locator("main")).toBeVisible({ timeout: 15_000 });
+        await expect(page.getByText("Algo deu errado.")).toHaveCount(0);
+        await expectNoHorizontalOverflow(page, width);
+        await expectNoVisibleLayoutOverflow(page);
+      }
+    });
+  }
 }
 
 test("wizard de campanha mantém etapas e campos legíveis em largura reduzida", async ({
