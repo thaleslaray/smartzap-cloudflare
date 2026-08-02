@@ -15,6 +15,7 @@ import {
   validateMetaFlowJson,
   createMetaFlow,
   configureMetaAppWebhookSubscription,
+  configureMetaWabaWebhookOverride,
   getMetaFlowDetails,
   getMetaFlowEncryptionPublicKeyStatus,
   getMetaFlowPreview,
@@ -307,17 +308,29 @@ export const flowsRoutes = new Hono<{ Bindings: Env }>()
     );
     if (!callback.ok) return c.json({ error: callback.error }, callback.status);
     try {
-      await configureMetaAppWebhookSubscription({
-        version: credentials.graphVersion,
-        appId: credentials.appId,
-        appSecret: credentials.appSecret,
-        callbackUrl: callback.url,
-        verifyToken: c.env.META_VERIFY_TOKEN,
-      });
+      if (callback.target) {
+        await configureMetaWabaWebhookOverride({
+          version: credentials.graphVersion,
+          wabaId: credentials.wabaId,
+          token: credentials.token,
+          callbackUrl: callback.url,
+          verifyToken: c.env.META_VERIFY_TOKEN,
+        });
+      } else {
+        await configureMetaAppWebhookSubscription({
+          version: credentials.graphVersion,
+          appId: credentials.appId,
+          appSecret: credentials.appSecret,
+          callbackUrl: callback.url,
+          verifyToken: c.env.META_VERIFY_TOKEN,
+        });
+      }
       const probe = await whatsappClient(credentials).checkOperational(credentials.wabaId);
       return c.json({
         ok: true,
-        callbackUrl: probe.appWebhookCallbackUrl ?? callback.url,
+        callbackUrl: callback.target
+          ? probe.webhookCallbackUrl ?? callback.url
+          : probe.appWebhookCallbackUrl ?? callback.url,
         qaCallbackTarget: callback.target,
         fields: probe.appWebhookFields,
         flowsSubscribed: probe.appWebhookFields.includes("flows"),

@@ -322,7 +322,8 @@ try {
     tokenRequiredScopesPresent: health.meta?.tokenRequiredScopesPresent === true,
     callbackUrl: callback.callbackUrl,
     appCallbackUrl: callback.appCallbackUrl,
-    phoneCallbackUrl: callback.phoneCallbackUrl,
+    wabaCallbackUrl: callback.wabaCallbackUrl,
+    effectiveCallbackUrl: callback.effectiveCallbackUrl,
     callbackMatchesStaging: callback.callbackMatchesStaging,
     pilot: health.pilot,
   };
