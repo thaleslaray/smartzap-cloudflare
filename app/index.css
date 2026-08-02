@@ -1,4 +1,3 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
 @import "../DS/tokens/smartzap-tokens.css";
 @import "tailwindcss";
 
@@ -42,9 +41,9 @@
    compatibilidade para que os componentes antigos possam ser migrados sem
    reinterpretacao visual. */
 :root {
-  --ds-font-display: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
-  --ds-font-body: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
-  --ds-font-mono: "JetBrains Mono", "Fira Code", "Consolas", monospace;
+  --ds-font-display: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --ds-font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --ds-font-mono: ui-monospace, "SFMono-Regular", "Cascadia Code", "Roboto Mono", "Consolas", monospace;
   --ds-bg-base: #090d0b;
   --ds-bg-elevated: #111413;
   --ds-bg-surface: #171d19;

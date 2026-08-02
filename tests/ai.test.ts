@@ -47,15 +47,15 @@ function aiEnv(ai: ReturnType<typeof fakeAi>, overrides: Partial<Env> = {}) {
 describe('prompt e provider de IA', () => {
   it('usa o modelo de baixa latência validado como padrão', () => {
     const ai = fakeAi()
-    const config = aiConfiguration(aiEnv(ai, { AI_MODEL: '' }))
+    const config = aiConfiguration(aiEnv(ai, { AI_MODEL: '', AI_PROVIDER_TIMEOUT_MS: '' }))
     expect(config).toMatchObject({
       ready: true,
       model: '@cf/openai/gpt-oss-20b',
-      providerTimeoutMs: 20_000,
+      providerTimeoutMs: 30_000,
     })
     expect(aiConfiguration(aiEnv(ai, {
       AI_PROVIDER_TIMEOUT_MS: '   ',
-    })).providerTimeoutMs).toBe(20_000)
+    })).providerTimeoutMs).toBe(30_000)
   })
 
   it('isola conteúdo adversarial e limita o contexto', () => {
@@ -185,6 +185,50 @@ describe('prompt e provider de IA', () => {
     ])).rejects.toMatchObject({ code: 'empty_response' } satisfies Partial<AiDraftError>)
   })
 
+  it('repete uma vez uma saída fundamentada vazia e preserva o fallback fechado', async () => {
+    const ai = {
+      run: vi.fn()
+        .mockResolvedValueOnce({ response: '' })
+        .mockResolvedValueOnce({
+          response: 'Resposta fundamentada após uma falha transitória.',
+        }),
+    }
+    const result = await generateGroundedText(
+      ai as unknown as ReturnType<typeof fakeAi>,
+      aiConfiguration(aiEnv(ai as unknown as ReturnType<typeof fakeAi>)),
+      [{ id: 'm1', direction: 'inbound', text: 'Como funciona?' }],
+      ['O SmartZap usa a API oficial da Meta.'],
+    )
+    expect(result.text).toBe('Resposta fundamentada após uma falha transitória.')
+    expect(ai.run).toHaveBeenCalledTimes(2)
+  })
+
+  it('rejeita repetição da última resposta e refaz com foco na mensagem atual', async () => {
+    const ai = {
+      run: vi.fn()
+        .mockResolvedValueOnce({
+          response: 'O SmartZap usa a API oficial da Meta e você precisa ter uma conta do WhatsApp Business configurada.',
+        })
+        .mockResolvedValueOnce({
+          response: 'Os status são sent, delivered, read e failed, confirmados pelos webhooks da Meta.',
+        }),
+    }
+    const result = await generateGroundedText(
+      ai as unknown as ReturnType<typeof fakeAi>,
+      aiConfiguration(aiEnv(ai as unknown as ReturnType<typeof fakeAi>)),
+      [
+        { id: 'm1', direction: 'outbound', text: 'O SmartZap usa a API oficial da Meta e você precisa ter uma conta do WhatsApp Business configurada.' },
+        { id: 'm2', direction: 'inbound', text: 'Quais são os nomes exatos dos status de envio?' },
+      ],
+      ['Os estados são sent, delivered, read e failed.'],
+    )
+    expect(result.text).toContain('sent, delivered, read e failed')
+    expect(ai.run).toHaveBeenCalledTimes(2)
+    expect(JSON.stringify(ai.run.mock.calls[1][1])).toContain(
+      'A resposta anterior repetiu o atendimento',
+    )
+  })
+
   it('orienta a resposta direta quando a fonte contém o fato solicitado', async () => {
     const ai = fakeAi('O código é nebulosa-azul-1740.')
     const config = aiConfiguration(aiEnv(ai))
@@ -195,6 +239,8 @@ describe('prompt e provider de IA', () => {
     })
     expect(JSON.stringify(ai.run.mock.calls[0][1])).toContain('Responda primeiro o que foi perguntado')
     expect(JSON.stringify(ai.run.mock.calls[0][1])).toContain('última linha CLIENTE')
+    expect(JSON.stringify(ai.run.mock.calls[0][1])).toContain('opt-in explícito')
+    expect(JSON.stringify(ai.run.mock.calls[0][1])).toContain('não cria consentimento')
     expect(JSON.stringify(ai.run.mock.calls[0][1])).toContain('nebulosa-azul-1740')
   })
 

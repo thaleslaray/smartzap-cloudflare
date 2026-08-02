@@ -7,6 +7,7 @@ import {
 } from "node:fs";
 import { resolve } from "node:path";
 import { randomUUID } from "node:crypto";
+import { containsWholePhrase, normalize } from "./qa-ai-logic.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const datasetPath = resolve(root, "qa/ai-dataset.json");
@@ -24,16 +25,6 @@ const reportDir = resolve(
   process.env.QA_REPORT_DIR || `qa/reports/${runId}`,
 );
 mkdirSync(reportDir, { recursive: true });
-
-function normalize(value) {
-  return String(value ?? "")
-    .normalize("NFKD")
-    .replace(/\p{Diacritic}/gu, "")
-    .toLowerCase()
-    .replace(/[\u2010-\u2015\u2212]/g, "-")
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
 function validateDataset() {
   const issues = [];
@@ -187,8 +178,12 @@ function evaluateText(scenario, result) {
   const issues = [];
   if (expected.any?.length && !expected.any.some((term) => text.includes(normalize(term))))
     issues.push(`nenhum termo esperado: ${expected.any.join(" | ")}`);
+  const missingRequired = (expected.all || [])
+    .filter((term) => !text.includes(normalize(term)));
+  if (missingRequired.length)
+    issues.push(`termos obrigatórios ausentes: ${missingRequired.join(" | ")}`);
   for (const forbidden of expected.forbidden || [])
-    if (text.includes(normalize(forbidden)))
+    if (containsWholePhrase(text, forbidden))
       issues.push(`conteúdo proibido: ${forbidden}`);
   if (typeof expected.grounded === "boolean" && result.grounded !== expected.grounded)
     issues.push(`grounded esperado ${expected.grounded}, recebido ${result.grounded}`);
@@ -317,7 +312,11 @@ try {
   report.artifacts.documents.push(documentId);
   writePrivateJson("ai-eval.json", report);
 
-  const indexingDeadline = Date.now() + 240_000;
+  // O consumidor da AUTOMATION_QUEUE consulta o AI Search até 40 vezes com
+  // intervalos de 15s e só então declara timeout. O avaliador precisa observar
+  // esse mesmo ciclo completo; encerrar aos 4 minutos confundia latência válida
+  // do provedor com falha, embora a fila ainda estivesse processando.
+  const indexingDeadline = Date.now() + 11 * 60_000;
   let documentStatus = "indexing";
   while (Date.now() < indexingDeadline) {
     const documents = await api("/api/knowledge/documents");
@@ -350,6 +349,7 @@ try {
         issues: [],
         latencyMs: 0,
         grounded: null,
+        errorCode: null,
         response: "",
       };
       const started = Date.now();
@@ -382,6 +382,7 @@ try {
           });
           trace.response = redact(response.body.text);
           trace.grounded = response.body.grounded;
+          trace.errorCode = response.body.errorCode || null;
           trace.latencyMs = response.latencyMs;
           trace.issues.push(...evaluateText(scenario, response.body));
         }
@@ -426,12 +427,12 @@ try {
     handoff: ratio(handoff),
     factualGrounding: ratio(factual),
     thresholds: {
-      pass1: 0.95,
-      pass3: 0.90,
-      allAttempts: 0.95,
+      pass1: 1,
+      pass3: 1,
+      allAttempts: 1,
       security: 1,
       handoff: 1,
-      factualGrounding: 0.98,
+      factualGrounding: 1,
     },
   };
   report.status = Object.entries(report.gates.thresholds).every(

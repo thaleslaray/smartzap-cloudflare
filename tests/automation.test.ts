@@ -2,11 +2,12 @@ import { env } from "cloudflare:test";
 import { describe, expect, it, vi } from "vitest";
 import {
   automationDebounceSeconds,
+  automationPolicyDecision,
   processAutomationEvent,
 } from "../src/ai/automation";
 import { isAutomationQueue, processAutomationMessages } from "../src";
 
-async function createConversation(mode = "bot") {
+async function createConversation(mode = "bot", text = "Qual é o horário?") {
   const contactId = crypto.randomUUID();
   const conversationId = crypto.randomUUID();
   const sourceMessageId = crypto.randomUUID();
@@ -14,9 +15,9 @@ async function createConversation(mode = "bot") {
   const unique = crypto
     .randomUUID()
     .replace(/\D/g, "")
-    .padEnd(18, "7")
-    .slice(0, 18);
-  const waId = `56${unique}`;
+    .padEnd(8, "7")
+    .slice(0, 8);
+  const waId = `55119${unique}`;
   await env.DB.batch([
     env.DB.prepare(
       "INSERT OR REPLACE INTO settings (key, value) VALUES ('ai_global_enabled', 'true')",
@@ -43,13 +44,91 @@ async function createConversation(mode = "bot") {
     env.DB.prepare(
       `INSERT INTO conversation_messages
       (id, conversation_id, contact_id, direction, message_type, text_body, phone_number_id, meta_timestamp)
-      VALUES (?1, ?2, ?3, 'inbound', 'text', 'Qual é o horário?', '11111', ?4)`,
-    ).bind(sourceMessageId, conversationId, contactId, stamp),
+      VALUES (?1, ?2, ?3, 'inbound', 'text', ?4, '11111', ?5)`,
+    ).bind(sourceMessageId, conversationId, contactId, text, stamp),
   ]);
   return { conversationId, sourceMessageId, contactId };
 }
 
 describe("automação da Inbox", () => {
+  it("responde estados canônicos sem depender do RAG", () => {
+    expect(automationPolicyDecision(
+      "Quais são os status exatos: aceita pela Meta, entregue, lida ou falha?",
+    )).toMatchObject({
+      text: expect.stringContaining("sent = aceita pela Meta"),
+      handoffReason: null,
+    });
+    expect(automationPolicyDecision(
+      "HTTP 200 quer dizer que a mensagem foi entregue e lida?",
+    )).toMatchObject({
+      text: expect.stringMatching(/sent.*delivered.*read.*failed/),
+      handoffReason: null,
+    });
+    expect(automationPolicyDecision(
+      "Reteste após correção: quais são os quatro nomes exatos dos status de mensagem no SmartZap?",
+    )).toMatchObject({
+      text: expect.stringMatching(/sent.*delivered.*read.*failed/),
+      handoffReason: null,
+    });
+    expect(automationPolicyDecision(
+      "Quanto custa e em quanto tempo vocês implantam? Quero uma proposta.",
+    )).toMatchObject({
+      text: expect.stringContaining("time comercial"),
+      handoffReason: "Cliente solicitou preço, prazo ou proposta comercial",
+    });
+    expect(automationPolicyDecision(
+      "Quero falar com alguém do suporte humano.",
+    )).toEqual({
+      text: "Entendi. Vou encaminhar a conversa para uma pessoa responsável continuar o atendimento.",
+      handoffReason: "Cliente solicitou atendimento humano",
+    });
+  });
+
+  it("envia a confirmação comercial e muda a conversa para humano", async () => {
+    const { conversationId, sourceMessageId } = await createConversation(
+      "bot",
+      "Quanto custa para 2.000 contatos? Quero contratar e preciso de proposta.",
+    );
+    await env.DB.batch([
+      env.DB.prepare(
+        "INSERT OR REPLACE INTO settings (key,value) VALUES ('whatsapp_phone_id','11111')",
+      ),
+      env.DB.prepare(
+        "INSERT OR REPLACE INTO settings (key,value) VALUES ('whatsapp_waba_id','22222')",
+      ),
+    ]);
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => new Response(JSON.stringify({
+      messages: [{ id: "wamid.automation.handoff" }],
+    }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const result = await processAutomationEvent(
+        {
+          ...env,
+          AI_ENABLED: "true",
+          AI_MODEL: "@cf/meta/llama-3.2-3b-instruct",
+          INBOX_AUTOMATION_ENABLED: "true",
+          AI: { run: async () => { throw new Error("não deve chamar o modelo"); } },
+        } as unknown as Env,
+        { kind: "inbound_automation", conversationId, sourceMessageId },
+      );
+      expect(result).toBe("sent");
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const payload = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+      expect(payload.text.body).toContain("preparar a proposta");
+      expect(
+        await env.DB.prepare(
+          "SELECT mode,handoff_reason FROM conversations WHERE id=?1",
+        ).bind(conversationId).first(),
+      ).toEqual({
+        mode: "human",
+        handoff_reason: "Cliente solicitou preço, prazo ou proposta comercial",
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("usa o debounce do agente vinculado e arredonda para a Queue", async () => {
     const { conversationId } = await createConversation();
     const agentId = crypto.randomUUID();

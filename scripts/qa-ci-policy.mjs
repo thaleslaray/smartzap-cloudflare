@@ -77,6 +77,16 @@ if (!playwrightConfig.includes("CF_INSPECTOR_PORT")) {
     "playwright.config.ts precisa encaminhar a porta exclusiva do inspetor",
   );
 }
+if (!playwrightConfig.includes("QA_PLAYWRIGHT_REPORT_DIR")) {
+  errors.push(
+    "playwright.config.ts precisa preservar relatórios separados por projeto",
+  );
+}
+if (read("app/index.css").includes("fonts.googleapis.com")) {
+  errors.push(
+    "a interface não pode depender de fonte remota para renderizar ou concluir navegação",
+  );
+}
 const viteConfig = read("vite.config.ts");
 if (
   !viteConfig.includes("QA_RUN_ID") ||
@@ -92,10 +102,12 @@ const e2eRunner = read("scripts/qa-e2e.mjs");
 if (
   !e2eRunner.includes("createServer") ||
   !e2eRunner.includes("E2E_PORT") ||
-  !e2eRunner.includes("CF_INSPECTOR_PORT")
+  !e2eRunner.includes("CF_INSPECTOR_PORT") ||
+  !e2eRunner.includes("assertPlaywrightReportClean") ||
+  !e2eRunner.includes("QA_PLAYWRIGHT_REPORT_DIR")
 ) {
   errors.push(
-    "o runner E2E precisa reservar portas livres para o app e o inspetor por execução",
+    "o runner E2E precisa isolar portas/relatórios e reprovar qualquer flake",
   );
 }
 const cleanup = read("scripts/qa-cleanup.mjs");

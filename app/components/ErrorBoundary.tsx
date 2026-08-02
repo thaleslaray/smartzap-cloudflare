@@ -1,19 +1,50 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { Card, Logo, btnPrimary, btnSecondary } from './ui'
+import {
+  ASSET_RECOVERY_PARAM,
+  buildAssetRecoveryUrl,
+  shouldAutoRecoverAssetError,
+} from '../lib/assetRecovery'
 
 type Props = { children: ReactNode }
 type State = { failed: boolean }
 
 export class ErrorBoundary extends Component<Props, State> {
   state: State = { failed: false }
+  private recoveryCleanupTimer: number | undefined
 
   static getDerivedStateFromError(): State {
     return { failed: true }
   }
 
-  componentDidCatch(_error: Error, _info: ErrorInfo) {
+  componentDidMount() {
+    const url = new URL(window.location.href)
+    if (!url.searchParams.has(ASSET_RECOVERY_PARAM)) return
+
+    this.recoveryCleanupTimer = window.setTimeout(() => {
+      url.searchParams.delete(ASSET_RECOVERY_PARAM)
+      window.history.replaceState(window.history.state, '', url)
+    }, 15_000)
+  }
+
+  componentWillUnmount() {
+    if (this.recoveryCleanupTimer !== undefined) {
+      window.clearTimeout(this.recoveryCleanupTimer)
+    }
+  }
+
+  componentDidCatch(error: Error, _info: ErrorInfo) {
     // A resposta de recuperação é deliberadamente local: detalhes podem conter
     // dados do operador e não devem ser enviados a serviços de terceiros.
+    // O cache bust corrige somente a troca de versão de um build publicado.
+    // No Vite dev, uma falha transitória de módulo deve permanecer observável
+    // e nunca disputar navegação com o teste ou com o desenvolvedor.
+    if (!shouldAutoRecoverAssetError(error, import.meta.env.DEV)) return
+
+    const currentUrl = new URL(window.location.href)
+    if (currentUrl.searchParams.has(ASSET_RECOVERY_PARAM)) return
+
+    window.location.replace(buildAssetRecoveryUrl(currentUrl.toString()))
   }
 
   render() {
@@ -35,4 +66,3 @@ export class ErrorBoundary extends Component<Props, State> {
     )
   }
 }
-

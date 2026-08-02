@@ -20,7 +20,9 @@ const routes = [
 ];
 
 async function assertHealthyLayout(page: Page, path: string, width: number) {
-  await page.goto(path, { waitUntil: "domcontentloaded" });
+  const url = new URL(path, remoteBaseUrl);
+  url.searchParams.set("__qa_shell", `${Date.now()}-${width}`);
+  await page.goto(`${url.pathname}${url.search}`, { waitUntil: "domcontentloaded" });
   await expect(page).not.toHaveURL(/\/login(?:\?|$)/);
   await expect(page.locator("main")).toBeVisible({ timeout: 20_000 });
   await expect(

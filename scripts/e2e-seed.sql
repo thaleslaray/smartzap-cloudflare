@@ -10,6 +10,11 @@ VALUES (
 -- Garante que o smoke jamais consiga ultrapassar o preflight de disparo.
 DELETE FROM settings WHERE key IN ('whatsapp_phone_id', 'whatsapp_waba_id');
 
+-- O E2E determinístico não consulta provedores públicos de câmbio.
+INSERT OR REPLACE INTO settings (key, value) VALUES
+  ('exchange_rate_usd_brl', '5.50'),
+  ('exchange_rate_usd_brl_fetched_at', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
+
 INSERT OR REPLACE INTO campaigns (
   id, name, template_name, status, workflow_id, total, sent, delivered, read, failed
 ) VALUES (
@@ -51,7 +56,19 @@ WHERE campaign_id IN (
 INSERT OR REPLACE INTO contacts (id, phone, name, status, wa_id)
 VALUES (
   '11111111-1111-4111-8111-111111111111', '+5511999999999',
-  'Contato Piloto E2E', 'unknown', '5511999999999'
+  'Contato Piloto E2E', 'opt_in', '5511999999999'
+);
+
+-- O cenário de campanha precisa de um destinatário elegível real: além do
+-- status opt-in, a audiência exige uma evidência de consentimento ativa.
+INSERT OR REPLACE INTO consent_events (
+  id, source, declaration_text, contact_count, contact_id, source_detail,
+  purpose, declaration_version, revoked_at, revoked_reason
+) VALUES (
+  '66666666-6666-4666-8666-666666666666', 'manual',
+  'Consentimento sintético exclusivo para o fixture determinístico de QA.', 1,
+  '11111111-1111-4111-8111-111111111111', 'e2e_fixture',
+  'marketing_messages', 'e2e-fixture-v1', NULL, NULL
 );
 
 -- O contato corrigido pertence a outro cenário. Mantê-lo separado evita que

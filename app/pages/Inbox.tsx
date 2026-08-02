@@ -326,6 +326,7 @@ export default function Inbox() {
   const [attendants, setAttendants] = useState<Attendant[]>([]);
   const [attendantName, setAttendantName] = useState("");
   const [attendantBusy, setAttendantBusy] = useState(false);
+  const attendantsRevision = useRef(0);
   const [memoryDraft, setMemoryDraft] = useState("");
   const readRequested = useRef<string | null>(null);
   const messagesViewport = useRef<HTMLDivElement | null>(null);
@@ -431,9 +432,20 @@ export default function Inbox() {
   }, [toolbarPopover]);
   useEffect(() => {
     if (toolbarPopover !== "attendants") return;
+    let active = true;
+    const revision = attendantsRevision.current;
     api<Attendant[]>("/api/attendants")
-      .then(setAttendants)
-      .catch(() => setAttendants([]));
+      .then((items) => {
+        if (active && revision === attendantsRevision.current)
+          setAttendants(items);
+      })
+      .catch(() => {
+        if (active && revision === attendantsRevision.current)
+          setAttendants([]);
+      });
+    return () => {
+      active = false;
+    };
   }, [toolbarPopover]);
 
   async function saveInboxSettings() {
@@ -463,6 +475,7 @@ export default function Inbox() {
         method: "POST",
         body: JSON.stringify({ name: attendantName.trim() }),
       });
+      attendantsRevision.current += 1;
       setAttendants((current) => [created, ...current]);
       setAttendantName("");
     } finally {
@@ -476,6 +489,7 @@ export default function Inbox() {
       await api<{ success: true }>(`/api/attendants/${attendantId}`, {
         method: "DELETE",
       });
+      attendantsRevision.current += 1;
       setAttendants((current) =>
         current.filter((item) => item.id !== attendantId),
       );

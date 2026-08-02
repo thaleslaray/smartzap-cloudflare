@@ -8,6 +8,8 @@ import {
 } from "node:fs";
 import { resolve } from "node:path";
 import { randomUUID } from "node:crypto";
+import { resolveMetaCallbackPreflight } from "./lib/meta-canary-preflight.mjs";
+import { shouldStopMetaCampaignPolling } from "./lib/meta-canary-lifecycle.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const baseUrl = (
@@ -309,8 +311,7 @@ try {
     throw new Error("Limite local de duas rodadas reais por dia atingido.");
 
   const health = (await api("/api/settings/health")).body;
-  const callbackUrl = health.meta?.effectiveWebhookCallbackUrl || null;
-  const callbackMatchesStaging = callbackUrl === `${baseUrl}/webhook`;
+  const callback = resolveMetaCallbackPreflight(health, baseUrl);
   report.preflight = {
     databaseOk: health.databaseOk === true,
     metaConfigured: health.metaConfigured === true,
@@ -320,8 +321,12 @@ try {
     qualityRating: health.meta?.qualityRating || null,
     tokenValid: health.meta?.tokenValid === true,
     tokenRequiredScopesPresent: health.meta?.tokenRequiredScopesPresent === true,
-    callbackUrl,
-    callbackMatchesStaging,
+    callbackUrl: callback.callbackUrl,
+    appCallbackUrl: callback.appCallbackUrl,
+    wabaCallbackUrl: callback.wabaCallbackUrl,
+    phoneCallbackUrl: callback.phoneCallbackUrl,
+    effectiveCallbackUrl: callback.effectiveCallbackUrl,
+    callbackMatchesStaging: callback.callbackMatchesStaging,
     pilot: health.pilot,
   };
   persist(report);
@@ -334,9 +339,9 @@ try {
     !report.preflight.tokenRequiredScopesPresent
   )
     throw new Error("Preflight operacional do staging não está verde.");
-  if (!callbackMatchesStaging) {
+  if (!callback.callbackMatchesStaging) {
     report.limitation =
-      "O callback Meta efetivo aponta para produção. O staging pode provar aceite do transporte, mas não entrega/leitura/inbound isolados.";
+      "O callback efetivo da Meta aponta para produção. O staging pode provar aceite do transporte, mas não entrega/leitura/inbound isolados.";
     if (!transportOnly)
       throw new Error(
         "Canário completo bloqueado: callback Meta não aponta para o staging.",
@@ -530,7 +535,14 @@ try {
       });
       persist(report);
     }
-    if (["completed", "failed", "cancelled"].includes(finalCampaign.status)) break;
+    if (
+      shouldStopMetaCampaignPolling({
+        transportOnly,
+        campaignStatus: finalCampaign.status,
+        contacts: finalContacts.items,
+      })
+    )
+      break;
     await new Promise((resolveWait) => setTimeout(resolveWait, 2_000));
   }
   const observed = finalContacts?.items || [];
@@ -584,10 +596,10 @@ try {
 
 if (report.status !== "passed") {
   const detail =
-    report.status === "blocked"
-      ? "transporte aprovado, ciclo completo bloqueado pelo callback compartilhado"
-      : canaryError
-        ? redact(canaryError.message)
+    canaryError
+      ? redact(canaryError.message)
+      : report.status === "blocked"
+        ? "transporte aprovado; ciclo completo não executado"
         : "falha não especificada";
   console.error(`Canário Meta ${report.status}: ${detail}. Relatório: ${resolve(reportDir, "meta-canary.json")}`);
   process.exit(1);

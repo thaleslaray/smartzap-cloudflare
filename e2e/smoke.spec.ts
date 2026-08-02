@@ -1,5 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+import {
+  gotoAuthedRoute,
+  reloadAuthedRoute,
+  waitForAuthedAppReady,
+} from "./support/navigation";
 
 async function expectNoHorizontalOverflow(page: Page, viewportWidth: number) {
   const dimensions = await page.evaluate(() => ({
@@ -143,8 +148,17 @@ test("Contatos expõe carregamento, vazio e erro recuperável pela interface", a
   await page.goto("/contacts");
   await expect(page.getByRole("heading", { name: "Contatos" })).toBeVisible({ timeout: 15000 });
 
-  const listUrl = /\/api\/contacts\?q=.*&page=1/;
+  // O Firefox pode serializar a query em ordem diferente durante um reload
+  // frio. O contrato do cenário é o endpoint de lista na página 1, não a
+  // ordem dos parâmetros; um regex preso em `q=...&page=1` transforma isso em
+  // flake e deixa a segunda resposta real escapar do mock.
+  const listUrl = "**/api/contacts?*";
+  const isFirstContactsPage = (route: import("@playwright/test").Route) => {
+    const url = new URL(route.request().url());
+    return url.pathname.endsWith("/api/contacts") && url.searchParams.get("page") === "1";
+  };
   await page.route(listUrl, async (route) => {
+    if (!isFirstContactsPage(route)) return route.continue();
     await new Promise((resolve) => setTimeout(resolve, 1500));
     await route.fulfill({
       contentType: "application/json",
@@ -160,6 +174,7 @@ test("Contatos expõe carregamento, vazio e erro recuperável pela interface", a
   await page.unroute(listUrl);
 
   await page.route(listUrl, async (route) => {
+    if (!isFirstContactsPage(route)) return route.continue();
     await route.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ error: "Falha controlada" }) });
   });
   await page.reload();
@@ -241,6 +256,12 @@ test("Contatos oferece selecionar todos no layout reduzido", async ({ page }) =>
 test("campanha usa segmento salvo, busca contatos no servidor e mapeia variáveis", async ({
   page,
 }) => {
+  // Esta jornada cria o segmento e depois percorre todo o wizard de campanha.
+  // O POST isolado já possui até 45 s para atravessar o cold start do Worker;
+  // o orçamento global precisa ainda cobrir login, navegações e validações da
+  // interface. Ele continua finito e nenhum retry é aceito como aprovação.
+  test.setTimeout(90_000);
+
   await page.goto("/login");
   await page.getByLabel("Senha mestra").fill("dev");
   await page.getByRole("button", { name: "Entrar" }).click();
@@ -255,7 +276,15 @@ test("campanha usa segmento salvo, busca contatos no servidor e mapeia variávei
       conditions: [{ field: "name", operator: "contains", value: "E2E" }],
     }),
   );
+  const segmentCreated = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/api/segments") &&
+      response.request().method() === "POST",
+    { timeout: 45_000 },
+  );
   await page.getByRole("button", { name: "Salvar segmento" }).click();
+  const segmentResponse = await segmentCreated;
+  expect(segmentResponse.status()).toBe(201);
   await expect(page.getByText(segmentName)).toBeVisible();
 
   await page.goto("/campaigns/new");
@@ -273,11 +302,13 @@ test("campanha usa segmento salvo, busca contatos no servidor e mapeia variávei
   await page.getByLabel("Valor de button.0.1").fill("destino-e2e");
   await page.getByRole("button", { name: "Continuar" }).click();
 
-  await page
+  const customAudience = page
     .getByRole("button", {
       name: /Público personalizado Público salvo, tags, DDI ou UF/,
-    })
-    .click();
+    });
+  await expect(page.getByRole("heading", { name: "Escolha o público" })).toBeVisible();
+  await expect(customAudience).toBeVisible();
+  await customAudience.click();
   await page.getByLabel("Público salvo").selectOption({ label: segmentName });
   await expect(page.getByRole("button", { name: "Continuar" })).toBeEnabled();
   await expect(page.getByText("Preview com contato real")).toHaveCount(0);
@@ -287,6 +318,53 @@ test("campanha usa segmento salvo, busca contatos no servidor e mapeia variávei
   await expect(
     page.getByRole("heading", { name: "Validação de destinatários" }),
   ).toBeVisible();
+
+  await page.getByRole("button", { name: "Voltar", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Definir público" })).toBeVisible();
+
+  const originalSegmentDeleted = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname.startsWith("/api/segments/") &&
+      response.request().method() === "DELETE",
+    { timeout: 45_000 },
+  );
+  await page.getByRole("button", { name: "Excluir este público" }).click();
+  await expect(
+    page.getByText("Excluir este público salvo? Isso não pode ser desfeito."),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Excluir agora" }).click();
+  expect((await originalSegmentDeleted).status()).toBe(200);
+  await expect(page.getByLabel("Público salvo")).toHaveValue("");
+
+  await page.getByRole("button", { name: "Selecionar países por DDI" }).click();
+  await page.getByRole("option", { name: /Brasil \(BR\).*\+55/ }).click();
+  await page.getByRole("button", { name: "SP", exact: true }).click();
+
+  const inlineSegmentName = `Público inline E2E ${Date.now()}`;
+  await page.getByRole("button", { name: "Salvar este público" }).click();
+  await page.getByLabel("Nome do público").fill(inlineSegmentName);
+  const inlineSegmentCreated = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === "/api/segments/from-audience" &&
+      response.request().method() === "POST",
+    { timeout: 45_000 },
+  );
+  await page.getByRole("button", { name: "Salvar público", exact: true }).click();
+  const inlineSegmentResponse = await inlineSegmentCreated;
+  expect(inlineSegmentResponse.status()).toBe(201);
+  const inlineSegment = (await inlineSegmentResponse.json()) as { id: string };
+  await expect(page.getByLabel("Público salvo")).toHaveValue(inlineSegment.id);
+
+  const inlineSegmentDeleted = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === `/api/segments/${inlineSegment.id}` &&
+      response.request().method() === "DELETE",
+    { timeout: 45_000 },
+  );
+  await page.getByRole("button", { name: "Excluir este público" }).click();
+  await page.getByRole("button", { name: "Excluir agora" }).click();
+  expect((await inlineSegmentDeleted).status()).toBe(200);
+  await expect(page.getByLabel("Público salvo")).toHaveValue("");
 });
 
 test("campanha orienta contato sem opt-in para Contatos em vez de oferecer correção de campo", async ({
@@ -323,6 +401,7 @@ test("campanha orienta contato sem opt-in para Contatos em vez de oferecer corre
 test("detalhe da campanha permite corrigir um contato ignorado sem sair da tela", async ({
   page,
 }) => {
+  test.setTimeout(60_000);
   await page.goto("/login");
   await page.getByLabel("Senha mestra").fill("dev");
   await page.getByRole("button", { name: "Entrar" }).click();
@@ -383,6 +462,10 @@ test("Inbox exige confirmação explícita antes de enviar rascunho aprovado", a
 test("Inbox mantém filtros, configurações e links de atendentes operacionais", async ({
   page,
 }) => {
+  // O WebKit pode encontrar o Worker local ainda frio ao trocar o filtro.
+  // A prova aguarda a resposta específica em vez de confundir latência do
+  // runtime com ausência de atualização visual; retry continua proibido.
+  test.setTimeout(90_000);
   await page.goto("/login");
   await page.getByLabel("Senha mestra").fill("dev");
   await page.getByRole("button", { name: "Entrar" }).click();
@@ -390,7 +473,17 @@ test("Inbox mantém filtros, configurações e links de atendentes operacionais"
   await page.goto("/inbox");
 
   await page.getByRole("button", { name: "Filtros", exact: true }).click();
+  const closedConversationsLoaded = page.waitForResponse(
+    (response) => {
+      const url = new URL(response.url());
+      return url.pathname === "/api/conversations" &&
+        url.searchParams.get("status") === "closed" &&
+        response.request().method() === "GET";
+    },
+    { timeout: 45_000 },
+  );
   await page.getByRole("button", { name: "Fechadas", exact: true }).click();
+  expect((await closedConversationsLoaded).status()).toBe(200);
   await expect(page.getByText("Nenhuma conversa recebida.")).toBeVisible();
   await page.getByRole("button", { name: "Limpar filtros" }).click();
   await expect(page.getByText("Contato Piloto E2E")).toBeVisible();
@@ -405,8 +498,30 @@ test("Inbox mantém filtros, configurações e links de atendentes operacionais"
   await page.getByRole("button", { name: "Atendentes" }).click();
   const attendantName = `Atendente E2E ${Date.now()}`;
   await page.getByLabel("Nome do atendente").fill(attendantName);
+  const attendantCreated = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === "/api/attendants" &&
+      response.request().method() === "POST",
+    { timeout: 45_000 },
+  );
   await page.getByRole("button", { name: "Criar", exact: true }).click();
+  expect((await attendantCreated).status()).toBe(201);
   await expect(page.getByText(attendantName, { exact: true })).toBeVisible();
+
+  const attendantRemoved = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname.startsWith("/api/attendants/") &&
+      response.request().method() === "DELETE",
+    { timeout: 45_000 },
+  );
+  await page
+    .getByText(attendantName, { exact: true })
+    .locator("..")
+    .locator("..")
+    .getByRole("button", { name: "Remover" })
+    .click();
+  expect((await attendantRemoved).status()).toBe(200);
+  await expect(page.getByText(attendantName, { exact: true })).toHaveCount(0);
 });
 
 test("Inbox alterna entre lista e conversa sem exibir dois painéis no mobile", async ({
@@ -438,6 +553,10 @@ test("Inbox alterna entre lista e conversa sem exibir dois painéis no mobile", 
 test("layout móvel, menu e modal permanecem acessíveis sem conteúdo cortado", async ({
   page,
 }) => {
+  // O cenário cruza quatro rotas e executa o axe dentro do modal. Em uma
+  // compilação fria do Firefox, 30s encerrava a página durante a última rota;
+  // o orçamento maior continua finito e evita transformar preparação em flake.
+  test.setTimeout(60_000);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/login");
   await page.getByLabel("Senha mestra").fill("dev");
@@ -538,27 +657,34 @@ const responsiveViewports = [
   { width: 1440, height: 900 },
   { width: 1920, height: 1080 },
 ];
+const responsiveRouteGroups = Array.from(
+  { length: Math.ceil(operationalRoutes.length / 7) },
+  (_, index) => operationalRoutes.slice(index * 7, index * 7 + 7),
+);
 
 for (const { width, height } of responsiveViewports) {
-  test(`todas as rotas operacionais preservam a largura em ${width}×${height}`, async ({
-    page,
-  }) => {
-    // Cada viewport tem orçamento próprio: uma compilação fria não consome o
-    // tempo das outras cinco matrizes nem esconde qual resolução falhou.
-    test.setTimeout(120_000);
-    await page.setViewportSize({ width, height });
-    await page.goto("/login");
-    await page.getByLabel("Senha mestra").fill("dev");
-    await page.getByRole("button", { name: "Entrar" }).click();
-    await expect(page).toHaveURL(/\/$/);
-    for (const path of operationalRoutes) {
-      await page.goto(path);
-      await expect(page.locator("main")).toBeVisible({ timeout: 15_000 });
-      await expect(page.getByText("Algo deu errado.")).toHaveCount(0);
-      await expectNoHorizontalOverflow(page, width);
-      await expectNoVisibleLayoutOverflow(page);
-    }
-  });
+  for (const [groupIndex, routes] of responsiveRouteGroups.entries()) {
+    test(`todas as rotas operacionais preservam a largura em ${width}×${height} — grupo ${groupIndex + 1}/${responsiveRouteGroups.length}`, async ({
+      page,
+    }) => {
+      // Grupos finitos impedem que a soma de vinte navegações válidas estoure
+      // um único orçamento global em runners frios. Cada rota mantém as mesmas
+      // asserções e nenhum retry passa a ser aceito como aprovação.
+      test.setTimeout(60_000);
+      await page.setViewportSize({ width, height });
+      await page.goto("/login");
+      await page.getByLabel("Senha mestra").fill("dev");
+      await page.getByRole("button", { name: "Entrar" }).click();
+      await expect(page).toHaveURL(/\/$/);
+      for (const path of routes) {
+        await page.goto(path);
+        await expect(page.locator("main")).toBeVisible({ timeout: 15_000 });
+        await expect(page.getByText("Algo deu errado.")).toHaveCount(0);
+        await expectNoHorizontalOverflow(page, width);
+        await expectNoVisibleLayoutOverflow(page);
+      }
+    });
+  }
 }
 
 test("wizard de campanha mantém etapas e campos legíveis em largura reduzida", async ({
@@ -804,7 +930,7 @@ test("Templates permite selecionar itens e expõe ações em lote reais", async 
 
   await page.getByRole("button", { name: "Alternar para tema claro" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
-  await page.reload();
+  await reloadAuthedRoute(page);
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await page.getByRole("button", { name: "Alternar para tema escuro" }).click();
 });
@@ -840,11 +966,15 @@ test("Campanhas permite atribuir pasta e tags em desktop e mobile", async ({
 
   await page.getByRole("button", { name: `Editar tags de ${campaignName}` }).click();
   const tag = page.getByRole("menuitemcheckbox", { name: `Tag Org ${suffix}` });
+  if ((await tag.getAttribute("aria-checked")) === "true") {
+    await tag.click();
+    await expect(tag).toHaveAttribute("aria-checked", "false");
+  }
   await tag.click();
   await expect(tag).toHaveAttribute("aria-checked", "true");
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.reload();
+  await reloadAuthedRoute(page);
   await page.getByRole("searchbox").fill(campaignName);
   await expect(
     page.getByRole("button", { name: `Mover ${campaignName} para pasta` }),
@@ -856,6 +986,11 @@ test("Campanhas permite atribuir pasta e tags em desktop e mobile", async ({
 });
 
 test("Inbox seleciona template, resolve variáveis e exige confirmação de envio", async ({ page }) => {
+  // A Inbox carrega várias consultas em paralelo e este cenário ainda roda o
+  // axe dentro do modal. O primeiro carregamento WebKit pode passar de 30s;
+  // manter um orçamento explícito evita que o teardown feche a página antes
+  // do clique e transforme timeout de preparação em falso erro de interação.
+  test.setTimeout(60_000);
   let sentBody: Record<string, unknown> | null = null;
   await page.route(
     "**/api/conversations/22222222-2222-4222-8222-222222222222/templates/send",
@@ -872,6 +1007,7 @@ test("Inbox seleciona template, resolve variáveis e exige confirmação de envi
   await page.getByLabel("Senha mestra").fill("dev");
   await page.getByRole("button", { name: "Entrar" }).click();
   await expect(page).toHaveURL(/\/$/);
+  await waitForAuthedAppReady(page);
   await page.goto("/inbox/22222222-2222-4222-8222-222222222222");
   await page.getByLabel("Ações da mensagem").click();
   await page.getByRole("button", { name: "Enviar template aprovado" }).click();
@@ -930,7 +1066,7 @@ test("rotas críticas não têm violações WCAG A/AA detectáveis", async ({ pa
     "/inbox/22222222-2222-4222-8222-222222222222",
     "/settings",
   ]) {
-    await page.goto(path);
+    await gotoAuthedRoute(page, path);
     await page.waitForTimeout(250);
     if (testInfo.project.name === "webkit") {
       const selectStyles = await page.locator("select:visible").evaluateAll((nodes) =>

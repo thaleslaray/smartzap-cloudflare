@@ -1,21 +1,83 @@
 import { spawn } from "node:child_process";
-import { mkdirSync, rmSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync } from "node:fs";
 import { resolve, relative } from "node:path";
 import { randomUUID } from "node:crypto";
 import { createServer } from "node:net";
+import { assertPlaywrightReportClean } from "./lib/playwright-report.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const mode = process.argv[2] || "p0";
+const a11yTestTitle = "rotas críticas não têm violações WCAG A/AA detectáveis";
+const responsiveTestTitle =
+  "todas as rotas operacionais preservam a largura em";
+const inboxTestTitle = "Inbox ";
+const coreTestTitleExclusions =
+  `(?:${a11yTestTitle}|${responsiveTestTitle}|${inboxTestTitle})`;
 const runId = (
   process.env.QA_RUN_ID || `AUTOQA_${Date.now()}_${randomUUID().slice(0, 8)}`
 ).replace(/[^A-Za-z0-9_-]/g, "_");
 const stateRoot = resolve(root, "qa/.state");
 mkdirSync(stateRoot, { recursive: true });
+const reportRoot = resolve(
+  root,
+  process.env.QA_REPORT_DIR || "test-results",
+);
 
 const matrix = {
   p0: [
-    { project: "chromium", files: ["e2e/smoke.spec.ts"] },
-    { project: "webkit", files: ["e2e/smoke.spec.ts"] },
+    // A suíte compartilha o mesmo Worker local, mas os grupos que percorrem
+    // muitas rotas, telas ou estados são deliberadamente executados em
+    // processos de navegador separados. Isso evita que o WebKit acumule
+    // estado após os demais cenários e transforme uma queda de conexão em um
+    // falso flake.
+    {
+      label: "chromium-core",
+      project: "chromium",
+      files: ["e2e/smoke.spec.ts"],
+      grepInvert: coreTestTitleExclusions,
+    },
+    {
+      label: "chromium-a11y",
+      project: "chromium",
+      files: ["e2e/smoke.spec.ts"],
+      grep: a11yTestTitle,
+    },
+    {
+      label: "chromium-responsive",
+      project: "chromium",
+      files: ["e2e/smoke.spec.ts"],
+      grep: responsiveTestTitle,
+    },
+    {
+      label: "chromium-inbox",
+      project: "chromium",
+      files: ["e2e/smoke.spec.ts"],
+      grep: inboxTestTitle,
+    },
+    {
+      label: "webkit-core",
+      project: "webkit",
+      files: ["e2e/smoke.spec.ts"],
+      grepInvert: coreTestTitleExclusions,
+    },
+    {
+      label: "webkit-a11y",
+      project: "webkit",
+      files: ["e2e/smoke.spec.ts"],
+      grep: a11yTestTitle,
+    },
+    {
+      label: "webkit-responsive",
+      project: "webkit",
+      files: ["e2e/smoke.spec.ts"],
+      grep: responsiveTestTitle,
+    },
+    {
+      label: "webkit-inbox",
+      project: "webkit",
+      files: ["e2e/smoke.spec.ts"],
+      grep: inboxTestTitle,
+    },
   ],
   matrix: [
     { project: "chromium", files: [] },
@@ -30,6 +92,56 @@ const matrix = {
 if (!matrix[mode]) {
   console.error(`Modo E2E inválido: ${mode}`);
   process.exit(2);
+}
+
+const requestedProjects = new Set(
+  (process.env.QA_E2E_PROJECTS || "")
+    .split(",")
+    .map((project) => project.trim())
+    .filter(Boolean),
+);
+function explicitGrepMatchesItem(item) {
+  const explicitGrep = process.env.QA_E2E_GREP;
+  if (!explicitGrep) return true;
+  if (item.grep && !new RegExp(item.grep).test(explicitGrep)) return false;
+  if (item.grepInvert && new RegExp(item.grepInvert).test(explicitGrep)) return false;
+  return true;
+}
+
+const selectedMatrix = matrix[mode].filter(
+  (item) =>
+    (!requestedProjects.size || requestedProjects.has(item.project)) &&
+    explicitGrepMatchesItem(item),
+);
+if (!selectedMatrix.length) {
+  console.error(
+    `Nenhum projeto selecionado para ${mode}: ${[...requestedProjects].join(", ")}`,
+  );
+  process.exit(2);
+}
+
+function optionalPlaywrightArgs(item) {
+  const args = [];
+  if (process.env.QA_E2E_GREP) {
+    args.push("--grep", process.env.QA_E2E_GREP);
+  } else if (item.grep) {
+    args.push("--grep", item.grep);
+  }
+  if (!process.env.QA_E2E_GREP && item.grepInvert) {
+    args.push("--grep-invert", item.grepInvert);
+  }
+  for (const [envName, cliName] of [
+    ["QA_E2E_REPEAT_EACH", "--repeat-each"],
+    ["QA_E2E_RETRIES", "--retries"],
+  ]) {
+    if (!process.env[envName]) continue;
+    const value = Number(process.env[envName]);
+    if (!Number.isInteger(value) || value < 0) {
+      throw new Error(`${envName} precisa ser um inteiro não negativo`);
+    }
+    args.push(cliName, String(value));
+  }
+  return args;
 }
 
 function run(executable, args, env, options = {}) {
@@ -81,16 +193,26 @@ function availablePort() {
   });
 }
 
-for (const item of matrix[mode]) {
+for (const item of selectedMatrix) {
+  const runLabel = item.label || item.project;
   const statePath = resolve(
     stateRoot,
-    `${runId}-${mode}-${item.project}`,
+    `${runId}-${mode}-${runLabel}`,
   );
   if (!statePath.startsWith(`${stateRoot}/`))
     throw new Error("Caminho de estado E2E fora de qa/.state");
   rmSync(statePath, { recursive: true, force: true });
   mkdirSync(statePath, { recursive: true });
   const stateRelative = relative(root, statePath);
+  const projectReportDir = resolve(
+    reportRoot,
+    "playwright",
+    runLabel,
+  );
+  if (!projectReportDir.startsWith(`${reportRoot}/`))
+    throw new Error("Caminho de relatório E2E fora do diretório da execução");
+  rmSync(projectReportDir, { recursive: true, force: true });
+  mkdirSync(projectReportDir, { recursive: true });
   const port = await availablePort();
   let inspectorPort = await availablePort();
   while (inspectorPort === port) inspectorPort = await availablePort();
@@ -101,6 +223,7 @@ for (const item of matrix[mode]) {
     QA_RUN_ID: runId,
     QA_E2E_STATE: stateRelative,
     QA_E2E_PROJECT: item.project,
+    QA_PLAYWRIGHT_REPORT_DIR: projectReportDir,
   };
   try {
     let result = await run(
@@ -148,6 +271,7 @@ for (const item of matrix[mode]) {
         ...item.files,
         "--project",
         item.project,
+        ...optionalPlaywrightArgs(item),
       ],
       env,
       { detectWorkerErrors: true },
@@ -160,6 +284,19 @@ for (const item of matrix[mode]) {
       throw new Error(
         `Playwright ${item.project} registrou erro interno no Worker`,
       );
+    const playwrightReport = JSON.parse(
+      readFileSync(
+        resolve(projectReportDir, "playwright-results.json"),
+        "utf8",
+      ),
+    );
+    const summary = assertPlaywrightReportClean(
+      playwrightReport,
+      item.project,
+    );
+    console.log(
+      `QA_PLAYWRIGHT_SUMMARY ${runLabel} expected=${summary.expected} skipped=${summary.skipped} flaky=${summary.flaky} unexpected=${summary.unexpected}`,
+    );
   } finally {
     rmSync(statePath, { recursive: true, force: true });
   }

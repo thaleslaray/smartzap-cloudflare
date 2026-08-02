@@ -9,11 +9,14 @@ import { getCredentials } from "../whatsapp/credentials";
 import { whatsappClient } from "../whatsapp/client";
 import { assertPilotInboxRecipient, PilotSafetyError } from "../domain/pilot";
 import { googleCalendarStatus } from "../integrations/google-calendar";
+import { resolveQaMetaCallbackUrl } from "../domain/meta-callback";
 import {
   buildMetaFlowJson,
   validateMetaFlowJson,
   createMetaFlow,
   configureMetaAppWebhookSubscription,
+  configureMetaPhoneWebhookOverride,
+  configureMetaWabaWebhookOverride,
   getMetaFlowDetails,
   getMetaFlowEncryptionPublicKeyStatus,
   getMetaFlowPreview,
@@ -293,18 +296,50 @@ export const flowsRoutes = new Hono<{ Bindings: Env }>()
       return c.json({ error: "Credenciais da Meta não configuradas" }, 400);
     if (!c.env.META_VERIFY_TOKEN)
       return c.json({ error: "Verify token do webhook não configurado" }, 400);
+    const rawBody = await readJsonBody(c, 2_048);
+    if (!rawBody.ok) return c.json({ error: rawBody.error }, rawBody.status);
+    const requestedTarget =
+      rawBody.value && typeof rawBody.value === "object"
+        ? (rawBody.value as Record<string, unknown>).qaCallbackTarget
+        : undefined;
+    const callback = resolveQaMetaCallbackUrl(
+      c.env.ENVIRONMENT,
+      requestedTarget,
+      credentials.callbackUrl,
+    );
+    if (!callback.ok) return c.json({ error: callback.error }, callback.status);
     try {
-      await configureMetaAppWebhookSubscription({
-        version: credentials.graphVersion,
-        appId: credentials.appId,
-        appSecret: credentials.appSecret,
-        callbackUrl: credentials.callbackUrl,
-        verifyToken: c.env.META_VERIFY_TOKEN,
-      });
+      if (callback.target) {
+        await configureMetaWabaWebhookOverride({
+          version: credentials.graphVersion,
+          wabaId: credentials.wabaId,
+          token: credentials.token,
+          callbackUrl: callback.url,
+          verifyToken: c.env.META_VERIFY_TOKEN,
+        });
+        await configureMetaPhoneWebhookOverride({
+          version: credentials.graphVersion,
+          phoneId: credentials.phoneId,
+          token: credentials.token,
+          callbackUrl: callback.url,
+          verifyToken: c.env.META_VERIFY_TOKEN,
+        });
+      } else {
+        await configureMetaAppWebhookSubscription({
+          version: credentials.graphVersion,
+          appId: credentials.appId,
+          appSecret: credentials.appSecret,
+          callbackUrl: callback.url,
+          verifyToken: c.env.META_VERIFY_TOKEN,
+        });
+      }
       const probe = await whatsappClient(credentials).checkOperational(credentials.wabaId);
       return c.json({
         ok: true,
-        callbackUrl: probe.appWebhookCallbackUrl,
+        callbackUrl: callback.target
+          ? probe.phoneWebhookCallbackUrl ?? callback.url
+          : probe.appWebhookCallbackUrl ?? callback.url,
+        qaCallbackTarget: callback.target,
         fields: probe.appWebhookFields,
         flowsSubscribed: probe.appWebhookFields.includes("flows"),
       });

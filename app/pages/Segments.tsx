@@ -16,9 +16,16 @@ export default function Segments() {
       method: editing ? 'PUT' : 'POST',
       body: JSON.stringify({ name, rules }),
     }),
-    onSuccess: () => {
+    onSuccess: (saved) => {
+      // O GET inicial pode terminar depois do POST em um cold start. Atualizar
+      // o cache com a resposta confirmada impede que essa corrida esconda o
+      // segmento recém-criado enquanto a lista é sincronizada em segundo plano.
+      qc.setQueryData<{ items: Segment[] }>(['segments'], (current) => {
+        const items = (current?.items ?? []).filter((item) => item.id !== saved.id)
+        return { items: [...items, saved].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')) }
+      })
       setName(''); setRulesText(JSON.stringify(INITIAL, null, 2)); setPreview(null); setEditing(null)
-      qc.invalidateQueries({ queryKey: ['segments'] })
+      void qc.invalidateQueries({ queryKey: ['segments'] })
     },
   })
   const test = useMutation({ mutationFn: () => api<{ total: number; items: Array<{ name: string | null; phone: string }> }>('/api/segments/preview', { method: 'POST', body: JSON.stringify(rules) }), onSuccess: setPreview })

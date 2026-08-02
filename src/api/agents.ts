@@ -1,7 +1,8 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { readJsonBody } from "./body";
-import { aiConfiguration, generateGroundedText } from "../ai/drafts";
+import { AiDraftError, aiConfiguration, generateGroundedText } from "../ai/drafts";
+import { automationPolicyDecision } from "../ai/policy";
 import {
   agentKnowledgeDocumentIds,
   extractKnowledgeSources,
@@ -192,6 +193,12 @@ export const agentsRoutes = new Hono<{ Bindings: Env }>()
         400,
       );
     const latestQuestion = latestMessage.text;
+    const policy = automationPolicyDecision(
+      latestQuestion,
+      agent.handoff_enabled !== 0,
+    );
+    if (policy)
+      return c.json({ text: policy.text, grounded: true });
     let sources: string[];
     try {
       const documentIds = await agentKnowledgeDocumentIds(
@@ -239,10 +246,11 @@ export const agentsRoutes = new Hono<{ Bindings: Env }>()
         },
       );
       return c.json({ text: generated.text, grounded: true });
-    } catch {
+    } catch (error) {
       return c.json({
         text: "Não consegui gerar uma resposta fundamentada. Vou encaminhar para uma pessoa.",
         grounded: false,
+        errorCode: error instanceof AiDraftError ? error.code : "provider_error",
       });
     }
   });

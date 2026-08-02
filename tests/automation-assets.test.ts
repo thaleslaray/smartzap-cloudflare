@@ -1,9 +1,67 @@
 import { SELF, env } from "cloudflare:test";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { buildMetaFlowJson } from "../src/whatsapp/flows";
+import {
+  buildMetaFlowJson,
+  configureMetaPhoneWebhookOverride,
+  configureMetaWabaWebhookOverride,
+} from "../src/whatsapp/flows";
 const AUTH = { "x-api-key": "dev-api-key", "content-type": "application/json" };
 afterEach(() => vi.unstubAllGlobals());
 describe("MiniApps e formulários", () => {
+  it("configura o callback alternativo da WABA usado pelo canário", async () => {
+    const fetchMock = vi.fn(async () =>
+      new Response(JSON.stringify({ success: true }), { status: 200 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await configureMetaWabaWebhookOverride({
+      version: "v25.0",
+      wabaId: "22222",
+      token: "access-token-for-test",
+      callbackUrl: "https://staging.example/webhook",
+      verifyToken: "verify-token-for-test",
+    });
+
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("https://graph.facebook.com/v25.0/22222/subscribed_apps");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(String(init.body))).toEqual({
+      override_callback_uri: "https://staging.example/webhook",
+      verify_token: "verify-token-for-test",
+    });
+    expect(new Headers(init.headers).get("authorization")).toBe(
+      "Bearer access-token-for-test",
+    );
+  });
+
+  it("configura o callback alternativo do número com maior precedência", async () => {
+    const fetchMock = vi.fn(async () =>
+      new Response(JSON.stringify({ success: true }), { status: 200 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await configureMetaPhoneWebhookOverride({
+      version: "v25.0",
+      phoneId: "11111",
+      token: "access-token-for-test",
+      callbackUrl: "https://staging.example/webhook",
+      verifyToken: "verify-token-for-test",
+    });
+
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("https://graph.facebook.com/v25.0/11111");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(String(init.body))).toEqual({
+      webhook_configuration: {
+        override_callback_uri: "https://staging.example/webhook",
+        verify_token: "verify-token-for-test",
+      },
+    });
+    expect(new Headers(init.headers).get("authorization")).toBe(
+      "Bearer access-token-for-test",
+    );
+  });
+
   it("configura no app da Meta todos os campos de webhook necessários para Pricing e Flows", async () => {
     await env.DB.batch([
       env.DB.prepare(
