@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { resolveMetaCallbackPreflight } from "../scripts/lib/meta-canary-preflight.mjs";
 
 describe("preflight do canário Meta", () => {
-  it("valida o override da WABA e o callback efetivo alterados pelo canário", () => {
+  it("valida o override do número e o callback efetivo alterados pelo canário", () => {
     expect(
       resolveMetaCallbackPreflight(
         {
@@ -10,6 +10,8 @@ describe("preflight do canário Meta", () => {
             appWebhookCallbackUrl:
               "https://smartzap-cf.thales2581.workers.dev/webhook",
             webhookCallbackUrl:
+              "https://smartzap-cf.thales2581.workers.dev/webhook",
+            phoneWebhookCallbackUrl:
               "https://smartzap-cf-staging.thales2581.workers.dev/webhook",
             effectiveWebhookCallbackUrl:
               "https://smartzap-cf-staging.thales2581.workers.dev/webhook",
@@ -25,6 +27,8 @@ describe("preflight do canário Meta", () => {
       appCallbackUrl:
         "https://smartzap-cf.thales2581.workers.dev/webhook",
       wabaCallbackUrl:
+        "https://smartzap-cf.thales2581.workers.dev/webhook",
+      phoneCallbackUrl:
         "https://smartzap-cf-staging.thales2581.workers.dev/webhook",
       effectiveCallbackUrl:
         "https://smartzap-cf-staging.thales2581.workers.dev/webhook",
@@ -32,13 +36,15 @@ describe("preflight do canário Meta", () => {
     });
   });
 
-  it("reprova quando o callback efetivo não acompanha o override da WABA", () => {
+  it("reprova quando o callback efetivo não acompanha o override do número", () => {
     const result = resolveMetaCallbackPreflight(
       {
         meta: {
           appWebhookCallbackUrl:
             "https://smartzap-cf.thales2581.workers.dev/webhook",
           webhookCallbackUrl:
+            "https://smartzap-cf.thales2581.workers.dev/webhook",
+          phoneWebhookCallbackUrl:
             "https://smartzap-cf-staging.thales2581.workers.dev/webhook",
           effectiveWebhookCallbackUrl:
             "https://smartzap-cf.thales2581.workers.dev/webhook",

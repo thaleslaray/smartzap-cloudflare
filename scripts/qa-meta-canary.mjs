@@ -323,6 +323,7 @@ try {
     callbackUrl: callback.callbackUrl,
     appCallbackUrl: callback.appCallbackUrl,
     wabaCallbackUrl: callback.wabaCallbackUrl,
+    phoneCallbackUrl: callback.phoneCallbackUrl,
     effectiveCallbackUrl: callback.effectiveCallbackUrl,
     callbackMatchesStaging: callback.callbackMatchesStaging,
     pilot: health.pilot,
@@ -339,7 +340,7 @@ try {
     throw new Error("Preflight operacional do staging não está verde.");
   if (!callback.callbackMatchesStaging) {
     report.limitation =
-      "O callback global do aplicativo Meta aponta para produção. O staging pode provar aceite do transporte, mas não entrega/leitura/inbound isolados.";
+      "O callback efetivo da Meta aponta para produção. O staging pode provar aceite do transporte, mas não entrega/leitura/inbound isolados.";
     if (!transportOnly)
       throw new Error(
         "Canário completo bloqueado: callback Meta não aponta para o staging.",

@@ -656,3 +656,32 @@ export async function configureMetaWabaWebhookOverride(params: {
     },
   );
 }
+
+export async function configureMetaPhoneWebhookOverride(params: {
+  version: string;
+  phoneId: string;
+  token: string;
+  callbackUrl: string;
+  verifyToken: string;
+}): Promise<void> {
+  if (!/^\d{5,32}$/.test(params.phoneId))
+    throw new Error("Phone Number ID inválido");
+  if (!params.token || !params.verifyToken)
+    throw new Error("Secrets do webhook ausentes");
+  if (new URL(params.callbackUrl).protocol !== "https:")
+    throw new Error("Callback precisa usar HTTPS");
+  await graphRequest(
+    `${graphBase(params.version)}/${params.phoneId}`,
+    params.token,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        webhook_configuration: {
+          override_callback_uri: params.callbackUrl,
+          verify_token: params.verifyToken,
+        },
+      }),
+    },
+  );
+}
