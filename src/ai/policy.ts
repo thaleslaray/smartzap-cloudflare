@@ -58,6 +58,7 @@ export function automationPolicyDecision(
   }
 
   const asksForDeliveryStatuses = [
+    /\b(?:quais? (?:sao )?(?:os )?)?(?:quatro )?(?:nomes? (?:exatos? )?(?:dos? )?)?(?:status|estados) (?:de|da|das|do|dos) (?:mensag[a-z]*|envio|entrega)\b/,
     /\b(?:status|estados|acompanhar|acompanho|distingue|diferenca)\b.*\b(?:meta|aceit[a-z]*|enviad[a-z]*|entreg[a-z]*|lid[a-z]*|leituras?|falh[a-z]*)\b/,
     /\b(?:sent|delivered|read|failed)\b.*\b(?:sent|delivered|read|failed)\b/,
     /\bhttp 200\b.*\b(?:entreg[a-z]*|lid[a-z]*|leituras?)\b/,

@@ -65,6 +65,12 @@ describe("automação da Inbox", () => {
       handoffReason: null,
     });
     expect(automationPolicyDecision(
+      "Reteste após correção: quais são os quatro nomes exatos dos status de mensagem no SmartZap?",
+    )).toMatchObject({
+      text: expect.stringMatching(/sent.*delivered.*read.*failed/),
+      handoffReason: null,
+    });
+    expect(automationPolicyDecision(
       "Quanto custa e em quanto tempo vocês implantam? Quero uma proposta.",
     )).toMatchObject({
       text: expect.stringContaining("time comercial"),
