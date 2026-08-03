@@ -58,7 +58,7 @@ const audienceSchema = z
       .transform((tags) => [...new Set(tags)])
       .optional(),
     segmentId: z.string().uuid().optional(),
-    contactIds: z.array(z.string().uuid()).min(1).max(2).optional(),
+    contactIds: z.array(z.string().uuid()).min(1).max(3).optional(),
     phonePrefixes: z
       .array(z.string().regex(/^\+[1-9]\d{0,5}$/))
       .max(100)
