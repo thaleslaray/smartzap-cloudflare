@@ -10,6 +10,10 @@ import { resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import { resolveMetaCallbackPreflight } from "./lib/meta-canary-preflight.mjs";
 import { shouldStopMetaCampaignPolling } from "./lib/meta-canary-lifecycle.mjs";
+import {
+  assertMetaCanaryWindow,
+  resolveMetaCanaryGuard,
+} from "./lib/meta-canary-guard.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const baseUrl = (
@@ -142,8 +146,8 @@ if (!Number.isInteger(sendCount) || sendCount < 1 || sendCount > 3)
   throw new Error("QA_META_SEND_COUNT precisa estar entre 1 e 3.");
 
 const nowBrt = brtParts();
-if (nowBrt.hour < 9 || nowBrt.hour >= 20)
-  throw new Error("Canário real permitido somente entre 09:00 e 20:00 BRT.");
+const guard = resolveMetaCanaryGuard();
+assertMetaCanaryWindow(nowBrt.hour, guard.outsideWindowAuthorized);
 
 const runtime = readEnv(resolve(root, ".dev.vars"));
 const qa = readEnv(resolve(root, ".dev.vars.qa.local"));
@@ -282,6 +286,10 @@ const report = {
   status: "running",
   authorizedRecipients: recipients.map(maskPhone),
   sendCount,
+  guard: {
+    maxRunsPerDay: guard.maxRunsPerDay,
+    outsideWindowAuthorized: guard.outsideWindowAuthorized,
+  },
   preflight: {},
   artifacts: {
     contacts: [],
@@ -307,8 +315,10 @@ try {
   } catch {
     localRuns = [];
   }
-  if (localRuns.length >= 2)
-    throw new Error("Limite local de duas rodadas reais por dia atingido.");
+  if (localRuns.length >= guard.maxRunsPerDay)
+    throw new Error(
+      `Limite local de ${guard.maxRunsPerDay} rodadas reais por dia atingido.`,
+    );
 
   const health = (await api("/api/settings/health")).body;
   const callback = resolveMetaCallbackPreflight(health, baseUrl);
@@ -360,8 +370,10 @@ try {
   const dailyRuns = await d1(
     "SELECT COUNT(*) AS n FROM pilot_runs WHERE date(created_at, '-3 hours') = date('now', '-3 hours');",
   );
-  if (Number(dailyRuns[0]?.n || 0) >= 2)
-    throw new Error("Limite remoto de duas rodadas reais por dia atingido.");
+  if (Number(dailyRuns[0]?.n || 0) >= guard.maxRunsPerDay)
+    throw new Error(
+      `Limite remoto de ${guard.maxRunsPerDay} rodadas reais por dia atingido.`,
+    );
 
   const tagName = `AUTOQA ${runId}`.slice(0, 80);
   const tags = (await api("/api/contacts/tags")).body.items;

@@ -40,8 +40,9 @@
     "PILOT_GUARDS_ENABLED": "true",
     "PILOT_SEND_ENABLED": "true",
     "PILOT_MAX_REAL_SENDS": "3",
-    "PILOT_MAX_RUNS_PER_DAY": "2",
+    "PILOT_MAX_RUNS_PER_DAY": "10",
     "PILOT_TIME_WINDOW_ENABLED": "true",
+    "PILOT_SUPERVISED_OUTSIDE_WINDOW": "false",
     "PILOT_TEMPLATE_ALLOWLIST": "hello_world"
   },
   "secrets": { "required": [
