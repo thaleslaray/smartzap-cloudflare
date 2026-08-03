@@ -27,7 +27,10 @@ export function assertPilotTimeWindow(env: Env, now = new Date()): void {
     hour: '2-digit',
     hourCycle: 'h23',
   }).format(now))
-  if (!Number.isInteger(hour) || hour < 9 || hour >= 20)
+  if (
+    (!Number.isInteger(hour) || hour < 9 || hour >= 20) &&
+    env.PILOT_SUPERVISED_OUTSIDE_WINDOW !== 'true'
+  )
     throw new PilotSafetyError(
       'Canário real permitido somente entre 09:00 e 20:00 no horário de São Paulo.',
       503,
@@ -37,8 +40,8 @@ export function assertPilotTimeWindow(env: Env, now = new Date()): void {
 function pilotDailyRunLimit(env: Env): number {
   if (!pilotIsEnforced(env)) return Number.MAX_SAFE_INTEGER
   const parsed = Number(env.PILOT_MAX_RUNS_PER_DAY)
-  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 2)
-    throw new PilotSafetyError('PILOT_MAX_RUNS_PER_DAY deve estar entre 1 e 2.', 503)
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 10)
+    throw new PilotSafetyError('PILOT_MAX_RUNS_PER_DAY deve estar entre 1 e 10.', 503)
   return parsed
 }
 
@@ -201,7 +204,8 @@ export function pilotConfiguration(env: Env): {
   enforced: boolean; enabled: boolean; recipientConfigured: boolean
   recipientAllowlistSize: number; inboxEnabled: boolean
   templateAllowlistConfigured: boolean; maxAttempts: number | null
-  timeWindowEnabled: boolean; maxRunsPerDay: number | null
+  timeWindowEnabled: boolean; supervisedOutsideWindow: boolean
+  maxRunsPerDay: number | null
 } {
   const rawLimit = Number(env.PILOT_MAX_REAL_SENDS)
   const rawDailyLimit = Number(env.PILOT_MAX_RUNS_PER_DAY)
@@ -221,11 +225,12 @@ export function pilotConfiguration(env: Env): {
     templateAllowlistConfigured: templateAllowlist(env).size > 0,
     maxAttempts: enforced && Number.isInteger(rawLimit) && rawLimit >= 1 && rawLimit <= 3 ? rawLimit : null,
     timeWindowEnabled: env.PILOT_TIME_WINDOW_ENABLED === 'true',
+    supervisedOutsideWindow: env.PILOT_SUPERVISED_OUTSIDE_WINDOW === 'true',
     maxRunsPerDay:
       enforced &&
       Number.isInteger(rawDailyLimit) &&
       rawDailyLimit >= 1 &&
-      rawDailyLimit <= 2
+      rawDailyLimit <= 10
         ? rawDailyLimit
         : null,
   }

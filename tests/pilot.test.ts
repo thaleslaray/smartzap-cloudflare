@@ -2,7 +2,7 @@ import { env } from 'cloudflare:test'
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
   assertPilotAudience, assertPilotCampaign, assertPilotRecipient, assertPilotTimeWindow, finishPilotAttempt,
-  PilotSafetyError, pilotLimit, pilotThrottleRate, reservePilotAttempt,
+  PilotSafetyError, pilotConfiguration, pilotLimit, pilotThrottleRate, reservePilotAttempt,
 } from '../src/domain/pilot'
 
 const ALLOWED = '+5511999999999'
@@ -94,6 +94,10 @@ describe('travas do piloto real', () => {
       .not.toThrow()
     expect(() => assertPilotTimeWindow(guarded, new Date('2026-07-29T23:00:00Z')))
       .toThrow(/09:00 e 20:00/)
+    expect(() => assertPilotTimeWindow(productionEnv({
+      PILOT_TIME_WINDOW_ENABLED: 'true',
+      PILOT_SUPERVISED_OUTSIDE_WINDOW: 'true',
+    }), new Date('2026-07-29T23:00:00Z'))).not.toThrow()
   })
 
   it('bloqueia tentativa quando a rodada ativa excede duas rodadas no dia', async () => {
@@ -108,6 +112,32 @@ describe('travas do piloto real', () => {
       contactId: 'daily-limit-contact',
       phone: ALLOWED,
     })).rejects.toThrow(/limite diário/)
+  })
+
+  it('aceita o teto diário de dez somente quando configurado explicitamente', async () => {
+    await env.DB.prepare(
+      "INSERT INTO pilot_runs (id, label, status, max_attempts, created_at) VALUES ('run-old-1', 'Anterior 1', 'closed', 1, datetime('now'))",
+    ).run()
+    await env.DB.prepare(
+      "INSERT INTO pilot_runs (id, label, status, max_attempts, created_at) VALUES ('run-old-2', 'Anterior 2', 'closed', 1, datetime('now'))",
+    ).run()
+    const authorized = productionEnv({ PILOT_MAX_RUNS_PER_DAY: '10' })
+    await expect(reservePilotAttempt(authorized, {
+      campaignId: 'authorized-campaign',
+      contactId: 'authorized-contact',
+      phone: ALLOWED,
+    })).resolves.toEqual(expect.any(String))
+    expect(pilotConfiguration(authorized)).toMatchObject({
+      maxRunsPerDay: 10,
+      supervisedOutsideWindow: false,
+    })
+    await expect(reservePilotAttempt(productionEnv({ PILOT_MAX_RUNS_PER_DAY: '11' }), {
+      campaignId: 'invalid-limit-campaign',
+      contactId: 'invalid-limit-contact',
+      phone: ALLOWED,
+    })).rejects.toThrow(/entre 1 e 10/)
+    expect(pilotConfiguration(productionEnv({ PILOT_MAX_RUNS_PER_DAY: '11' })).maxRunsPerDay)
+      .toBeNull()
   })
 
   it('reserva no máximo três tentativas de forma atômica', async () => {
