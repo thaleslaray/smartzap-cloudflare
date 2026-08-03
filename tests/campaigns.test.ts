@@ -506,6 +506,30 @@ describe('campaigns API', () => {
     expect(body.total).toBe(1)
     expect(body.cost.unavailableReasons).not.toContain('Nenhum destinatário elegível')
   })
+  it('aceita três contatos explícitos no precheck do canário', async () => {
+    const contacts = await Promise.all(
+      ['Canário Um', 'Canário Dois', 'Canário Três'].map((name) =>
+        contactsDb(env.DB).createOptInWithConsent(
+          { phone: uniquePhone(), name },
+          'auditoria do canário',
+        ),
+      ),
+    )
+    const campaign = await campaignsDb(env.DB).create({
+      name: 'Canário com três contatos',
+      template_name: 'promo_teste',
+    })
+    const precheck = await SELF.fetch(`https://x.com/api/campaigns/${campaign.id}/precheck`, {
+      method: 'POST',
+      headers: AUTH,
+      body: JSON.stringify({ contactIds: contacts.map((contact) => contact!.id) }),
+    })
+    expect(precheck.status).toBe(200)
+    const body = await precheck.json() as {
+      totals: { valid: number; skipped: number; candidates: number }
+    }
+    expect(body.totals).toEqual({ valid: 3, skipped: 0, candidates: 3 })
+  })
   it('dispatch revalida e bloqueia template não aprovado na Meta', async () => {
     await env.DB.prepare(
       `INSERT OR IGNORE INTO templates (name, language, category, status, components)
