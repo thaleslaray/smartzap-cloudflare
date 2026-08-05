@@ -125,12 +125,19 @@ function percentile(values, ratio) {
 
 async function pool(values, concurrency, worker) {
   const queue = [...values];
+  let firstError = null;
   await Promise.all(Array.from({ length: concurrency }, async () => {
-    while (queue.length) {
+    while (queue.length && !firstError) {
       const value = queue.shift();
-      if (value !== undefined) await worker(value);
+      if (value === undefined) continue;
+      try {
+        await worker(value);
+      } catch (error) {
+        firstError ??= error;
+      }
     }
   }));
+  if (firstError) throw firstError;
 }
 
 async function family(id, execute) {
@@ -166,6 +173,52 @@ async function listAllPaginated(limit = 75) {
   } while (cursor);
   return { items, latencies };
 }
+
+async function removeRunArtifacts() {
+  const failures = [];
+  const listed = await listAllPaginated(75);
+  const targets = listed.items.filter((item) =>
+    String(item.name || "").startsWith(runId)
+  );
+  for (const item of targets) {
+    createdIds.add(item.id);
+    try {
+      await remove(item.id);
+    } catch (error) {
+      failures.push({
+        idSuffix: String(item.id).slice(-8),
+        detail: error instanceof Error ? error.message : "falha",
+      });
+    }
+  }
+  const remaining = (await listAllPaginated(75)).items
+    .filter((item) => String(item.name || "").startsWith(runId))
+    .map((item) => ({ idSuffix: String(item.id).slice(-8), name: item.name }));
+  return { failures, remaining, discovered: targets.length };
+}
+
+if (process.env.QA_CLEANUP_ONLY === "1") {
+  const cleanup = await removeRunArtifacts();
+  report.cleanup = {
+    status: cleanup.failures.length === 0 && cleanup.remaining.length === 0
+      ? "passed"
+      : "failed",
+    created: createdIds.size,
+    deleted: deletedIds.size,
+    failures: cleanup.failures,
+    remaining: cleanup.remaining,
+  };
+  report.status = report.cleanup.status;
+  report.finishedAt = new Date().toISOString();
+  save();
+  console.log(JSON.stringify({
+    runId,
+    status: report.status,
+    cleanup: report.cleanup,
+    report: reportPath,
+  }, null, 2));
+  if (report.status !== "passed") process.exitCode = 1;
+} else {
 
 save();
 let executionError = null;
@@ -322,10 +375,9 @@ try {
   }
   let remaining = [];
   try {
-    const listed = await api("/api/flows");
-    remaining = (listed.body.items || [])
-      .filter((item) => String(item.name || "").startsWith(runId))
-      .map((item) => ({ idSuffix: String(item.id).slice(-8), name: item.name }));
+    const discovered = await removeRunArtifacts();
+    cleanupFailures.push(...discovered.failures);
+    remaining = discovered.remaining;
   } catch (error) {
     cleanupFailures.push({ idSuffix: null, detail: error instanceof Error ? error.message : "varredura falhou" });
   }
@@ -352,3 +404,4 @@ console.log(JSON.stringify({
 }, null, 2));
 
 if (report.status !== "passed") process.exitCode = 1;
+}

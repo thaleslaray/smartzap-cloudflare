@@ -70,12 +70,19 @@ function p95(values) {
 }
 async function pool(values, concurrency, worker) {
   const queue = [...values];
+  let firstError = null;
   await Promise.all(Array.from({ length: concurrency }, async () => {
-    while (queue.length) {
+    while (queue.length && !firstError) {
       const value = queue.shift();
-      if (value !== undefined) await worker(value);
+      if (value === undefined) continue;
+      try {
+        await worker(value);
+      } catch (error) {
+        firstError ??= error;
+      }
     }
   }));
+  if (firstError) throw firstError;
 }
 async function family(id, run) {
   const started = performance.now();
@@ -210,7 +217,12 @@ try {
 } finally {
   try {
     await pool([...createdIds], 5, remove);
-    const listed = await api("/api/template-projects");
+    let listed = await api("/api/template-projects");
+    const discovered = (listed.body.items || [])
+      .filter((item) => String(item.title || "").startsWith(runId));
+    for (const item of discovered) createdIds.add(item.id);
+    await pool(discovered.map((item) => item.id), 5, remove);
+    listed = await api("/api/template-projects");
     const ids = new Set((listed.body.items || []).map((item) => item.id));
     report.cleanup = {
       status: [...createdIds].every((id) => removedIds.has(id) && !ids.has(id)) ? "passed" : "failed",
