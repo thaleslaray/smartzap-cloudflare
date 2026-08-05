@@ -74,6 +74,16 @@ test("02 rota legada abre a mesma criação", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Novo Projeto de Templates" })).toBeVisible();
 });
 
+test("rota canônica de listagem abre a aba Projetos", async ({ page }) => {
+  await page.route("**/api/template-projects", (route) =>
+    route.fulfill({ contentType: "application/json", body: JSON.stringify({ items: [] }) }),
+  );
+  await page.goto("/templates/projects");
+  await expect(page).toHaveURL(/\/templates\?tab=projects$/);
+  await expect(page.getByRole("heading", { name: "Templates" })).toBeVisible();
+  await expect(page.getByText("Nenhum projeto criado.")).toBeVisible();
+});
+
 test("03 conteúdo mínimo controla o avanço", async ({ page }) => {
   await page.goto("/templates/projects/new");
   const next = page.getByRole("button", { name: /Extrair Informações/ });

@@ -66,6 +66,10 @@ function AuthedApp() {
         <Route path="templates/:id" element={<TemplateProject />} />
         <Route path="submissions" element={<Submissions />} />
         <Route path="flows/builder/:id" element={<FlowBuilder />} />
+        <Route
+          path="templates/projects"
+          element={<Navigate to="/templates?tab=projects" replace />}
+        />
         <Route path="templates/projects/:id" element={<TemplateProject />} />
         <Route path="templates/projects/new" element={<TemplateProjectNew />} />
         <Route path="settings" element={<SettingsPage />} />
