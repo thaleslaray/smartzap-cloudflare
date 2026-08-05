@@ -1,6 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { resolveMetaCallbackPreflight } from "./lib/meta-canary-preflight.mjs";
+import { resolveQaStagingAuthHeaders } from "./lib/qa-staging-auth.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const baseUrl = String(
@@ -8,6 +9,10 @@ const baseUrl = String(
 ).replace(/\/+$/, "");
 const target = process.env.QA_META_CALLBACK_TARGET;
 const apiKey = process.env.QA_API_KEY;
+const authHeaders = resolveQaStagingAuthHeaders({
+  mutationKey: process.env.QA_STAGING_MUTATION_API_KEY,
+  apiKey,
+});
 const expected = {
   staging: "https://smartzap-cf-staging.thales2581.workers.dev/webhook",
   production: "https://smartzap-cf.thales2581.workers.dev/webhook",
@@ -15,14 +20,13 @@ const expected = {
 
 if (new URL(baseUrl).hostname !== "smartzap-cf-staging.thales2581.workers.dev")
   throw new Error("A troca controlada só pode ser chamada pelo Worker de staging.");
-if (!apiKey) throw new Error("QA_API_KEY ausente.");
 if (!(target in expected))
   throw new Error("QA_META_CALLBACK_TARGET precisa ser staging ou production.");
 
 const response = await fetch(`${baseUrl}/api/flows/meta/webhook-subscription`, {
   method: "POST",
   headers: {
-    "x-api-key": apiKey,
+    ...authHeaders,
     "content-type": "application/json",
   },
   body: JSON.stringify({ qaCallbackTarget: target }),
@@ -44,7 +48,7 @@ const convergence = [];
 let consecutiveMatches = 0;
 for (let attempt = 1; attempt <= 45; attempt += 1) {
   const healthResponse = await fetch(`${baseUrl}/api/settings/health`, {
-    headers: { "x-api-key": apiKey, "cache-control": "no-cache" },
+    headers: { ...authHeaders, "cache-control": "no-cache" },
   });
   const health = await healthResponse.json().catch(() => ({}));
   const observed = resolveMetaCallbackPreflight(

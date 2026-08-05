@@ -14,6 +14,7 @@ import {
   assertMetaCanaryWindow,
   resolveMetaCanaryGuard,
 } from "./lib/meta-canary-guard.mjs";
+import { resolveQaStagingAuthHeaders } from "./lib/qa-staging-auth.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const baseUrl = (
@@ -174,6 +175,10 @@ assertMetaCanaryWindow(nowBrt.hour, guard.outsideWindowAuthorized);
 const runtime = readEnv(resolve(root, ".dev.vars"));
 const qa = readEnv(resolve(root, ".dev.vars.qa.local"));
 const apiKey = process.env.QA_API_KEY || runtime.SMARTZAP_API_KEY;
+const authHeaders = resolveQaStagingAuthHeaders({
+  mutationKey: process.env.QA_STAGING_MUTATION_API_KEY,
+  apiKey,
+});
 const recipients = (
   process.env.QA_META_ALLOWLIST ||
   qa.QA_META_ALLOWLIST ||
@@ -188,8 +193,6 @@ if (
   recipients.some((phone) => !/^[1-9]\d{9,14}$/.test(phone))
 )
   throw new Error("A allowlist privada precisa conter quatro números E.164 distintos.");
-if (!apiKey) throw new Error("QA_API_KEY ausente.");
-
 async function api(path, init = {}, accepted = [200]) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 45_000);
@@ -198,7 +201,7 @@ async function api(path, init = {}, accepted = [200]) {
       ...init,
       signal: controller.signal,
       headers: {
-        "x-api-key": apiKey,
+        ...authHeaders,
         ...(init.body ? { "content-type": "application/json" } : {}),
         ...init.headers,
       },
