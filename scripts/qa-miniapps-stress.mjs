@@ -27,8 +27,13 @@ function readEnv(path) {
 }
 
 const privateQa = readEnv(resolve(root, ".dev.vars.qa.local"));
+const mutationKey = process.env.QA_STAGING_MUTATION_API_KEY;
 const apiKey = process.env.QA_API_KEY || privateQa.QA_STAGING_API_KEY;
-if (!apiKey) throw new Error("QA_STAGING_API_KEY ausente");
+if (!mutationKey && !apiKey)
+  throw new Error("Credencial mutável de QA do staging ausente");
+const authHeaders = mutationKey
+  ? { "x-qa-mutation-key": mutationKey }
+  : { "x-api-key": apiKey };
 
 const runId = (process.env.QA_RUN_ID || `AUTOQA_MINI_STRESS_${Date.now()}`)
   .replace(/[^A-Za-z0-9_-]/g, "_");
@@ -67,7 +72,7 @@ async function api(path, init = {}) {
   const response = await fetch(`${baseUrl}${path}`, {
     ...init,
     headers: {
-      "x-api-key": apiKey,
+      ...authHeaders,
       "cache-control": "no-cache",
       ...(init.body ? { "content-type": "application/json", origin: baseUrl } : {}),
       ...init.headers,

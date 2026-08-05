@@ -18,8 +18,12 @@ function readEnv(path) {
   return values;
 }
 
+const mutationKey = process.env.QA_STAGING_MUTATION_API_KEY;
 const apiKey = process.env.QA_API_KEY || readEnv(resolve(root, ".dev.vars.qa.local")).QA_STAGING_API_KEY;
-if (!apiKey) throw new Error("QA_STAGING_API_KEY ausente.");
+if (!mutationKey && !apiKey) throw new Error("Credencial mutável de QA do staging ausente.");
+const authHeaders = mutationKey
+  ? { "x-qa-mutation-key": mutationKey }
+  : { "x-api-key": apiKey };
 const runId = (process.env.QA_RUN_ID || `AUTOQA_PROJECT_STRESS_${Date.now()}`).replace(/[^A-Za-z0-9_-]/g, "_");
 const reportDir = resolve(root, process.env.QA_REPORT_DIR || `qa/reports/${runId}`);
 const reportPath = resolve(reportDir, "template-projects-stress.json");
@@ -48,7 +52,7 @@ async function api(path, init = {}, accepted = [200]) {
   const response = await fetch(`${baseUrl}${path}`, {
     ...init,
     headers: {
-      "x-api-key": apiKey,
+      ...authHeaders,
       "cache-control": "no-cache",
       ...(init.body ? { "content-type": "application/json", origin: baseUrl } : {}),
       ...init.headers,

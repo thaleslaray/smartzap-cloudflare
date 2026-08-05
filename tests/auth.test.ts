@@ -1,6 +1,7 @@
 import { SELF, env } from "cloudflare:test";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { verifyTurnstile } from "../src/api/auth";
+import { allowsQaMutationKey } from "../src/middleware/auth";
 
 // Bindings de teste vêm do vitest.config.ts: MASTER_PASSWORD=dev, SMARTZAP_API_KEY=dev-api-key,
 // TURNSTILE_ENABLED=false: bypass explícito, inclusive quando produção optar por não usá-lo.
@@ -215,6 +216,28 @@ describe("auth", () => {
 
     const invalid = await SELF.fetch("https://x.com/api/auth/status", {
       headers: { "x-qa-readonly-key": "invalid-readonly-key" },
+    });
+    expect(invalid.status).toBe(401);
+  });
+  it("chave mutável de QA só existe em staging/teste", async () => {
+    expect(allowsQaMutationKey("test")).toBe(true);
+    expect(allowsQaMutationKey("staging")).toBe(true);
+    expect(allowsQaMutationKey("preview")).toBe(false);
+    expect(allowsQaMutationKey("production")).toBe(false);
+
+    const read = await SELF.fetch("https://x.com/api/auth/status", {
+      headers: { "x-qa-mutation-key": "dev-mutation-key" },
+    });
+    expect(read.status).toBe(200);
+
+    const mutation = await SELF.fetch("https://x.com/api/auth/logout", {
+      method: "POST",
+      headers: { "x-qa-mutation-key": "dev-mutation-key" },
+    });
+    expect(mutation.status).toBe(200);
+
+    const invalid = await SELF.fetch("https://x.com/api/auth/status", {
+      headers: { "x-qa-mutation-key": "invalid-mutation-key" },
     });
     expect(invalid.status).toBe(401);
   });

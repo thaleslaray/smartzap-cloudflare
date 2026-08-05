@@ -20,6 +20,12 @@ export async function timingSafeEqualStr(a: string, b: string): Promise<boolean>
   return subtle.timingSafeEqual(da, db)
 }
 
+// A credencial mutável de QA é deliberadamente impossível em preview e
+// produção, mesmo que um binding seja adicionado por engano nesses ambientes.
+export function allowsQaMutationKey(environment: string): boolean {
+  return environment === 'staging' || environment === 'test'
+}
+
 export async function requireAuth(c: Context<{ Bindings: Env }>, next: Next) {
   const path = new URL(c.req.url).pathname
   if (PUBLIC.has(path)) return next()
@@ -28,7 +34,17 @@ export async function requireAuth(c: Context<{ Bindings: Env }>, next: Next) {
   const key = c.req.header('x-api-key') ?? c.req.header('authorization')?.replace(/^Bearer /, '')
   if (key && c.env.SMARTZAP_API_KEY && (await timingSafeEqualStr(key, c.env.SMARTZAP_API_KEY))) return next()
 
-  // 2) Credencial técnica exclusiva para homologação remota. Ela nunca pode
+  // 2) Credencial mutável exclusiva para fixtures de carga/homologação no
+  // staging e no runtime de teste. Preview e produção falham fechados.
+  const mutationKey = c.req.header('x-qa-mutation-key')
+  if (
+    mutationKey &&
+    allowsQaMutationKey(c.env.ENVIRONMENT) &&
+    c.env.QA_STAGING_MUTATION_API_KEY &&
+    (await timingSafeEqualStr(mutationKey, c.env.QA_STAGING_MUTATION_API_KEY))
+  ) return next()
+
+  // 3) Credencial técnica exclusiva para homologação remota. Ela nunca pode
   // autorizar mutações: mesmo que vaze, POST/PATCH/PUT/DELETE continuam 401.
   // Mantê-la separada evita rotacionar a chave operacional usada por clientes.
   const readOnlyKey = c.req.header('x-qa-readonly-key')
@@ -39,7 +55,7 @@ export async function requireAuth(c: Context<{ Bindings: Env }>, next: Next) {
     (await timingSafeEqualStr(readOnlyKey, c.env.QA_READONLY_API_KEY))
   ) return next()
 
-  // 3) Sessão revogável com consistência forte no D1. O token bruto nunca é persistido.
+  // 4) Sessão revogável com consistência forte no D1. O token bruto nunca é persistido.
   const token = getCookie(c, 'smartzap_session')
   if (token) {
     const row = await c.env.DB.prepare(

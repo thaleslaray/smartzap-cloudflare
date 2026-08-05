@@ -19,6 +19,7 @@ export default defineConfig({
           MASTER_PASSWORD: 'dev',
           SMARTZAP_API_KEY: 'dev-api-key',
           QA_READONLY_API_KEY: 'dev-readonly-key',
+          QA_STAGING_MUTATION_API_KEY: 'dev-mutation-key',
           META_APP_SECRET: 'dev-meta-secret',
           META_VERIFY_TOKEN: 'dev-verify',
           WHATSAPP_TOKEN: 'test-whatsapp-token',

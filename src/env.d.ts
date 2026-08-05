@@ -62,6 +62,8 @@ interface Env {
   SMARTZAP_API_KEY: string;
   /** Credencial de homologação remota; aceita somente GET/HEAD. */
   QA_READONLY_API_KEY?: string;
+  /** Credencial mutável de fixtures; aceita somente em staging/teste. */
+  QA_STAGING_MUTATION_API_KEY?: string;
 }
 
 declare module "pdfjs-dist/legacy/build/pdf.worker.mjs";

@@ -145,8 +145,17 @@ const hostname = new URL(baseUrl).hostname;
 if (hostname !== "smartzap-cf-staging.thales2581.workers.dev")
   throw new Error("Evals mutantes só podem rodar no staging.");
 const localSecrets = readEnv(resolve(root, ".dev.vars"));
-const apiKey = process.env.QA_API_KEY || localSecrets.SMARTZAP_API_KEY;
-if (!apiKey) throw new Error("QA_API_KEY ausente.");
+const qaSecrets = readEnv(resolve(root, ".dev.vars.qa.local"));
+const mutationKey = process.env.QA_STAGING_MUTATION_API_KEY;
+const apiKey =
+  process.env.QA_API_KEY ||
+  qaSecrets.QA_STAGING_API_KEY ||
+  localSecrets.SMARTZAP_API_KEY;
+if (!mutationKey && !apiKey)
+  throw new Error("Credencial mutável de QA do staging ausente.");
+const authHeaders = mutationKey
+  ? { "x-qa-mutation-key": mutationKey }
+  : { "x-api-key": apiKey };
 
 async function api(path, init = {}, accepted = [200]) {
   const controller = new AbortController();
@@ -157,7 +166,7 @@ async function api(path, init = {}, accepted = [200]) {
       ...init,
       signal: controller.signal,
       headers: {
-        "x-api-key": apiKey,
+        ...authHeaders,
         ...(init.body ? { "content-type": "application/json" } : {}),
         ...init.headers,
       },
