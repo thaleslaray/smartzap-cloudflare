@@ -60,6 +60,8 @@ interface Env {
   TURNSTILE_SECRET?: string;
   TURNSTILE_SITE_KEY?: string;
   SMARTZAP_API_KEY: string;
+  /** Credencial de homologação remota; aceita somente GET/HEAD. */
+  QA_READONLY_API_KEY?: string;
 }
 
 declare module "pdfjs-dist/legacy/build/pdf.worker.mjs";

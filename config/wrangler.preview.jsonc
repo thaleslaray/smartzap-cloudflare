@@ -44,6 +44,7 @@
   "secrets": { "required": [
     "MASTER_PASSWORD",
     "SMARTZAP_API_KEY",
+    "QA_READONLY_API_KEY",
     "META_APP_SECRET",
     "META_VERIFY_TOKEN",
     "WHATSAPP_TOKEN"

@@ -200,6 +200,24 @@ describe("auth", () => {
     });
     expect(bad.status).toBe(401);
   });
+  it("chave de QA autentica leitura e rejeita qualquer mutação", async () => {
+    const read = await SELF.fetch("https://x.com/api/auth/status", {
+      headers: { "x-qa-readonly-key": "dev-readonly-key" },
+    });
+    expect(read.status).toBe(200);
+    expect(await read.json()).toEqual({ authenticated: true });
+
+    const mutation = await SELF.fetch("https://x.com/api/auth/logout", {
+      method: "POST",
+      headers: { "x-qa-readonly-key": "dev-readonly-key" },
+    });
+    expect(mutation.status).toBe(401);
+
+    const invalid = await SELF.fetch("https://x.com/api/auth/status", {
+      headers: { "x-qa-readonly-key": "invalid-readonly-key" },
+    });
+    expect(invalid.status).toBe(401);
+  });
   it("bloqueia mutações cross-site mesmo com credencial válida", async () => {
     for (const origin of ["https://atacante.example", "http://x.com"]) {
       const res = await SELF.fetch("https://x.com/api/contacts/bulk-status", {

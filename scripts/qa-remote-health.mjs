@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 const root = resolve(import.meta.dirname, "..");
 const baseUrl = String(process.env.QA_BASE_URL || "").replace(/\/+$/, "");
 const apiKey = process.env.QA_API_KEY;
+const readOnlyKey = process.env.QA_READONLY_API_KEY;
 const allowedHosts = new Set([
   "smartzap-cf.thales2581.workers.dev",
   "smartzap-cf-preview.thales2581.workers.dev",
@@ -36,15 +37,19 @@ const report = {
 };
 
 async function check(path, { authenticated = true, validate }) {
-  if (authenticated && !apiKey)
-    throw new Error(`${path} exige QA_API_KEY para um monitor autenticado.`);
+  if (authenticated && !apiKey && !readOnlyKey)
+    throw new Error(`${path} exige credencial técnica para um monitor autenticado.`);
   const started = performance.now();
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15_000);
   try {
     const response = await fetch(`${baseUrl}${path}`, {
       signal: controller.signal,
-      headers: authenticated ? { "x-api-key": apiKey } : {},
+      headers: authenticated
+        ? readOnlyKey
+          ? { "x-qa-readonly-key": readOnlyKey }
+          : { "x-api-key": apiKey }
+        : {},
     });
     const contentType = response.headers.get("content-type") || "";
     const body = contentType.includes("json")
@@ -70,7 +75,7 @@ try {
     authenticated: false,
     validate: (body) => body?.ok === true,
   });
-  if (apiKey) {
+  if (apiKey || readOnlyKey) {
     await check("/api/auth/status", {
       validate: (body) => body?.authenticated === true,
     });
@@ -106,5 +111,5 @@ if (report.status !== "passed") {
   process.exit(1);
 }
 console.log(
-  `Monitor remoto aprovado: ${report.checks.length} contratos read-only em ${report.mode}${apiKey ? " com autenticação técnica" : " no perímetro público"}.`,
+  `Monitor remoto aprovado: ${report.checks.length} contratos read-only em ${report.mode}${apiKey || readOnlyKey ? " com autenticação técnica" : " no perímetro público"}.`,
 );

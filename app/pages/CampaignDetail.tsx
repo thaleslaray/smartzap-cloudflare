@@ -312,7 +312,7 @@ export default function CampaignDetail() {
             <button
               disabled={actionPending}
               onClick={() => pause.mutate(undefined)}
-              className="inline-flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-500 disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-800 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50"
             >
               <Pause size={16} />
               {pause.isPending ? "Pausando…" : "Pausar"}
@@ -346,7 +346,7 @@ export default function CampaignDetail() {
               disabled={actionPending}
               onClick={() => resendSkipped.mutate()}
               title="Revalida contatos ignorados e reenfileira apenas os válidos"
-              className="inline-flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-500 disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-800 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50"
             >
               <Ban size={16} />
               {resendSkipped.isPending

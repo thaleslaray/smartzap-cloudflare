@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { expectNoA11yViolations } from "./support/a11y";
 
 async function login(page: import("@playwright/test").Page) {
   await page.goto("/login");
@@ -146,7 +147,7 @@ test("editor explica agrupamento inválido de botões e bloqueia envio", async (
   await expect(page.getByRole("button", { name: "Enviar para Meta" })).toBeDisabled();
 });
 
-test("editar pela interface preserva componentes e botões avançados", async ({ page }) => {
+test("editar pela interface preserva componentes e botões avançados", async ({ page }, testInfo) => {
   await login(page);
   const name = `template_avancado_${Date.now()}`;
   const created = await page.evaluate(async (draft) => {
@@ -187,6 +188,7 @@ test("editar pela interface preserva componentes e botões avançados", async ({
   try {
     await page.goto(`/templates/drafts/${created.id}`);
     await expect(page.getByText(`ID do rascunho: ${created.id}`)).toBeVisible();
+    await expectNoA11yViolations(page, testInfo, "/templates/drafts/:id");
     await page.getByRole("button", { name: /Continuar/ }).click();
     await page.getByLabel("Mensagem do template").fill("Seu codigo continua pronto.");
 

@@ -39,7 +39,7 @@
   // O deploy falha antes de publicar uma versão incapaz de autenticar/enviar/receber.
   // Turnstile é opcional e controlado explicitamente por TURNSTILE_ENABLED.
   "secrets": { "required": [
-    "MASTER_PASSWORD", "SMARTZAP_API_KEY", "META_APP_SECRET", "META_VERIFY_TOKEN",
+    "MASTER_PASSWORD", "SMARTZAP_API_KEY", "QA_READONLY_API_KEY", "META_APP_SECRET", "META_VERIFY_TOKEN",
     "CLOUDFLARE_ANALYTICS_TOKEN",
     "WHATSAPP_TOKEN",
     "FLOW_PRIVATE_KEY", "FLOW_PUBLIC_KEY"

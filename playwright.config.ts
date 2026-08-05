@@ -35,8 +35,10 @@ export default defineConfig({
     locale: 'pt-BR',
     colorScheme: 'dark',
     extraHTTPHeaders:
-      remoteBaseURL && process.env.QA_API_KEY
-        ? { 'x-api-key': process.env.QA_API_KEY }
+      remoteBaseURL && (process.env.QA_READONLY_API_KEY || process.env.QA_API_KEY)
+        ? process.env.QA_READONLY_API_KEY
+          ? { 'x-qa-readonly-key': process.env.QA_READONLY_API_KEY }
+          : { 'x-api-key': process.env.QA_API_KEY! }
         : undefined,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',

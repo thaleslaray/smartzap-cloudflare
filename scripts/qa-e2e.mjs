@@ -7,7 +7,8 @@ import { assertPlaywrightReportClean } from "./lib/playwright-report.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const mode = process.argv[2] || "p0";
-const a11yTestTitle = "rotas críticas não têm violações WCAG A/AA detectáveis";
+const a11yTestTitle =
+  "todas as rotas estáticas e dinâmicas determinísticas não têm violações WCAG A/AA detectáveis";
 const responsiveTestTitle =
   "todas as rotas operacionais preservam a largura em";
 const inboxTestTitle = "Inbox ";
@@ -137,7 +138,7 @@ function explicitGrepMatchesItem(item) {
   if (!explicitGrep) return true;
   if (item.grep && !new RegExp(item.grep).test(explicitGrep)) return false;
   if (item.grepInvert && new RegExp(item.grepInvert).test(explicitGrep)) return false;
-  if (item.grepInvert && item.files.length) {
+  if (item.files.length) {
     const source = item.files
       .map((file) => readFileSync(resolve(root, file), "utf8"))
       .join("\n");

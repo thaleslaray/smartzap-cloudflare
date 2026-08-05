@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { expectNoA11yViolations } from "./support/a11y";
 
 async function login(page: import("@playwright/test").Page) {
   await page.goto("/login");
@@ -9,7 +10,7 @@ async function login(page: import("@playwright/test").Page) {
   ]);
 }
 
-test("editor restaura os três inícios e persiste modelo e ajustes avançados", async ({ page }) => {
+test("editor restaura os três inícios e persiste modelo e ajustes avançados", async ({ page }, testInfo) => {
   await login(page);
   const created = await page.request.post("/api/flows", {
     data: {
@@ -33,6 +34,7 @@ test("editor restaura os três inícios e persiste modelo e ajustes avançados",
   try {
     await page.goto(`/flows/builder/${flow.id}`);
     await expect(page.getByText("Como quer começar?")).toBeVisible();
+    await expectNoA11yViolations(page, testInfo, "/flows/builder/:id");
     await expect(page.getByRole("button", { name: /Criar com IA/ })).toBeVisible();
     await expect(page.getByRole("button", { name: /Usar modelo pronto/ })).toBeVisible();
     await expect(page.getByRole("button", { name: /Criar do zero/ })).toBeVisible();

@@ -1863,7 +1863,7 @@ function FlowPreview({
             if (screen?.final) setSubmitted(true);
             else if (!onAdvance(values)) setSubmitted(true);
           }}
-          className="mt-4 w-full rounded-xl bg-primary-600 py-3 font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+          className="mt-4 w-full rounded-xl bg-primary-800 py-3 font-medium text-white hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {screen?.buttonText || "Enviar"}
         </button>

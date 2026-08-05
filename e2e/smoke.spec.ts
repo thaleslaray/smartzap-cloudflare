@@ -5,6 +5,12 @@ import {
   reloadAuthedRoute,
   waitForAuthedAppReady,
 } from "./support/navigation";
+import {
+  authenticatedOperationalRoutes,
+  retiredAndFallbackRoutes,
+  seededDynamicRoutes,
+} from "./support/route-inventory";
+import { expectNoA11yViolations } from "./support/a11y";
 
 async function expectNoHorizontalOverflow(page: Page, viewportWidth: number) {
   const dimensions = await page.evaluate(() => ({
@@ -461,7 +467,7 @@ test("Inbox exige confirmação explícita antes de enviar rascunho aprovado", a
 
 test("Inbox mantém filtros, configurações e links de atendentes operacionais", async ({
   page,
-}) => {
+}, testInfo) => {
   // O WebKit pode encontrar o Worker local ainda frio ao trocar o filtro.
   // A prova aguarda a resposta específica em vez de confundir latência do
   // runtime com ausência de atualização visual; retry continua proibido.
@@ -505,8 +511,20 @@ test("Inbox mantém filtros, configurações e links de atendentes operacionais"
     { timeout: 45_000 },
   );
   await page.getByRole("button", { name: "Criar", exact: true }).click();
-  expect((await attendantCreated).status()).toBe(201);
+  const attendantResponse = await attendantCreated;
+  expect(attendantResponse.status()).toBe(201);
+  const attendant = await attendantResponse.json() as { id: string; token: string };
   await expect(page.getByText(attendantName, { exact: true })).toBeVisible();
+
+  await page.goto(`/atendimento?token=${encodeURIComponent(attendant.token)}`);
+  await expect(page.getByRole("heading", { name: "Atendimento" })).toBeVisible();
+  await expectNoA11yViolations(page, testInfo, "/atendimento?token válido");
+  await page.getByText("Contato Piloto E2E", { exact: true }).click();
+  await expect(page).toHaveURL(/\/atendimento\/conversa\/22222222-2222-4222-8222-222222222222/);
+  await expect(page.getByRole("heading", { name: "Contato Piloto E2E" })).toBeVisible();
+  await expectNoA11yViolations(page, testInfo, "/atendimento/conversa/:id?token válido");
+
+  await page.goto("/settings/attendants");
 
   const attendantRemoved = page.waitForResponse(
     (response) =>
@@ -514,12 +532,7 @@ test("Inbox mantém filtros, configurações e links de atendentes operacionais"
       response.request().method() === "DELETE",
     { timeout: 45_000 },
   );
-  await page
-    .getByText(attendantName, { exact: true })
-    .locator("..")
-    .locator("..")
-    .getByRole("button", { name: "Remover" })
-    .click();
+  await page.getByRole("button", { name: `Excluir ${attendantName}` }).click();
   expect((await attendantRemoved).status()).toBe(200);
   await expect(page.getByText(attendantName, { exact: true })).toHaveCount(0);
 });
@@ -627,28 +640,6 @@ test("layout móvel, menu e modal permanecem acessíveis sem conteúdo cortado",
   await expectNoHorizontalOverflow(page, 320);
 });
 
-const operationalRoutes = [
-  "/",
-  "/campaigns",
-  "/campaigns/new",
-  "/contacts",
-  "/templates",
-  "/templates/drafts/new",
-  "/templates/new",
-  "/segments",
-  "/knowledge",
-  "/forms",
-  "/submissions",
-  "/flows",
-  "/flows/builder",
-  "/settings",
-  "/settings/attendants",
-  "/settings/meta-diagnostics",
-  "/settings/performance",
-  "/settings/ai",
-  "/settings/ai/agents",
-  "/inbox",
-];
 const responsiveViewports = [
   { width: 360, height: 800 },
   { width: 390, height: 844 },
@@ -658,8 +649,8 @@ const responsiveViewports = [
   { width: 1920, height: 1080 },
 ];
 const responsiveRouteGroups = Array.from(
-  { length: Math.ceil(operationalRoutes.length / 7) },
-  (_, index) => operationalRoutes.slice(index * 7, index * 7 + 7),
+  { length: Math.ceil(authenticatedOperationalRoutes.length / 7) },
+  (_, index) => authenticatedOperationalRoutes.slice(index * 7, index * 7 + 7),
 );
 
 for (const { width, height } of responsiveViewports) {
@@ -1041,14 +1032,8 @@ test("Inbox seleciona template, resolve variáveis e exige confirmação de envi
   });
 });
 
-test("rotas críticas não têm violações WCAG A/AA detectáveis", async ({ page }, testInfo) => {
-  // O axe percorre sete rotas completas. O orçamento continua finito, mas
-  // contempla a compilação fria do Worker e a instrumentação no runner Linux.
-  test.setTimeout(90_000);
-  await page.goto("/login");
-  await page.getByLabel("Senha mestra").fill("dev");
-  await page.getByRole("button", { name: "Entrar" }).click();
-  await expect(page).toHaveURL(/\/$/);
+test("todas as rotas estáticas e dinâmicas determinísticas não têm violações WCAG A/AA detectáveis", async ({ page }, testInfo) => {
+  test.setTimeout(240_000);
 
   const findings: Array<{
     path: string;
@@ -1057,14 +1042,40 @@ test("rotas críticas não têm violações WCAG A/AA detectáveis", async ({ pa
     html: string[];
     summary: string[];
   }> = [];
+  const scan = async (path: string) => {
+    const { violations } = await new AxeBuilder({ page })
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+      .analyze();
+    for (const violation of violations) {
+      const webkitNativeSelectFalsePositive =
+        testInfo.project.name === "webkit" &&
+        violation.id === "color-contrast" &&
+        violation.nodes.every((node) =>
+          node.target.every((target) => String(target).includes("select")),
+        );
+      if (webkitNativeSelectFalsePositive) continue;
+      findings.push({
+        path,
+        rule: violation.id,
+        targets: violation.nodes.flatMap((node) => node.target.map(String)),
+        html: violation.nodes.map((node) => node.html),
+        summary: violation.nodes.map((node) => node.failureSummary ?? ""),
+      });
+    }
+  };
+
+  await page.goto("/login");
+  await expect(page.getByLabel("Senha mestra")).toBeVisible();
+  await scan("/login");
+  await page.goto("/login");
+  await page.getByLabel("Senha mestra").fill("dev");
+  await page.getByRole("button", { name: "Entrar" }).click();
+  await expect(page).toHaveURL(/\/$/);
+
   for (const path of [
-    "/",
-    "/campaigns",
-    "/campaigns/new",
-    "/templates",
-    "/contacts",
-    "/inbox/22222222-2222-4222-8222-222222222222",
-    "/settings",
+    ...authenticatedOperationalRoutes,
+    ...seededDynamicRoutes,
+    ...retiredAndFallbackRoutes,
   ]) {
     await gotoAuthedRoute(page, path);
     await page.waitForTimeout(250);
@@ -1087,26 +1098,16 @@ test("rotas críticas não têm violações WCAG A/AA detectáveis", async ({ pa
         );
       }
     }
-    const { violations } = await new AxeBuilder({ page })
-      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
-      .analyze();
-    for (const violation of violations) {
-      const webkitNativeSelectFalsePositive =
-        testInfo.project.name === "webkit" &&
-        violation.id === "color-contrast" &&
-        violation.nodes.every((node) =>
-          node.target.every((target) => String(target).includes("select")),
-        );
-      if (webkitNativeSelectFalsePositive) continue;
-      findings.push({
-        path,
-        rule: violation.id,
-        targets: violation.nodes.flatMap((node) => node.target.map(String)),
-        html: violation.nodes.map((node) => node.html),
-        summary: violation.nodes.map((node) => node.failureSummary ?? ""),
-      });
-    }
+    await scan(path);
   }
+
+  await page.goto("/f/autoqa-rota-inexistente");
+  await expect(page.getByRole("alert")).toBeVisible();
+  await scan("/f/:slug — inexistente");
+
+  await page.goto("/atendimento");
+  await expect(page.getByRole("alert")).toContainText("Link de acesso inválido");
+  await scan("/atendimento — sem token");
   expect(findings).toEqual([]);
 });
 

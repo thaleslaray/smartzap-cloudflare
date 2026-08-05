@@ -190,6 +190,7 @@ export default function AttendantPortal() {
   if (loading)
     return (
       <State
+        role="status"
         icon={<Loader2 className="animate-spin" />}
         title="Validando acesso"
         text="Aguarde um instante…"
@@ -198,6 +199,7 @@ export default function AttendantPortal() {
   if (error || !attendant)
     return (
       <State
+        role="alert"
         icon={<AlertCircle className="text-red-400" />}
         title="Acesso indisponível"
         text={error || "Token inválido"}
@@ -264,7 +266,7 @@ export default function AttendantPortal() {
                 </div>
                 <div className="border-t border-zinc-300 bg-white p-3 dark:border-zinc-800 dark:bg-[#111b21]">
                   {replyError && (
-                    <p className="mb-2 text-center text-xs text-red-400">
+                    <p role="alert" className="mb-2 text-center text-xs text-red-400">
                       {replyError}
                     </p>
                   )}
@@ -406,7 +408,7 @@ export default function AttendantPortal() {
                           )}
                         </div>
                         <span
-                          className={`mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs ${item.status === "handoff_requested" ? "bg-red-100 text-red-600 dark:bg-red-950" : item.status === "ai_active" ? "bg-zinc-100 text-zinc-500 dark:bg-zinc-900" : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950"}`}
+                          className={`mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs ${item.status === "handoff_requested" ? "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300" : item.status === "ai_active" ? "bg-zinc-100 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300" : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"}`}
                         >
                           {item.status === "handoff_requested" ? (
                             <AlertCircle size={11} />
@@ -445,16 +447,22 @@ export default function AttendantPortal() {
 }
 
 function State({
+  role,
   icon,
   title,
   text,
 }: {
+  role: "alert" | "status";
   icon: React.ReactNode;
   title: string;
   text: string;
 }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-black p-6 text-zinc-100">
+    <div
+      role={role}
+      aria-live={role === "alert" ? "assertive" : "polite"}
+      className="flex min-h-screen items-center justify-center bg-black p-6 text-zinc-100"
+    >
       <div className="max-w-sm text-center">
         <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-900">
           {icon}

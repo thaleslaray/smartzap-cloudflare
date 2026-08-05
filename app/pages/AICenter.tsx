@@ -146,6 +146,7 @@ export default function AICenter() {
             <div className="relative min-w-0 flex-1">
               <input
                 readOnly
+                aria-label="Modelo de IA em uso"
                 value={
                   health.data?.ai.model || "@cf/meta/llama-3.2-3b-instruct"
                 }
@@ -156,7 +157,7 @@ export default function AICenter() {
                 size={12}
               />
             </div>
-            <span className="flex h-[30px] items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-xs font-medium text-white">
+            <span className="flex h-[30px] items-center gap-1.5 rounded-lg bg-emerald-800 px-3 text-xs font-medium text-white">
               <Check size={12} />{" "}
               {health.data?.ai.ready ? "Em uso" : "Pendente"}
             </span>

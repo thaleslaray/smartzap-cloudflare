@@ -1,22 +1,19 @@
 import { expect, test, type Page } from "@playwright/test";
+import {
+  authenticatedOperationalRoutes,
+  retiredAndFallbackRoutes,
+} from "./support/route-inventory";
 
 const remoteBaseUrl = process.env.QA_REMOTE_BASE_URL;
 
 test.skip(
-  !remoteBaseUrl || !process.env.QA_API_KEY,
-  "Smoke remoto exige QA_REMOTE_BASE_URL e QA_API_KEY.",
+  !remoteBaseUrl || (!process.env.QA_READONLY_API_KEY && !process.env.QA_API_KEY),
+  "Smoke remoto exige QA_REMOTE_BASE_URL e uma credencial técnica de leitura.",
 );
 
 const routes = [
-  "/",
-  "/campaigns",
-  "/contacts",
-  "/inbox",
-  "/templates",
-  "/settings",
-  "/settings/performance",
-  "/settings/ai",
-  "/settings/ai/agents",
+  ...authenticatedOperationalRoutes,
+  ...retiredAndFallbackRoutes,
 ];
 
 async function assertHealthyLayout(page: Page, path: string, width: number) {
@@ -42,7 +39,7 @@ test("Cloudflare remoto responde, autentica e renderiza rotas críticas sem muta
   page,
   request,
 }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(300_000);
   const health = await request.get("/api/health");
   expect(health.ok()).toBe(true);
   expect(await health.json()).toMatchObject({ ok: true });

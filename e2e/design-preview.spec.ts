@@ -8,20 +8,16 @@ async function expectNoHorizontalOverflow(page: import("@playwright/test").Page)
   expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth);
 }
 
-test("prévia Apple-inspired renderiza e responde no desktop e mobile", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/design-preview");
-  await expect(page.getByRole("heading", { name: "Mensagens que chegam com clareza." })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Abrir menu" })).toBeVisible();
-  await expectNoHorizontalOverflow(page);
-
-  await page.getByRole("button", { name: "Abrir menu" }).click();
-  await expect(page.getByRole("button", { name: "Fechar menu", exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Fechar menu", exact: true }).click();
-
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await page.reload();
-  await expect(page.getByRole("navigation", { name: "Navegação da prévia" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Nova campanha" })).toBeVisible();
-  await expectNoHorizontalOverflow(page);
+test("prévia Apple-inspired descontinuada não permanece pública", async ({ page }) => {
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 1440, height: 900 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.goto("/design-preview");
+    await expect(page).toHaveURL(/\/login$/);
+    await expect(page.getByLabel("Senha mestra")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Entrar" })).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+  }
 });

@@ -714,7 +714,7 @@ function Preview({ form }: { form: Form }) {
                 <div className="px-3 py-2">
                   <div className="text-[13px] leading-snug whitespace-pre-wrap">
                     {text || (
-                      <span className="text-zinc-400">
+                      <span className="text-zinc-600">
                         Digite o corpo para ver a previa.
                       </span>
                     )}
@@ -724,7 +724,7 @@ function Preview({ form }: { form: Form }) {
                       {form.footer}
                     </p>
                   )}
-                  <p className="mt-1 flex items-center justify-end text-[10px] text-zinc-400">
+                  <p className="mt-1 flex items-center justify-end text-[10px] text-zinc-600">
                     16:34
                   </p>
                 </div>

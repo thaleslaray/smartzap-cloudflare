@@ -30,7 +30,6 @@ const Segments = lazy(() => import("./pages/Segments"));
 const Forms = lazy(() => import("./pages/Forms"));
 const FlowBuilderHome = lazy(() => import("./pages/FlowBuilderHome"));
 const NotFound = lazy(() => import("./pages/NotFound"));
-const DesignPreview = lazy(() => import("./pages/DesignPreview"));
 
 const loading = <div className="flex min-h-[40vh] items-center justify-center text-sm text-[var(--ds-text-muted)]">Carregando…</div>;
 
@@ -97,7 +96,6 @@ export default function App() {
             path="/atendimento/conversa/:id"
             element={<AttendantPortal />}
           />
-          <Route path="/design-preview" element={<DesignPreview />} />
           <Route path="/*" element={<AuthedApp />} />
         </Routes></Suspense>
       </BrowserRouter>

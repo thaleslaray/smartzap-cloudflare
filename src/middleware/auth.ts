@@ -24,11 +24,22 @@ export async function requireAuth(c: Context<{ Bindings: Env }>, next: Next) {
   const path = new URL(c.req.url).pathname
   if (PUBLIC.has(path)) return next()
 
-  // 1) API key (Bearer ou X-API-Key), comparação timing-safe
+  // 1) API key operacional (Bearer ou X-API-Key), comparação timing-safe.
   const key = c.req.header('x-api-key') ?? c.req.header('authorization')?.replace(/^Bearer /, '')
   if (key && c.env.SMARTZAP_API_KEY && (await timingSafeEqualStr(key, c.env.SMARTZAP_API_KEY))) return next()
 
-  // 2) Sessão revogável com consistência forte no D1. O token bruto nunca é persistido.
+  // 2) Credencial técnica exclusiva para homologação remota. Ela nunca pode
+  // autorizar mutações: mesmo que vaze, POST/PATCH/PUT/DELETE continuam 401.
+  // Mantê-la separada evita rotacionar a chave operacional usada por clientes.
+  const readOnlyKey = c.req.header('x-qa-readonly-key')
+  if (
+    readOnlyKey &&
+    (c.req.method === 'GET' || c.req.method === 'HEAD') &&
+    c.env.QA_READONLY_API_KEY &&
+    (await timingSafeEqualStr(readOnlyKey, c.env.QA_READONLY_API_KEY))
+  ) return next()
+
+  // 3) Sessão revogável com consistência forte no D1. O token bruto nunca é persistido.
   const token = getCookie(c, 'smartzap_session')
   if (token) {
     const row = await c.env.DB.prepare(

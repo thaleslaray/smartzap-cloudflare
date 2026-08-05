@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { expectNoA11yViolations } from "./support/a11y";
 
 async function login(page: import("@playwright/test").Page) {
   await page.goto("/login");
@@ -69,6 +70,7 @@ test("Forms percorre CRUD, captação consentida e consulta completa da submiss�
 
   await page.goto(`/f/${slug}`);
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
+  await expectNoA11yViolations(page, testInfo, "/f/:slug ativo");
   const send = page.getByRole("button", { name: "Enviar" });
   await expect(send).toBeDisabled();
   await page.getByLabel("Nome *").fill(`Lead QA ${suffix}`);
