@@ -741,6 +741,19 @@ test("Dashboard exibe estados sem dados, erro e recuperação sem depender da ba
   await expect(page.getByRole("button", { name: "Tentar novamente" })).toBeVisible();
 
   await page.unroute("**/api/dashboard");
+  await page.route("**/api/dashboard", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: '{"sent30d":',
+    });
+  });
+  await page.getByRole("button", { name: "Tentar novamente" }).click();
+  await expect(page.getByRole("alert")).toContainText(
+    "o servidor retornou uma resposta incompleta; tente novamente",
+  );
+
+  await page.unroute("**/api/dashboard");
   await page.getByRole("button", { name: "Tentar novamente" }).click();
   await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
   await expect(page.getByRole("alert")).toHaveCount(0);

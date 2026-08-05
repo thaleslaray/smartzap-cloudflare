@@ -22,7 +22,15 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
     location.href = '/login'
     throw new ApiError(401, 'não autenticado')
   }
-  const data = (await res.json().catch(() => ({}))) as { error?: string; detail?: string }
+  let data: { error?: string; detail?: string }
+  try {
+    data = (await res.json()) as { error?: string; detail?: string }
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') throw error
+    if (res.ok)
+      throw new ApiError(502, 'o servidor retornou uma resposta incompleta; tente novamente')
+    data = {}
+  }
   if (!res.ok) throw new ApiError(res.status, data.detail ?? data.error ?? `HTTP ${res.status}`)
   return data as T
 }

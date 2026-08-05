@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { api } from "../lib/api";
+import { ApiError, api } from "../lib/api";
 
 export type DashboardData = {
   sent30d: number;
@@ -37,9 +37,40 @@ export type CampaignRow = {
   status_counts?: Record<string, number>;
 };
 
+export function parseDashboardData(value: unknown): DashboardData {
+  if (!value || typeof value !== "object")
+    throw new ApiError(502, "o Dashboard recebeu dados inválidos; tente novamente");
+  const data = value as Partial<DashboardData>;
+  const numbers = [
+    data.sent30d,
+    data.deliveryRate,
+    data.readRate,
+    data.failed30d,
+    data.activeCampaigns,
+  ];
+  if (
+    numbers.some((number) => typeof number !== "number" || !Number.isFinite(number)) ||
+    !Array.isArray(data.volume) ||
+    !data.volume.every(
+      (point) =>
+        point &&
+        typeof point.day === "string" &&
+        typeof point.sent === "number" &&
+        typeof point.delivered === "number",
+    ) ||
+    !Array.isArray(data.recentCampaigns)
+  )
+    throw new ApiError(502, "o Dashboard recebeu dados incompletos; tente novamente");
+  return {
+    ...(data as DashboardData),
+    latestFailure: data.latestFailure ?? null,
+  };
+}
+
 export function useDashboard() {
   return useQuery({
     queryKey: ["dashboard"],
-    queryFn: () => api<DashboardData>("/api/dashboard"),
+    queryFn: async ({ signal }) =>
+      parseDashboardData(await api<unknown>("/api/dashboard", { signal })),
   });
 }

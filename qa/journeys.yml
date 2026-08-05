@@ -31,7 +31,7 @@
       "owners": ["dashboard"],
       "tests": ["tests/reconcile.test.ts", "e2e/smoke.spec.ts"],
       "evidence": ["api", "ui", "responsive"],
-      "invalidatedBy": ["src/api/dashboard.ts", "app/pages/Dashboard.tsx"]
+      "invalidatedBy": ["src/api/dashboard.ts", "app/pages/Dashboard.tsx", "app/hooks/useDashboard.ts"]
     },
     "DES": {
       "risk": "P2",
