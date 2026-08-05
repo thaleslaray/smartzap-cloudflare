@@ -64,6 +64,8 @@
     "qa:miniapps:stress": "node scripts/qa-miniapps-stress.mjs",
     "qa:visual": "node scripts/qa-runner.mjs visual",
     "qa:ai": "node scripts/qa-runner.mjs ai",
+    "qa:ai:human:prepare": "node scripts/qa-ai-human-calibration.mjs prepare",
+    "qa:ai:human:verify": "node scripts/qa-ai-human-calibration.mjs verify",
     "qa:meta:canary": "node scripts/qa-runner.mjs meta:canary",
     "qa:meta:templates": "node scripts/qa-template-category-canary.mjs",
     "qa:meta:template-lifecycle": "node scripts/qa-template-lifecycle-canary.mjs",
