@@ -16,7 +16,8 @@ import {
 } from "./lib/meta-canary-guard.mjs";
 import { resolveQaStagingAuthHeaders } from "./lib/qa-staging-auth.mjs";
 import {
-  assertExistingMetaCanaryContact,
+  metaCanaryStatusRestorationSteps,
+  resolveExistingMetaCanaryContact,
   selectMetaCanaryRecipients,
 } from "./lib/meta-canary-recipients.mjs";
 
@@ -34,6 +35,7 @@ const reportDir = resolve(
   process.env.QA_REPORT_DIR || `qa/reports/${runId}`,
 );
 const transportOnly = process.env.QA_META_TRANSPORT_ONLY === "1";
+const temporaryOptInAuthorized = process.env.QA_META_TEMPORARY_OPT_IN === "1";
 const sendCount = Number(process.env.QA_META_SEND_COUNT || 1);
 const templateName = process.env.QA_META_TEMPLATE_NAME || "hello_world";
 const templateLanguage = process.env.QA_META_TEMPLATE_LANGUAGE || "en_US";
@@ -265,6 +267,27 @@ async function cleanup(report) {
       errors.push(`contatos: ${redact(error.message)}`);
     }
   }
+  const contactsWithTemporaryOptIn = report.artifacts.contacts.filter(
+    (contact) =>
+      !contact.created &&
+      contact.temporaryOptInRequired &&
+      !contact.statusRestored,
+  );
+  for (const contact of contactsWithTemporaryOptIn) {
+    try {
+      const steps = metaCanaryStatusRestorationSteps(contact.originalStatus);
+      for (const status of steps) {
+        await api("/api/contacts/bulk-status", {
+          method: "POST",
+          body: JSON.stringify({ ids: [contact.id], status }),
+        });
+      }
+      contact.statusRestored = true;
+      contact.temporaryConsentRevoked = steps.includes("opt_out");
+    } catch (error) {
+      errors.push(`status do contato ${contact.id}: ${redact(error.message)}`);
+    }
+  }
   const taggedExistingContacts = report.artifacts.contacts.filter(
     (contact) =>
       !contact.created &&
@@ -326,6 +349,7 @@ const report = {
   guard: {
     maxRunsPerDay: guard.maxRunsPerDay,
     outsideWindowAuthorized: guard.outsideWindowAuthorized,
+    temporaryOptInAuthorized,
   },
   preflight: {},
   artifacts: {
@@ -454,7 +478,11 @@ try {
   for (const [index, phone] of selectedRecipients.entries()) {
     let contact = await findContact(phone);
     let created = false;
-    assertExistingMetaCanaryContact(contact, maskPhone(phone));
+    const existingContactPlan = resolveExistingMetaCanaryContact(
+      contact,
+      maskPhone(phone),
+      temporaryOptInAuthorized,
+    );
     if (!contact) {
       contact = (
         await api(
@@ -479,12 +507,25 @@ try {
       phone: maskPhone(phone),
       created,
       originalStatus: contact.status,
+      temporaryOptInRequired: existingContactPlan.temporaryOptInRequired,
       // Registrado antes da mutação: um encerramento abrupto pode executar
       // cleanup com segurança mesmo se a chamada de tag não tiver terminado.
       autoQaTagAdded: !created && !hadAutoQaTag,
     };
     report.artifacts.contacts.push(contactArtifact);
     persist(report);
+    if (contactArtifact.temporaryOptInRequired) {
+      await api("/api/contacts/bulk-status", {
+        method: "POST",
+        body: JSON.stringify({
+          ids: [contact.id],
+          status: "opt_in",
+          optInConfirmed: true,
+        }),
+      });
+      contactArtifact.temporaryOptInApplied = true;
+      persist(report);
+    }
     await api("/api/contacts/bulk-tags", {
       method: "POST",
       body: JSON.stringify({

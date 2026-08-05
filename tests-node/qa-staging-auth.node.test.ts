@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+// O helper é JavaScript executável pelo mesmo Node usado no runner.
+// @ts-expect-error não há declaração separada para o módulo interno .mjs
 import { resolveQaStagingAuthHeaders } from "../scripts/lib/qa-staging-auth.mjs";
 
 describe("credencial mutável isolada do staging", () => {
