@@ -31,6 +31,11 @@ const report = {
   schemaVersion: 1,
   mode,
   baseUrl,
+  release: {
+    sourceCommit: process.env.QA_RELEASE_COMMIT || "",
+    productionVersion: process.env.QA_RELEASE_VERSION || "",
+    productionUrl: process.env.QA_RELEASE_URL || baseUrl,
+  },
   startedAt: new Date().toISOString(),
   finishedAt: null,
   status: "running",

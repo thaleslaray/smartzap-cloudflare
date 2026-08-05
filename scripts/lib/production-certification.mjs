@@ -170,7 +170,14 @@ function playwrightTests(data) {
   return tests;
 }
 
-function validatePlaywright(data, requirement, issues) {
+function validatePlaywright(data, requirement, release, issues) {
+  const metadata = data?.config?.metadata || {};
+  if (
+    metadata.sourceCommit !== release.sourceCommit ||
+    metadata.productionVersion !== release.productionVersion ||
+    metadata.productionUrl !== release.productionUrl
+  )
+    push(issues, requirement.id, "relatório pertence a outra release");
   if (data?.stats?.unexpected !== 0 || data?.stats?.flaky !== 0 || data?.stats?.skipped !== 0)
     push(issues, requirement.id, "resultado contém falha, flake ou skip");
   if (!Number.isInteger(data?.stats?.expected) || data.stats.expected < requirement.projects.length)
@@ -187,8 +194,14 @@ function validatePlaywright(data, requirement, issues) {
   }
 }
 
-function validateRemoteHealth(data, requirement, issues) {
+function validateRemoteHealth(data, requirement, release, issues) {
   if (data?.schemaVersion !== 1 || data?.status !== "passed") push(issues, requirement.id, "health não aprovado");
+  if (
+    data?.release?.sourceCommit !== release.sourceCommit ||
+    data?.release?.productionVersion !== release.productionVersion ||
+    data?.release?.productionUrl !== release.productionUrl
+  )
+    push(issues, requirement.id, "health pertence a outra release");
   if (!Array.isArray(data?.checks) || data.checks.length < 4 || data.checks.some((check) => check.status !== "passed"))
     push(issues, requirement.id, "contratos read-only incompletos ou reprovados");
 }
@@ -284,8 +297,8 @@ function validateAttestation(data, requirement, release, root, issues) {
 
 function validateEvidenceData(data, requirement, release, root, issues) {
   if (requirement.validator === "runner") return validateRunner(data, requirement, release, issues);
-  if (requirement.validator === "playwright") return validatePlaywright(data, requirement, issues);
-  if (requirement.validator === "remote-health") return validateRemoteHealth(data, requirement, issues);
+  if (requirement.validator === "playwright") return validatePlaywright(data, requirement, release, issues);
+  if (requirement.validator === "remote-health") return validateRemoteHealth(data, requirement, release, issues);
   if (requirement.validator === "meta-canary") return validateMetaCanary(data, requirement, issues);
   if (requirement.validator === "ai-eval") return validateAiEval(data, requirement, issues);
   if (requirement.validator === "ai-human-calibration") return validateHumanCalibration(data, requirement, issues);

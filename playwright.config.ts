@@ -7,6 +7,11 @@ const reportDir =
   process.env.QA_PLAYWRIGHT_REPORT_DIR ||
   process.env.QA_REPORT_DIR ||
   'test-results'
+const releaseMetadata = {
+  sourceCommit: process.env.QA_RELEASE_COMMIT || '',
+  productionVersion: process.env.QA_RELEASE_VERSION || '',
+  productionUrl: process.env.QA_RELEASE_URL || remoteBaseURL || '',
+}
 
 export default defineConfig({
   testDir: 'e2e',
@@ -25,6 +30,7 @@ export default defineConfig({
     ['json', { outputFile: `${reportDir}/playwright-results.json` }],
     ['junit', { outputFile: `${reportDir}/playwright-junit.xml` }],
   ],
+  metadata: releaseMetadata,
   projects: [
     { name: 'chromium', use: { browserName: 'chromium', viewport: { width: 1440, height: 900 } } },
     { name: 'firefox', use: { browserName: 'firefox', viewport: { width: 1440, height: 900 } } },

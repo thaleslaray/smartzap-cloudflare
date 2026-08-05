@@ -19,6 +19,13 @@ const CATALOG = `# Jornadas\n\n| ID | Área | Jornada | Entrada | Estado atual |
 
 function playwright() {
   return {
+    config: {
+      metadata: {
+        sourceCommit: SOURCE_COMMIT,
+        productionVersion: PRODUCTION_VERSION,
+        productionUrl: "https://smartzap.example.com",
+      },
+    },
     errors: [],
     stats: { expected: 3, skipped: 0, unexpected: 0, flaky: 0 },
     suites: [{ specs: ["chromium", "firefox", "webkit"].map((projectName) => ({
@@ -54,6 +61,11 @@ function evidenceFor(requirement: { id: string; validator: string; command?: str
   if (requirement.validator === "remote-health") return {
     schemaVersion: 1,
     status: "passed",
+    release: {
+      sourceCommit: SOURCE_COMMIT,
+      productionVersion: PRODUCTION_VERSION,
+      productionUrl: "https://smartzap.example.com",
+    },
     checks: Array.from({ length: 4 }, () => ({ status: "passed" })),
   };
   if (requirement.validator === "meta-canary") return {
@@ -219,6 +231,49 @@ describe("certificação integral de produção", () => {
     const result = verify(state);
     expect(result.status).toBe("failed");
     expect(result.issues).toContain("unit: commit diverge da versão certificada");
+  });
+
+  it("reprova Playwright de outra release", () => {
+    const state = prepared();
+    const path = join(state.root, "production-routes.json");
+    const report = JSON.parse(readFileSync(path, "utf8"));
+    report.config.metadata.productionVersion =
+      "11111111-1111-1111-1111-111111111111";
+    writeFileSync(path, JSON.stringify(report));
+    state.manifest = buildCertificationManifest({
+      root: state.root,
+      spec: state.spec,
+      journeyMarkdown: CATALOG,
+      cloudflareVersion: state.cf.version,
+      cloudflareDeployments: state.cf.deployments,
+      runtimeDrift: [],
+    });
+    const result = verify(state);
+    expect(result.status).toBe("failed");
+    expect(result.issues).toContain(
+      "production-routes: relatório pertence a outra release",
+    );
+  });
+
+  it("reprova health remoto de outra release", () => {
+    const state = prepared();
+    const path = join(state.root, "production-health-1.json");
+    const report = JSON.parse(readFileSync(path, "utf8"));
+    report.release.sourceCommit = "a".repeat(40);
+    writeFileSync(path, JSON.stringify(report));
+    state.manifest = buildCertificationManifest({
+      root: state.root,
+      spec: state.spec,
+      journeyMarkdown: CATALOG,
+      cloudflareVersion: state.cf.version,
+      cloudflareDeployments: state.cf.deployments,
+      runtimeDrift: [],
+    });
+    const result = verify(state);
+    expect(result.status).toBe("failed");
+    expect(result.issues).toContain(
+      "production-health-1: health pertence a outra release",
+    );
   });
 
   it("reprova jornada produtiva ainda aberta", () => {
