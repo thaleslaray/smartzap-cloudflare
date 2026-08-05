@@ -153,6 +153,8 @@ export default function TemplateProjectNew() {
           {STEPS.map(([key, label, Icon], index) => (
             <div className="flex items-center gap-2" key={key}>
               <button
+                aria-label={`Etapa ${index + 1}: ${label}`}
+                aria-current={index === current ? "step" : undefined}
                 disabled={index >= current}
                 onClick={() => index < current && setStep(key)}
                 className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm ${index === current ? "border-primary-500/40 bg-primary-500/20 text-primary-400" : index < current ? "border-zinc-700 text-primary-400" : "border-zinc-800 text-zinc-600"}`}

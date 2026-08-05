@@ -4,5 +4,5 @@
     "strict": true, "jsx": "react-jsx", "skipLibCheck": true, "noEmit": true,
     "types": ["./worker-configuration.d.ts", "@cloudflare/vitest-pool-workers/types", "vite/client"]
   },
-  "include": ["src", "app", "tests", "e2e"]
+  "include": ["src", "app", "tests", "tests-node", "e2e"]
 }

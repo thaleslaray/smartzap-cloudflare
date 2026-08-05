@@ -111,8 +111,37 @@ describe('templates sync', () => {
     expect(templateRequiresParameters(template?.components)).toBe(true)
 
     const res = await SELF.fetch('https://x.com/api/templates', { headers: AUTH })
-    const body = await res.json() as { items: { name: string; requiresParameters: boolean }[] }
+    const body = await res.json() as { items: { name: string; requiresParameters: boolean; simpleSendSupported: boolean }[] }
     expect(body.items.find((item) => item.name === name)?.requiresParameters).toBe(true)
+    expect(body.items.find((item) => item.name === name)?.simpleSendSupported).toBe(false)
+  })
+  it('expõe capacidade de envio por contrato, sem confundir categoria com suporte', async () => {
+    const suffix = crypto.randomUUID().replaceAll('-', '').slice(0, 10)
+    const simpleName = `simple_contract_${suffix}`
+    const advancedName = `video_contract_${suffix}`
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO templates (name, language, category, status, components)
+         VALUES (?1, 'pt_BR', 'MARKETING', 'APPROVED', ?2)`,
+      ).bind(simpleName, JSON.stringify([{ type: 'BODY', text: 'Mensagem simples' }])),
+      env.DB.prepare(
+        `INSERT INTO templates (name, language, category, status, components)
+         VALUES (?1, 'pt_BR', 'MARKETING', 'APPROVED', ?2)`,
+      ).bind(advancedName, JSON.stringify([
+        { type: 'HEADER', format: 'VIDEO', example: { header_handle: ['meta-video'] } },
+        { type: 'BODY', text: 'Mensagem com vídeo' },
+      ])),
+    ])
+    const response = await SELF.fetch('https://x.com/api/templates', { headers: AUTH })
+    const body = await response.json() as { items: Array<{
+      name: string; simpleEditorSupported: boolean; simpleSendSupported: boolean
+    }> }
+    expect(body.items.find((item) => item.name === simpleName)).toMatchObject({
+      simpleEditorSupported: true, simpleSendSupported: true,
+    })
+    expect(body.items.find((item) => item.name === advancedName)).toMatchObject({
+      simpleEditorSupported: true, simpleSendSupported: false,
+    })
   })
   it('preserva variantes com o mesmo nome e idiomas diferentes', async () => {
     const name = `multi_${crypto.randomUUID()}`
@@ -199,6 +228,100 @@ describe('rascunhos de template', () => {
       name: `${name}_copia_3`, language: 'pt_BR', category: 'UTILITY', components,
     })
   })
+
+  it.each(['MARKETING', 'UTILITY'] as const)(
+    'publica a matriz simples completa na categoria %s',
+    async (category) => {
+      const name = `autoqa_${category.toLowerCase()}_${crypto.randomUUID().replaceAll('-', '').slice(0, 8)}`
+      const components = [
+        {
+          type: 'BODY',
+          text: 'Olá {{1}}, seu pedido está pronto.',
+          example: { body_text: [['Cliente']] },
+        },
+        { type: 'FOOTER', text: 'Equipe SmartZap' },
+        {
+          type: 'BUTTONS',
+          buttons: [
+            { type: 'QUICK_REPLY', text: 'Confirmar' },
+            { type: 'QUICK_REPLY', text: 'Cancelar' },
+            { type: 'URL', text: 'Acompanhar', url: 'https://example.com/pedido' },
+            {
+              type: 'URL', text: 'Abrir pedido',
+              url: 'https://example.com/pedido/{{1}}', example: ['pedido-123'],
+            },
+            { type: 'PHONE_NUMBER', text: 'Ligar', phone_number: '+5521982219966' },
+          ],
+        },
+      ]
+      const createdResponse = await SELF.fetch('https://x.com/api/templates/drafts', {
+        method: 'POST', headers: AUTH,
+        body: JSON.stringify({ name, language: 'pt_BR', category, components }),
+      })
+      expect(createdResponse.status).toBe(201)
+      const created = await createdResponse.json() as { id: string }
+      await settingsDb(env.DB).set('whatsapp_waba_id', 'db-waba')
+      const fetchMock = vi.fn(async (_url: string | URL, init?: RequestInit) => {
+        expect(JSON.parse(String(init?.body))).toEqual({
+          name, language: 'pt_BR', category, components,
+        })
+        return new Response(JSON.stringify({ id: `meta-${category}`, status: 'PENDING', category }), { status: 200 })
+      })
+      vi.stubGlobal('fetch', fetchMock)
+
+      const submit = await SELF.fetch(`https://x.com/api/templates/drafts/${created.id}/submit`, {
+        method: 'POST', headers: AUTH,
+      })
+      expect(submit.status).toBe(200)
+      expect(await submit.json()).toMatchObject({ ok: true, result: { status: 'PENDING', category } })
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      expect(await templateDraftsDb(env.DB).get(created.id)).toBeNull()
+      expect(await templatesDb(env.DB).get(name, 'pt_BR')).toMatchObject({
+        name,
+        language: 'pt_BR',
+        meta_id: `meta-${category}`,
+        category,
+        status: 'PENDING',
+        components,
+      })
+    },
+  )
+
+  it('recusa criar, publicar ou clonar Autenticação pelo editor simples', async () => {
+    const name = `auth_${crypto.randomUUID().replaceAll('-', '').slice(0, 10)}`
+    const input = {
+      name,
+      language: 'pt_BR',
+      category: 'AUTHENTICATION',
+      components: [{ type: 'BODY', add_security_recommendation: true }],
+    }
+    const create = await SELF.fetch('https://x.com/api/templates/drafts', {
+      method: 'POST', headers: AUTH, body: JSON.stringify(input),
+    })
+    expect(create.status).toBe(409)
+    expect(await create.json()).toMatchObject({ code: 'AUTHENTICATION_TEMPLATE_UNSUPPORTED' })
+
+    const legacy = await templateDraftsDb(env.DB).create(input)
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    const submit = await SELF.fetch(`https://x.com/api/templates/drafts/${legacy!.id}/submit`, {
+      method: 'POST', headers: AUTH,
+    })
+    expect(submit.status).toBe(409)
+    expect(await submit.json()).toMatchObject({ code: 'AUTHENTICATION_TEMPLATE_UNSUPPORTED' })
+    expect(fetchMock).not.toHaveBeenCalled()
+
+    await env.DB.prepare(
+      `INSERT INTO templates (name,language,category,status,components)
+       VALUES (?1,'pt_BR','AUTHENTICATION','APPROVED',?2)`,
+    ).bind(name, JSON.stringify(input.components)).run()
+    const clone = await SELF.fetch(`https://x.com/api/templates/${name}/clone`, {
+      method: 'POST', headers: AUTH,
+    })
+    expect(clone.status).toBe(409)
+    expect(await clone.json()).toMatchObject({ code: 'AUTHENTICATION_TEMPLATE_UNSUPPORTED' })
+    await templateDraftsDb(env.DB).delete(legacy!.id)
+  })
 })
 
 describe('settings API', () => {
@@ -282,6 +405,8 @@ describe('settings API', () => {
       turnstileConfigured: boolean; turnstileEnabled: boolean
       metaConfigured: boolean; metaLive: boolean; readyForPilot: boolean
       meta: { code: number; fbtraceId: string }
+      knowledge: { total: number; ready: number; indexing: number; failed: number; searchConfigured: boolean }
+      agents: { total: number; active: number; globalEnabled: boolean }
     }
     expect(body.databaseOk).toBe(true)
     expect(body.webhookSecretsConfigured).toBe(true)
@@ -292,6 +417,8 @@ describe('settings API', () => {
     expect(body.metaLive).toBe(false)
     expect(body.readyForPilot).toBe(false)
     expect(body.meta).toMatchObject({ code: 190, fbtraceId: 'TRACE_HEALTH' })
+    expect(body.knowledge).toEqual({ total: 0, ready: 0, indexing: 0, failed: 0, searchConfigured: false })
+    expect(body.agents).toEqual(expect.objectContaining({ total: 1, active: 1, globalEnabled: true }))
   })
 })
 

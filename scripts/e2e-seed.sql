@@ -7,13 +7,44 @@ VALUES (
   '[{"type":"HEADER","text":"Olá {{1}}"},{"type":"BODY","text":"Telefone: {{1}}"},{"type":"BUTTONS","buttons":[{"type":"URL","url":"https://example.test/{{1}}"}]}]'
 );
 
+INSERT OR REPLACE INTO templates (
+  name, language, meta_id, category, status, components, quality_score,
+  status_reason, status_detail, status_recommendation, status_event_at,
+  pending_category, category_update_at, category_event_at
+) VALUES (
+  'e2e_template_ciclo_meta', 'pt_BR', '9000000000001', 'UTILITY', 'REJECTED',
+  '[{"type":"BODY","text":"Olá {{1}}, acompanhe seu pedido."}]', 'YELLOW',
+  'INVALID_FORMAT', 'As variáveis do corpo precisam de contexto descritivo.',
+  'Inclua texto antes e depois de cada variável.', 1754000000,
+  'MARKETING', 1754086400, 1754000000
+);
+
 -- Garante que o smoke jamais consiga ultrapassar o preflight de disparo.
 DELETE FROM settings WHERE key IN ('whatsapp_phone_id', 'whatsapp_waba_id');
 
 -- O E2E determinístico não consulta provedores públicos de câmbio.
 INSERT OR REPLACE INTO settings (key, value) VALUES
   ('exchange_rate_usd_brl', '5.50'),
-  ('exchange_rate_usd_brl_fetched_at', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
+  ('exchange_rate_usd_brl_fetched_at', strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  ('pricing_currency', 'BRL');
+
+INSERT OR IGNORE INTO pricing_rate_card_imports
+  (id, source, checksum, currency, effective_from, status, row_count)
+VALUES
+  ('e2e-pricing-import', 'https://developers.facebook.com/pricing/e2e',
+   'e2e-pricing-checksum', 'BRL', '2026-07-01', 'active', 1);
+
+UPDATE pricing_rate_card_imports
+SET status='active', row_count=1, effective_from='2026-07-01'
+WHERE id='e2e-pricing-import';
+
+INSERT OR REPLACE INTO pricing_rate_cards
+  (id, import_id, source, checksum, effective_from, currency, market,
+   country_iso, category, tier_from, unit_price)
+VALUES
+  ('e2e-pricing-card-br-marketing', 'e2e-pricing-import',
+   'https://developers.facebook.com/pricing/e2e', 'e2e-pricing-checksum',
+   '2026-07-01', 'BRL', 'Brazil', 'BR', 'MARKETING', 0, 0.3217);
 
 INSERT OR REPLACE INTO campaigns (
   id, name, template_name, status, workflow_id, total, sent, delivered, read, failed
@@ -92,6 +123,28 @@ INSERT OR REPLACE INTO campaign_contacts (
   'e2e-campaign-correction', '55555555-5555-4555-8555-555555555555',
   '+5511888888888', 'skipped', 'MISSING_TEMPLATE_DATA', 'missing_template_data'
 );
+
+INSERT OR REPLACE INTO campaigns (
+  id, name, template_name, status, total, sent, delivered, read, failed
+) VALUES (
+  '77777777-7777-4777-8777-777777777777', 'Pricing E2E',
+  'e2e_marketing_simples', 'completed', 1, 1, 1, 0, 0
+);
+
+INSERT OR REPLACE INTO campaign_contacts (
+  campaign_id, contact_id, phone, status, message_id
+) VALUES (
+  '77777777-7777-4777-8777-777777777777',
+  '11111111-1111-4111-8111-111111111111', '+5511999999999', 'delivered',
+  'wamid.e2e.pricing'
+);
+
+INSERT OR REPLACE INTO campaign_cost_snapshots
+  (id, campaign_id, state, amount, currency, breakdown_json, assumptions_json,
+   source, effective_from)
+VALUES
+  ('e2e-pricing-confirmed', '77777777-7777-4777-8777-777777777777', 'actual_from_meta',
+   0.3300, 'BRL', '[]', '[]', 'meta_pricing_analytics', '2026-07-01');
 
 INSERT OR REPLACE INTO conversations (
   id, contact_id, wa_id, last_message_at, last_message_preview, unread_count, ai_enabled

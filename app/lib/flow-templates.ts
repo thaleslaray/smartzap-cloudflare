@@ -98,7 +98,7 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
     definition: screen("Feedback", "Você recomendaria a gente para um amigo?", "Enviar", [
       body("feedback_intro", "Você recomendaria a gente para um amigo?"),
       choices("feedback_recommend", "RadioButtonsGroup", "recommend", "Escolha uma opção", [["yes", "Sim"], ["no", "Não"]]),
-      { id: "feedback_comment", type: "TextArea", name: "comment", label: "Como podemos melhorar? (opcional)", required: false },
+      { id: "feedback_comment", type: "TextArea", name: "comment", label: "Como melhorar?", required: false },
     ]),
     mapping: { customFields: { feedback_recommend: "recommend", feedback_comment: "comment" } },
   },
@@ -132,8 +132,8 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
     description: "Múltipla escolha e observações finais.",
     definition: screen("Pesquisa", "Ajude a melhorar nossa experiência.", "Enviar", [
       body("survey_intro", "Ajude a melhorar nossa experiência."),
-      choices("survey_topics", "CheckboxGroup", "topics", "Quais temas você gostaria de ver?", [["novidades", "Novidades"], ["descontos", "Descontos"], ["tutorials", "Tutoriais"], ["eventos", "Eventos"]], false),
-      { id: "survey_notes", type: "TextArea", name: "notes", label: "Comentários finais (opcional)", required: false },
+      choices("survey_topics", "CheckboxGroup", "topics", "Quais temas quer receber?", [["novidades", "Novidades"], ["descontos", "Descontos"], ["tutorials", "Tutoriais"], ["eventos", "Eventos"]], false),
+      { id: "survey_notes", type: "TextArea", name: "notes", label: "Comentários finais", required: false },
     ]),
     mapping: { customFields: { survey_topics: "topics", survey_notes: "notes" } },
   },
@@ -159,7 +159,7 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
       choices("booking_service", "Dropdown", "service", "Serviço", [["consulta", "Consulta"], ["visita", "Visita"], ["suporte", "Suporte"]]),
       { id: "booking_date", type: "CalendarPicker", name: "date", label: "Data", required: true },
       choices("booking_time", "Dropdown", "time", "Horário", [["09:00", "09:00"], ["10:00", "10:00"], ["11:00", "11:00"], ["14:00", "14:00"], ["15:00", "15:00"], ["16:00", "16:00"]]),
-      { id: "booking_notes", type: "TextArea", name: "notes", label: "Observações (opcional)", required: false },
+      { id: "booking_notes", type: "TextArea", name: "notes", label: "Observações", required: false },
     ]),
     mapping: { customFields: { appointment_service: "service", appointment_date: "date", appointment_time: "time", appointment_notes: "notes" } },
   },
@@ -170,7 +170,7 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
     definition: screen("Pesquisa", "De 0 a 10, o quanto você recomendaria a gente?", "Enviar pesquisa", [
       body("nps_intro", "De 0 a 10, o quanto você recomendaria a gente para um amigo?"),
       choices("nps_score", "RadioButtonsGroup", "nps_score", "Nota", Array.from({ length: 11 }, (_, value) => [String(value), String(value)])),
-      { id: "nps_comment", type: "TextArea", name: "nps_comment", label: "Quer contar o motivo? (opcional)", required: false },
+      { id: "nps_comment", type: "TextArea", name: "nps_comment", label: "Conte o motivo", required: false },
     ]),
     mapping: { customFields: { nps_score: "nps_score", nps_comment: "nps_comment" } },
   },

@@ -30,6 +30,15 @@ describe("validador completo de Flow JSON", () => {
     expect(validateFlowJson(dynamicBookingFlowJson("4.0"))).toEqual([]);
   });
 
+  it("exige boolean em visible e tela terminal também em Flow dinâmico", () => {
+    const flow = dynamicBookingFlowJson() as Record<string, any>;
+    flow.screens[0].data.show_error.type = "string";
+    flow.screens.at(-1).terminal = false;
+    const codes = validateFlowJson(flow).map((issue) => issue.code);
+    expect(codes).toContain("INVALID_VISIBLE_BINDING_TYPE");
+    expect(codes).toContain("MISSING_TERMINAL");
+  });
+
   it("rejeita SUCCESS físico, binding desconhecido e ausência de terminal", () => {
     const flow = staticFlow() as Record<string, any>;
     flow.screens[0].id = "SUCCESS";

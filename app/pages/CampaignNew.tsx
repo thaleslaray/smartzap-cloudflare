@@ -53,6 +53,7 @@ type Template = {
   category: string;
   status: string;
   requiresParameters: boolean;
+  simpleSendSupported?: boolean;
   components?: unknown;
 };
 type TestContactResponse = { contact: { name: string; phone: string } | null };
@@ -318,7 +319,7 @@ export default function CampaignNew() {
   });
 
   const approved = (templates.data?.items ?? []).filter(
-    (t) => t.status === "APPROVED",
+    (t) => t.status === "APPROVED" && t.simpleSendSupported === true,
   );
   const matchingTemplates = approved.filter(
     (template) =>

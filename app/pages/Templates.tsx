@@ -33,6 +33,7 @@ import {
   focusRing,
   inputClass,
 } from "../components/ui";
+import { isSimpleTemplateCategory } from "../../shared/template-validation";
 
 type Component = {
   type?: string;
@@ -49,7 +50,15 @@ type Template = {
   components?: Component[] | null;
   synced_at?: string;
   quality_score?: string | null;
+  quality_updated_at?: string | null;
+  status_reason?: string | null;
+  status_detail?: string | null;
+  status_recommendation?: string | null;
+  pending_category?: string | null;
+  category_update_at?: number | null;
   requiresParameters: boolean;
+  simpleEditorSupported?: boolean;
+  simpleSendSupported?: boolean;
   source?: "meta" | "draft";
 };
 type Tab = "meta" | "flows" | "forms" | "projects";
@@ -74,6 +83,34 @@ const selectionKey = (template: Template) =>
   template.source === "draft" && template.id
     ? `draft:${template.id}`
     : `meta:${template.name}:${template.language}`;
+const attentionStatuses = new Set([
+  "REJECTED",
+  "FLAGGED",
+  "PAUSED",
+  "DISABLED",
+  "LOCKED",
+  "LIMIT_EXCEEDED",
+  "DELETED",
+  "PENDING_DELETION",
+]);
+const templateDiagnostic = (template: Template) => {
+  if (template.status === "APPROVED") return null;
+  if (template.status_detail) return template.status_detail;
+  if (template.status_reason)
+    return `Motivo informado pela Meta: ${template.status_reason}.`;
+  const fallback: Record<string, string> = {
+    REJECTED: "A Meta rejeitou este template. Revise o conteúdo antes de reenviá-lo para análise.",
+    FLAGGED: "A qualidade deste template está em risco. Revise o conteúdo e o público antes de novos envios.",
+    PAUSED: "A Meta pausou este template. Novos envios estão bloqueados até a reativação oficial.",
+    DISABLED: "A Meta desativou este template. Ele não pode ser enviado.",
+    LOCKED: "A Meta bloqueou a edição deste template.",
+    LIMIT_EXCEEDED: "O limite de templates da conta foi atingido.",
+    DELETED: "Este template foi excluído na Meta.",
+    PENDING_DELETION: "A exclusão deste template está em processamento na Meta.",
+    ARCHIVED: "Este template foi arquivado por inatividade e não está disponível para envio.",
+  };
+  return fallback[template.status] ?? null;
+};
 
 export default function Templates() {
   const qc = useQueryClient();
@@ -171,6 +208,7 @@ export default function Templates() {
       PENDING: all.filter((t) => ["PENDING", "IN_APPEAL"].includes(t.status))
         .length,
       REJECTED: all.filter((t) => t.status === "REJECTED").length,
+      ATTENTION: all.filter((t) => attentionStatuses.has(t.status)).length,
       DRAFT: all.filter((template) => template.source === "draft").length,
       ALL: all.length,
     }),
@@ -184,7 +222,8 @@ export default function Templates() {
             categoryLabel(template.category) === category) &&
           (status === "ALL" ||
             template.status === status ||
-            (status === "PENDING" && template.status === "IN_APPEAL")) &&
+            (status === "PENDING" && template.status === "IN_APPEAL") ||
+            (status === "ATTENTION" && attentionStatuses.has(template.status))) &&
           template.name.toLowerCase().includes(search.trim().toLowerCase()),
       ),
     [all, category, status, search],
@@ -252,7 +291,7 @@ export default function Templates() {
           ) : activeTab === "flows" ? (
             <div className="flex gap-2">
               <button
-                className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-4 py-2 text-sm font-medium text-white"
+                className="inline-flex items-center gap-2 rounded-xl bg-primary-700 px-4 py-2 text-sm font-medium text-white hover:bg-primary-800"
                 disabled={quickCreateFlow.isPending}
                 onClick={() => quickCreateFlow.mutate()}
               >
@@ -275,7 +314,7 @@ export default function Templates() {
                 <ClipboardList size={16} /> Ver respostas
               </button>
               <button
-                className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-4 py-2 text-sm font-medium text-white"
+                className="inline-flex items-center gap-2 rounded-xl bg-primary-700 px-4 py-2 text-sm font-medium text-white hover:bg-primary-800"
                 onClick={() => setShowForm(true)}
               >
                 <Plus size={16} /> Criar formulário
@@ -284,7 +323,7 @@ export default function Templates() {
           ) : (
             <div className="flex gap-2">
               <button
-                className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-4 py-2 text-sm font-medium text-white"
+                className="inline-flex items-center gap-2 rounded-xl bg-primary-700 px-4 py-2 text-sm font-medium text-white hover:bg-primary-800"
                 onClick={() => navigate("/templates/new")}
               >
                 <Plus size={16} /> Novo Projeto
@@ -360,6 +399,7 @@ export default function Templates() {
                       ["APPROVED", "Aprovados"],
                       ["PENDING", "Em análise"],
                       ["REJECTED", "Rejeitados"],
+                      ["ATTENTION", "Exigem atenção"],
                       ["DRAFT", "Rascunhos"],
                       ["ALL", "Todos"],
                     ] as const
@@ -588,7 +628,7 @@ function TemplateRow({
         </div>
       </td>
       <td className="px-2 py-4" onClick={() => onView(template)}>
-        <Status status={template.status} />
+        <Status status={template.status} diagnostic={templateDiagnostic(template)} />
       </td>
       <td className="px-2 py-4" onClick={() => onView(template)}>
         <Category value={template.category} />
@@ -612,13 +652,15 @@ function TemplateRow({
           <IconButton label="Ver detalhes" onClick={() => onView(template)}>
             <Eye size={16} />
           </IconButton>
-          <IconButton
-            label={template.source === "draft" ? "Editar rascunho" : "Clonar"}
-            onClick={onClone}
-          >
-            <Copy size={16} />
-          </IconButton>
-          {template.status === "APPROVED" && (
+          {isSimpleTemplateCategory(template.category) && (
+            <IconButton
+              label={template.source === "draft" ? "Editar rascunho" : "Clonar"}
+              onClick={onClone}
+            >
+              <Copy size={16} />
+            </IconButton>
+          )}
+          {template.status === "APPROVED" && template.simpleSendSupported === true && (
             <IconButton label="Criar campanha" onClick={onCampaign}>
               <Megaphone size={16} />
             </IconButton>
@@ -682,7 +724,7 @@ function TemplateCard({
             </span>
           </span>
         </button>
-        <Status status={template.status} />
+        <Status status={template.status} diagnostic={templateDiagnostic(template)} />
       </div>
       <p className="mt-3 line-clamp-2 text-sm text-[var(--ds-text-secondary)]">
         {bodyText(template)}
@@ -697,13 +739,15 @@ function TemplateCard({
           <IconButton label="Ver detalhes" onClick={() => onView(template)}>
             <Eye size={16} />
           </IconButton>
-          <IconButton
-            label={template.source === "draft" ? "Editar rascunho" : "Clonar"}
-            onClick={onClone}
-          >
-            <Copy size={16} />
-          </IconButton>
-          {template.status === "APPROVED" && (
+          {isSimpleTemplateCategory(template.category) && (
+            <IconButton
+              label={template.source === "draft" ? "Editar rascunho" : "Clonar"}
+              onClick={onClone}
+            >
+              <Copy size={16} />
+            </IconButton>
+          )}
+          {template.status === "APPROVED" && template.simpleSendSupported === true && (
             <IconButton label="Criar campanha" onClick={onCampaign}>
               <Megaphone size={16} />
             </IconButton>
@@ -720,17 +764,40 @@ function TemplateCard({
     </div>
   );
 }
-function Status({ status }: { status: string }) {
+function Status({
+  status,
+  diagnostic,
+}: {
+  status: string;
+  diagnostic?: string | null;
+}) {
   const ok = status === "APPROVED";
-  const rejected = status === "REJECTED";
+  const rejected = ["REJECTED", "DISABLED", "DELETED", "PENDING_DELETION"].includes(status);
+  const labels: Record<string, string> = {
+    APPROVED: "Aprovado",
+    PENDING: "Em análise",
+    IN_APPEAL: "Em recurso",
+    REJECTED: "Rejeitado",
+    FLAGGED: "Em risco",
+    PAUSED: "Pausado",
+    DISABLED: "Desativado",
+    LOCKED: "Bloqueado",
+    LIMIT_EXCEEDED: "Limite atingido",
+    ARCHIVED: "Arquivado",
+    UNARCHIVED: "Reativado",
+    DELETED: "Excluído",
+    PENDING_DELETION: "Exclusão pendente",
+    DRAFT: "Rascunho",
+  };
   return (
     <span
+      title={diagnostic ?? undefined}
       className={`inline-flex w-fit items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-px text-[10px] font-medium ${ok ? "bg-emerald-500/10 text-[var(--ds-status-success-text)]" : rejected ? "bg-red-500/10 text-[var(--ds-status-error-text)]" : "bg-amber-500/10 text-[var(--ds-status-warning-text)]"}`}
     >
       <span
         className={`h-1.5 w-1.5 rounded-full ${ok ? "bg-emerald-400" : rejected ? "bg-red-400" : "bg-amber-400"}`}
       />
-      {ok ? "Aprovado" : rejected ? "Rejeitado" : "Em Análise"}
+      {labels[status] ?? status}
     </span>
   );
 }
@@ -838,7 +905,7 @@ function DetailsModal({
             {template.name}
           </h2>
           <div className="mt-2 flex gap-2">
-            <Status status={template.status} />
+            <Status status={template.status} diagnostic={templateDiagnostic(template)} />
             <Category value={template.category} />
             <span className="text-xs text-zinc-500">{template.language}</span>
           </div>
@@ -847,6 +914,36 @@ function DetailsModal({
           <X size={18} />
         </button>
       </div>
+      {(templateDiagnostic(template) || template.pending_category || template.quality_score) && (
+        <div className="mt-5 space-y-2 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 text-sm">
+          {templateDiagnostic(template) && (
+            <p className="text-amber-100">{templateDiagnostic(template)}</p>
+          )}
+          {template.status_recommendation && (
+            <p className="text-[var(--ds-text-secondary)]">
+              <strong className="text-[var(--ds-text-primary)]">Como corrigir:</strong>{" "}
+              {template.status_recommendation}
+            </p>
+          )}
+          {template.pending_category && (
+            <p className="text-[var(--ds-text-secondary)]">
+              A Meta programou a mudança de categoria para{" "}
+              <strong className="text-[var(--ds-text-primary)]">
+                {categoryLabel(template.pending_category)}
+              </strong>
+              {template.category_update_at
+                ? ` em ${new Date(template.category_update_at * 1000).toLocaleString("pt-BR")}`
+                : ""}.
+            </p>
+          )}
+          {template.quality_score && (
+            <p className="text-[var(--ds-text-secondary)]">
+              Qualidade informada pela Meta:{" "}
+              <strong className="text-[var(--ds-text-primary)]">{template.quality_score}</strong>.
+            </p>
+          )}
+        </div>
+      )}
       <div className="mt-6 rounded-xl border border-zinc-800 bg-zinc-950 p-5">
         <p className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-300">
           {fillPreview(bodyText(template))}
@@ -863,10 +960,17 @@ function DetailsModal({
           ))}
       </div>
       <div className="mt-6 flex justify-end gap-2">
+        {template.simpleSendSupported !== true && (
+          <p className="mr-auto max-w-sm text-xs text-amber-300">
+            {!isSimpleTemplateCategory(template.category)
+              ? "Somente leitura: Autenticação exige o fluxo especializado de OTP da Meta."
+              : "Envio indisponível: este modelo exige mídia, OTP, Flow ou outro componente fora do envio simples."}
+          </p>
+        )}
         <button className={btnSecondary} onClick={onClose}>
           Fechar
         </button>
-        {template.status === "APPROVED" && (
+        {template.status === "APPROVED" && template.simpleSendSupported === true && (
           <button className={btnPrimary} onClick={onCampaign}>
             <Megaphone size={15} /> Criar campanha
           </button>
@@ -1971,12 +2075,16 @@ type ProjectItem = {
   strategy: "marketing" | "utility" | "bypass";
   template_count: number;
   approved_count: number;
+  status: string;
   created_at: string;
+  updated_at: string;
 };
 function ProjectsTab({ onCreate }: { onCreate: () => void }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
+  const [deleting, setDeleting] = useState<ProjectItem | null>(null);
+  const [operationError, setOperationError] = useState("");
   const query = useQuery({
     queryKey: ["template-projects"],
     queryFn: () => api<{ items: ProjectItem[] }>("/api/template-projects"),
@@ -1984,15 +2092,20 @@ function ProjectsTab({ onCreate }: { onCreate: () => void }) {
   const remove = useMutation({
     mutationFn: (id: string) =>
       api(`/api/template-projects/${id}`, { method: "DELETE" }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["template-projects"] }),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["template-projects"] });
+      setDeleting(null);
+      setOperationError("");
+    },
+    onError: (error) => setOperationError(error.message),
   });
   const items = (query.data?.items ?? []).filter((p) =>
     p.title.toLowerCase().includes(search.toLowerCase()),
   );
   return (
     <>
-      <Card className="flex items-center justify-between p-6">
-        <label className="flex w-96 items-center gap-3 rounded-xl border border-zinc-700 px-4 py-3">
+      <Card className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+        <label className="flex w-full items-center gap-3 rounded-xl border border-zinc-700 px-4 py-3 sm:max-w-96">
           <Search size={18} className="text-zinc-500" />
           <input
             value={search}
@@ -2010,8 +2123,10 @@ function ProjectsTab({ onCreate }: { onCreate: () => void }) {
           <RefreshCw size={18} />
         </button>
       </Card>
+      {query.error && <PageError message={query.error.message} />}
+      {operationError && <PageError message={operationError} />}
       <Card className="overflow-hidden">
-        <div className="grid grid-cols-[minmax(220px,1.3fr)_130px_150px_90px_180px_130px_100px] gap-4 border-b border-zinc-800 px-6 py-4 text-xs uppercase tracking-widest text-zinc-500">
+        <div className="hidden grid-cols-[minmax(220px,1.3fr)_130px_150px_90px_180px_130px_100px] gap-4 border-b border-zinc-800 px-6 py-4 text-xs uppercase tracking-widest text-zinc-500 lg:grid">
           <span>Nome</span>
           <span>Tipo</span>
           <span>Status</span>
@@ -2029,15 +2144,13 @@ function ProjectsTab({ onCreate }: { onCreate: () => void }) {
                 ? Math.round((p.approved_count / p.template_count) * 100)
                 : 0;
               return (
-                <div
-                  key={p.id}
-                  className="grid min-h-[64px] grid-cols-[minmax(220px,1.3fr)_130px_150px_90px_180px_130px_100px] items-center gap-4 px-6 text-sm"
-                >
-                  <span className="flex items-center gap-3">
+                <div key={p.id}>
+                  <div className="hidden min-h-[64px] grid-cols-[minmax(220px,1.3fr)_130px_150px_90px_180px_130px_100px] items-center gap-4 px-6 text-sm lg:grid">
+                  <span className="flex min-w-0 items-center gap-3">
                     <span className="rounded-lg bg-primary-950 p-2 text-primary-400">
                       <LayoutGrid size={15} />
                     </span>
-                    {p.title}
+                    <span className="truncate">{p.title}</span>
                   </span>
                   <span className="w-fit rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-xs text-amber-400">
                     {p.strategy === "marketing"
@@ -2047,11 +2160,7 @@ function ProjectsTab({ onCreate }: { onCreate: () => void }) {
                         : "Camuflado"}
                   </span>
                   <span className="w-fit rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-xs text-amber-400">
-                    {percent === 100
-                      ? "Concluído"
-                      : percent
-                        ? "Em Progresso"
-                        : "Rascunho"}
+                    {p.status === "completed" ? "Concluído" : p.status === "active" ? "Em andamento" : "Rascunho"}
                   </span>
                   <span className="text-center text-zinc-400">
                     {p.template_count}
@@ -2077,11 +2186,32 @@ function ProjectsTab({ onCreate }: { onCreate: () => void }) {
                     </IconButton>
                     <IconButton
                       label="Excluir"
-                      onClick={() => remove.mutate(p.id)}
+                      onClick={() => setDeleting(p)}
                     >
                       <Trash2 size={15} />
                     </IconButton>
                   </span>
+                  </div>
+                  <div className="space-y-4 p-4 lg:hidden">
+                    <div className="flex items-start gap-3">
+                      <span className="rounded-lg bg-primary-950 p-2 text-primary-400"><LayoutGrid size={16} /></span>
+                      <div className="min-w-0 flex-1">
+                        <p className="break-words text-sm font-semibold">{p.title}</p>
+                        <p className="mt-1 text-xs text-zinc-500">Atualizado em {new Date(p.updated_at || p.created_at).toLocaleDateString("pt-BR")}</p>
+                      </div>
+                      <IconButton label="Editar" onClick={() => navigate(`/templates/${p.id}`)}><Pencil size={15} /></IconButton>
+                      <IconButton label="Excluir" onClick={() => setDeleting(p)}><Trash2 size={15} /></IconButton>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                      <span className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-amber-400">{p.strategy === "marketing" ? "Marketing" : p.strategy === "utility" ? "Utilidade" : "Legado"}</span>
+                      <span className="rounded-md border border-zinc-700 px-2 py-1 text-zinc-300">{p.status === "completed" ? "Concluído" : p.status === "active" ? "Em andamento" : "Rascunho"}</span>
+                      <span className="text-zinc-400">{p.template_count} template(s)</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-800"><span className="block h-full bg-primary-500" style={{ width: `${percent}%` }} /></span>
+                      <span className="text-xs text-zinc-400">{percent}%</span>
+                    </div>
+                  </div>
                 </div>
               );
             })}
@@ -2096,6 +2226,20 @@ function ProjectsTab({ onCreate }: { onCreate: () => void }) {
           </div>
         )}
       </Card>
+      {deleting && (
+        <Modal titleId="delete-template-project-title" onClose={() => setDeleting(null)}>
+          <h2 id="delete-template-project-title" className="text-lg font-semibold">Excluir projeto?</h2>
+          <p className="mt-2 text-sm text-zinc-400">
+            O projeto <strong className="text-white">{deleting.title}</strong> e seus rascunhos locais serão removidos. Projetos com templates publicados na Meta são protegidos e não podem ser excluídos aqui.
+          </p>
+          <div className="mt-6 flex justify-end gap-2">
+            <button className={btnSecondary} onClick={() => setDeleting(null)}>Cancelar</button>
+            <button className={btnDanger} disabled={remove.isPending} onClick={() => remove.mutate(deleting.id)}>
+              <Trash2 size={15} /> {remove.isPending ? "Excluindo…" : "Excluir projeto"}
+            </button>
+          </div>
+        </Modal>
+      )}
     </>
   );
 }

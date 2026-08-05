@@ -168,6 +168,59 @@ describe('resolveAudience', () => {
 })
 
 describe('campaigns API', () => {
+  it('bloqueia template de autenticação antes de criar campanha', async () => {
+    const templateName = `auth_campaign_${crypto.randomUUID()}`
+    await env.DB.prepare(
+      `INSERT INTO templates (name, language, category, status, components)
+       VALUES (?1, 'pt_BR', 'AUTHENTICATION', 'APPROVED', ?2)`
+    ).bind(templateName, JSON.stringify([
+      { type: 'BODY', text: '*{{1}}* é seu código de verificação.' },
+      { type: 'BUTTONS', buttons: [{ type: 'OTP', otp_type: 'COPY_CODE', text: 'Copiar código' }] },
+    ])).run()
+
+    const response = await SELF.fetch('https://x.com/api/campaigns', {
+      method: 'POST', headers: AUTH,
+      body: JSON.stringify({
+        name: 'Campanha OTP indevida',
+        template_name: templateName,
+        template_language: 'pt_BR',
+        variable_mapping: { 'body.1': { source: 'fixed', value: '123456' } },
+      }),
+    })
+
+    expect(response.status).toBe(409)
+    expect(await response.json()).toMatchObject({
+      code: 'AUTHENTICATION_TEMPLATE_UNSUPPORTED',
+    })
+    expect(await env.DB.prepare(
+      'SELECT COUNT(*) AS total FROM campaigns WHERE template_name = ?1',
+    ).bind(templateName).first()).toEqual({ total: 0 })
+  })
+
+  it('bloqueia contrato com mídia antes de criar campanha', async () => {
+    const templateName = `video_campaign_${crypto.randomUUID()}`
+    await env.DB.prepare(
+      `INSERT INTO templates (name, language, category, status, components)
+       VALUES (?1, 'pt_BR', 'MARKETING', 'APPROVED', ?2)`,
+    ).bind(templateName, JSON.stringify([
+      { type: 'HEADER', format: 'VIDEO', example: { header_handle: ['meta-video'] } },
+      { type: 'BODY', text: 'Olá {{1}}' },
+    ])).run()
+    const response = await SELF.fetch('https://x.com/api/campaigns', {
+      method: 'POST', headers: AUTH,
+      body: JSON.stringify({
+        name: 'Campanha com vídeo indevida', template_name: templateName,
+        template_language: 'pt_BR',
+        variable_mapping: { 'body.1': { source: 'fixed', value: 'cliente' } },
+      }),
+    })
+    expect(response.status).toBe(409)
+    expect(await response.json()).toMatchObject({ code: 'TEMPLATE_CONTRACT_UNSUPPORTED' })
+    expect(await env.DB.prepare(
+      'SELECT COUNT(*) AS total FROM campaigns WHERE template_name = ?1',
+    ).bind(templateName).first()).toEqual({ total: 0 })
+  })
+
   it('exige idioma quando existem variantes e persiste a escolha exata', async () => {
     const templateName = `multi_campaign_${crypto.randomUUID()}`
     await env.DB.batch([

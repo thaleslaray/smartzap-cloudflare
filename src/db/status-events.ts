@@ -76,6 +76,12 @@ export async function ensureStatusEventReconciliationSchema(db: D1Database) {
 
 export function statusEventsDb(db: D1Database) {
   return {
+    async applyState(eventKey: string): Promise<string | null> {
+      const row = await db.prepare(
+        'SELECT apply_state FROM status_events WHERE event_key=?1 LIMIT 1',
+      ).bind(eventKey).first<{ apply_state: string }>()
+      return row?.apply_state ?? null
+    },
     async insertMany(events: WebhookEventRecord[]) {
       if (!events.length) return
       for (let offset = 0; offset < events.length; offset += 50) {

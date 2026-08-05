@@ -78,9 +78,9 @@
     "TMP": {
       "risk": "P1",
       "owners": ["templates"],
-      "tests": ["tests/templates.test.ts", "tests/template-render.test.ts", "tests/template-variables.test.ts", "tests/template-factory.test.ts", "e2e/template-draft-editor.spec.ts"],
-      "evidence": ["api", "ui", "meta-contract"],
-      "invalidatedBy": ["src/api/templates.ts", "src/domain/template.ts", "shared/template-validation.ts", "app/pages/Templates.tsx", "app/pages/TemplateDraft.tsx"]
+      "tests": ["tests/templates.test.ts", "tests/template-render.test.ts", "tests/template-variables.test.ts", "tests/template-validation.test.ts", "tests/template-factory.test.ts", "tests/webhook.test.ts", "e2e/template-draft-editor.spec.ts", "e2e/template-lifecycle.spec.ts"],
+      "evidence": ["api", "ui", "meta-contract", "signed-webhook", "provider-real"],
+      "invalidatedBy": ["src/api/templates.ts", "src/api/webhook.ts", "src/queue/webhook-consumer.ts", "src/db/templates.ts", "src/domain/template.ts", "shared/template-validation.ts", "app/pages/Templates.tsx", "app/pages/TemplateDraft.tsx"]
     },
     "PRJ": {
       "risk": "P1",
@@ -141,9 +141,9 @@
     "MINI": {
       "risk": "P1",
       "owners": ["miniapps"],
-      "tests": ["tests/flow-endpoint.test.ts", "tests/flow-generator.test.ts", "tests/domain/flow-json-matrix.test.ts", "e2e/flow-component-matrix.spec.ts", "e2e/flow-editor-parity.spec.ts"],
-      "evidence": ["api", "ui", "flow-json", "meta-contract"],
-      "invalidatedBy": ["src/api/flow-endpoint.ts", "src/api/automation-assets.ts", "src/domain/flow-validation.ts", "app/pages/FlowBuilder.tsx", "app/pages/FlowBuilderHome.tsx"]
+      "tests": ["tests/flow-endpoint.test.ts", "tests/flow-generator.test.ts", "tests/domain/flow-json-matrix.test.ts", "tests/domain/miniapps-functional-matrix.test.ts", "tests/automation-assets.test.ts", "e2e/flow-component-matrix.spec.ts", "e2e/flow-editor-parity.spec.ts", "e2e/flow-template-modal.spec.ts", "scripts/qa-miniapps-meta-canary.mjs"],
+      "evidence": ["api", "ui", "flow-json", "meta-contract", "provider-real", "cleanup"],
+      "invalidatedBy": ["src/api/flow-endpoint.ts", "src/api/automation-assets.ts", "src/domain/flow-definition.ts", "src/domain/flow-validation.ts", "src/whatsapp/flows.ts", "app/lib/flow-templates.ts", "app/pages/FlowBuilder.tsx", "app/pages/FlowBuilderHome.tsx", "qa/miniapps-functional-matrix.json"]
     },
     "FORM": {
       "risk": "P1",
@@ -170,7 +170,7 @@
       "risk": "P2",
       "owners": ["calendar"],
       "tests": ["tests/google-calendar.test.ts"],
-      "evidence": ["contract", "blocked-real-oauth"],
+      "evidence": ["contract", "oauth-consent", "provider-real", "encrypted-flow", "cleanup"],
       "invalidatedBy": ["src/api/google-calendar.ts", "src/integrations/google-calendar.ts"]
     },
     "WEB": {

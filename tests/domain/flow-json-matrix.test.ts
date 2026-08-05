@@ -18,7 +18,7 @@ const everySupportedBlock = [
   { type: "TextInput", name: "telefone", label: "Telefone", inputType: "phone" },
   { type: "TextInput", name: "numero", label: "Número", inputType: "number" },
   { type: "TextArea", name: "observacoes", label: "Observações" },
-  { type: "DatePicker", name: "data", label: "Data" },
+  { type: "CalendarPicker", name: "data", label: "Data" },
   { type: "Dropdown", name: "lista", label: "Lista", options: options(3) },
   { type: "RadioButtonsGroup", name: "unica", label: "Escolha única", options: options(3) },
   { type: "CheckboxGroup", name: "multipla", label: "Múltipla escolha", options: options(3) },
@@ -57,7 +57,7 @@ describe("matriz completa do gerador de MiniApps", () => {
     expect(validateFlowJson(flow)).toEqual([]);
     expect(flow.screens).toHaveLength(2);
     expect(JSON.stringify(flow)).toContain("CheckboxGroup");
-    expect(JSON.stringify(flow)).toContain("DatePicker");
+    expect(JSON.stringify(flow)).toContain("CalendarPicker");
     expect(JSON.stringify(flow)).toContain("OptIn");
     const optIn = flow.screens[0].layout.children[0].children.find(
       (component: Record<string, unknown>) => component.type === "OptIn",
@@ -91,12 +91,12 @@ describe("matriz completa do gerador de MiniApps", () => {
     expect(JSON.stringify(flow)).toContain("data_exchange");
   });
 
-  it("limita opções aos máximos aceitos pela Meta", () => {
+  it("aceita opções no máximo e recusa máximo mais um sem truncar", () => {
     const definition = twoScreenDefinition();
     definition.screens[0].blocks = [
-      { type: "Dropdown", name: "lista", label: "Lista", options: options(205) },
-      { type: "RadioButtonsGroup", name: "radio", label: "Escolha", options: options(25) },
-      { type: "CheckboxGroup", name: "checks", label: "Opções", options: options(25) },
+      { type: "Dropdown", name: "lista", label: "Lista", options: options(200) },
+      { type: "RadioButtonsGroup", name: "radio", label: "Escolha", options: options(20) },
+      { type: "CheckboxGroup", name: "checks", label: "Opções", options: options(20) },
     ];
     const flow = buildMetaFlowJson(definition) as Record<string, any>;
     const components = flow.screens[0].layout.children[0].children;
@@ -105,6 +105,12 @@ describe("matriz completa do gerador de MiniApps", () => {
     expect(components.find((item: any) => item.type === "RadioButtonsGroup")["data-source"]).toHaveLength(20);
     expect(components.find((item: any) => item.type === "CheckboxGroup")["data-source"]).toHaveLength(20);
     expect(validateFlowJson(flow)).toEqual([]);
+
+    const excessive = twoScreenDefinition();
+    excessive.screens[0].blocks = [
+      { type: "Dropdown", name: "lista", label: "Lista", options: options(201) },
+    ];
+    expect(() => buildMetaFlowJson(excessive)).toThrow(/TOO_MANY_OPTIONS/);
   });
 
   it("aceita dez telas e bloqueia a décima primeira", () => {

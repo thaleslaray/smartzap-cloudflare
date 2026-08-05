@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { chmodSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { randomBytes } from "node:crypto";
 
 const root = resolve(import.meta.dirname, "..");
 
@@ -25,7 +26,24 @@ function readEnv(path) {
 }
 
 const runtime = readEnv(resolve(root, ".dev.vars"));
-const qa = readEnv(resolve(root, ".dev.vars.qa.local"));
+const qaPath = resolve(root, ".dev.vars.qa.local");
+const qa = readEnv(qaPath);
+
+const generatedCredentials = {};
+if (!process.env.QA_STAGING_MASTER_PASSWORD && !qa.QA_STAGING_MASTER_PASSWORD)
+  generatedCredentials.QA_STAGING_MASTER_PASSWORD = randomBytes(32).toString("base64url");
+if (!process.env.QA_STAGING_API_KEY && !qa.QA_STAGING_API_KEY)
+  generatedCredentials.QA_STAGING_API_KEY = randomBytes(32).toString("base64url");
+if (Object.keys(generatedCredentials).length) {
+  const current = readFileSync(qaPath, "utf8").trimEnd();
+  const appended = Object.entries(generatedCredentials)
+    .map(([key, value]) => `${key}=${value}`)
+    .join("\n");
+  writeFileSync(qaPath, `${current}\n${appended}\n`, { mode: 0o600 });
+  chmodSync(qaPath, 0o600);
+  Object.assign(qa, generatedCredentials);
+  console.log("Credenciais técnicas exclusivas foram geradas e guardadas no arquivo privado de QA.");
+}
 const recipients = (qa.QA_META_ALLOWLIST || "")
   .split(",")
   .map((phone) => phone.trim())

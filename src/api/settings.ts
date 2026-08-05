@@ -374,6 +374,21 @@ export const settingsRoutes = new Hono<{ Bindings: Env }>()
       Boolean(c.env.TURNSTILE_SECRET && c.env.TURNSTILE_SITE_KEY);
     const pilot = pilotConfiguration(c.env);
     const ai = aiConfiguration(c.env);
+    const [knowledgeCounts, agentCounts, aiGlobalSetting] = await Promise.all([
+      c.env.DB.prepare(
+        `SELECT COUNT(*) AS total,
+                SUM(CASE WHEN status='ready' THEN 1 ELSE 0 END) AS ready,
+                SUM(CASE WHEN status='indexing' THEN 1 ELSE 0 END) AS indexing,
+                SUM(CASE WHEN status='failed' THEN 1 ELSE 0 END) AS failed
+         FROM knowledge_documents WHERE status<>'deleted'`,
+      ).first<{ total: number; ready: number | null; indexing: number | null; failed: number | null }>(),
+      c.env.DB.prepare(
+        `SELECT COUNT(*) AS total,
+                SUM(CASE WHEN active=1 THEN 1 ELSE 0 END) AS active
+         FROM ai_agents`,
+      ).first<{ total: number; active: number | null }>(),
+      settingsDb(c.env.DB).get("ai_global_enabled"),
+    ]);
     const pilotRun = await pilotRunConfiguration(c.env.DB).catch(() => ({
       active: false,
       label: null,
@@ -453,6 +468,18 @@ export const settingsRoutes = new Hono<{ Bindings: Env }>()
         configured: ai.configured,
         ready: ai.ready,
         model: ai.model,
+      },
+      knowledge: {
+        searchConfigured: Boolean(c.env.AI_SEARCH),
+        total: Number(knowledgeCounts?.total ?? 0),
+        ready: Number(knowledgeCounts?.ready ?? 0),
+        indexing: Number(knowledgeCounts?.indexing ?? 0),
+        failed: Number(knowledgeCounts?.failed ?? 0),
+      },
+      agents: {
+        globalEnabled: aiGlobalSetting === "true",
+        total: Number(agentCounts?.total ?? 0),
+        active: Number(agentCounts?.active ?? 0),
       },
       readyForPilot:
         databaseOk &&

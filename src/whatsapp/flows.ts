@@ -1,12 +1,13 @@
 import { redactOperationalDetail } from "../domain/redaction";
 import { dynamicBookingFlowJson } from "./dynamic-booking";
 import { validateFlowJson, type FlowValidationIssue } from "../domain/flow-validation";
+import { assertLocalFlowDefinition } from "../domain/flow-definition";
 
 const GRAPH_ORIGIN = "https://graph.facebook.com";
 const META_TIMEOUT_MS = 20_000;
 const META_INPUT_COMPONENTS = new Set([
   "TextInput", "TextArea", "Dropdown", "RadioButtonsGroup",
-  "CheckboxGroup", "CalendarPicker", "DatePicker", "OptIn",
+  "CheckboxGroup", "CalendarPicker", "OptIn",
 ]);
 const META_TEXT_LIMITS: Record<string, number> = {
   TextHeading: 80,
@@ -21,7 +22,6 @@ const META_LABEL_LIMITS: Record<string, number> = {
   RadioButtonsGroup: 30,
   CheckboxGroup: 30,
   CalendarPicker: 40,
-  DatePicker: 40,
 };
 
 type LocalScreen = {
@@ -123,8 +123,9 @@ function metaScreenId(index: number): string {
   return `SCREEN_${suffix}`;
 }
 
-function renderMetaBlock(value: unknown, index: number): Record<string, unknown> | null {
-  if (!value || typeof value !== "object") return null;
+function renderMetaBlock(value: unknown, index: number): Record<string, unknown> {
+  if (!value || typeof value !== "object")
+    throw new Error(`$.blocks[${index}] [INVALID_BLOCK]: O bloco precisa ser um objeto`);
   const block = value as Record<string, unknown>;
   const type = String(block.type ?? "");
   if (["TextHeading", "TextSubheading", "TextBody", "TextCaption"].includes(type))
@@ -144,10 +145,11 @@ function renderMetaBlock(value: unknown, index: number): Record<string, unknown>
       "RadioButtonsGroup",
       "CheckboxGroup",
       "CalendarPicker",
-      "DatePicker",
     ].includes(type)
   )
-    return null;
+    throw new Error(
+      `$.blocks[${index}].type [UNSUPPORTED_EDITOR_COMPONENT]: ${type || "componente ausente"} não é suportado pelo editor atual`,
+    );
   const rendered: Record<string, unknown> = {
     type,
     name: cleanText(block.name, `campo_${index + 1}`, 48),
@@ -190,6 +192,7 @@ export function buildMetaFlowJson(
     definition && typeof definition === "object"
       ? (definition as Record<string, unknown>)
       : {};
+  assertLocalFlowDefinition(source, {}, { requireScreens: true });
   if (source.dynamicBooking === true) return dynamicBookingFlowJson(dataApiVersion);
   const screens = Array.isArray(source.screens)
     ? (source.screens as LocalScreen[])
@@ -247,10 +250,19 @@ export function buildMetaFlowJson(
     const localScreenId = String(screen.id ?? "");
     const branches = branchesByScreen.get(localScreenId) ?? [];
     const terminal = branches.length === 0 && (Boolean(screen.final) || isLast || !next);
+    const formPayload = Object.fromEntries(
+      (Array.isArray(screen.blocks) ? screen.blocks : [])
+        .filter((block) => block && typeof block === "object")
+        .map((block) => block as Record<string, unknown>)
+        .filter((block) => META_INPUT_COMPONENTS.has(String(block.type)))
+        .map((block) => String(block.name ?? "").trim())
+        .filter(Boolean)
+        .map((name) => [name, `\${form.${name}}`]),
+    );
     const action = terminal
-        ? { name: "complete", payload: { flow_completed: true } }
+        ? { name: "complete", payload: { flow_completed: true, ...formPayload } }
       : branches.length > 0
-        ? { name: "data_exchange", payload: {} as Record<string, string> }
+        ? { name: "data_exchange", payload: { ...formPayload } as Record<string, string> }
         : {
             name: "navigate",
             next: { type: "screen", name: next },
@@ -261,17 +273,7 @@ export function buildMetaFlowJson(
     const blocks = Array.isArray(screen.blocks)
       ? screen.blocks
           .map((block, blockIndex) => renderMetaBlock(block, blockIndex))
-          .filter((block): block is Record<string, unknown> => Boolean(block))
       : [];
-    if (branches.length > 0) {
-      const payload = (action as { payload: Record<string, string> }).payload;
-      for (const block of Array.isArray(screen.blocks) ? screen.blocks : []) {
-        if (!block || typeof block !== "object") continue;
-        const name = (block as Record<string, unknown>).name;
-        if (typeof name === "string" && name)
-          payload[name] = `\${form.${name}}`;
-      }
-    }
     const destinations = new Set<string>();
     if (next) destinations.add(next);
     for (const branch of branches) {
@@ -461,6 +463,35 @@ export async function publishMetaFlow(params: {
 }): Promise<void> {
   await graphRequest(
     `${graphBase(params.version)}/${encodeURIComponent(params.flowId)}/publish`,
+    params.token,
+    { method: "POST" },
+  );
+}
+
+/**
+ * Remove um rascunho remoto. A Meta não permite apagar Flows publicados;
+ * nesses casos o chamador deve depreciá-los para que deixem de ficar ativos.
+ */
+export async function deleteMetaFlow(params: {
+  token: string;
+  version: string;
+  flowId: string;
+}): Promise<void> {
+  await graphRequest(
+    `${graphBase(params.version)}/${encodeURIComponent(params.flowId)}`,
+    params.token,
+    { method: "DELETE" },
+  );
+}
+
+/** Desativa definitivamente um Flow publicado sem tentar apagar seu histórico. */
+export async function deprecateMetaFlow(params: {
+  token: string;
+  version: string;
+  flowId: string;
+}): Promise<void> {
+  await graphRequest(
+    `${graphBase(params.version)}/${encodeURIComponent(params.flowId)}/deprecate`,
     params.token,
     { method: "POST" },
   );

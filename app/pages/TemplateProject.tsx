@@ -17,6 +17,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { api } from "../lib/api";
+import { positionalVariables } from "../../shared/template-validation";
 import {
   Card,
   Modal,
@@ -38,6 +39,7 @@ type ProjectItem = {
   meta_status: string | null;
   rejected_reason: string | null;
   variables: Record<string, string>;
+  sample_variables: Record<string, string>;
   buttons: Array<Record<string, unknown>>;
 };
 type Project = {
@@ -74,6 +76,7 @@ export default function TemplateProject() {
   const [preview, setPreview] = useState<ProjectItem | null>(null);
   const [editing, setEditing] = useState<ProjectItem | null>(null);
   const [creating, setCreating] = useState(false);
+  const [deletingItem, setDeletingItem] = useState<ProjectItem | null>(null);
   const [renaming, setRenaming] = useState(false);
   const [title, setTitle] = useState("");
   const [operationMessage, setOperationMessage] = useState("");
@@ -104,7 +107,12 @@ export default function TemplateProject() {
   const remove = useMutation({
     mutationFn: (itemId: string) =>
       api(`/api/template-projects/items/${itemId}`, { method: "DELETE" }),
-    onSuccess: refresh,
+    onSuccess: async () => {
+      await refresh();
+      setDeletingItem(null);
+      setOperationMessage("Template excluído do projeto.");
+    },
+    onError: (error) => setOperationMessage(error.message),
   });
   const sync = useMutation({
     mutationFn: () =>
@@ -201,6 +209,23 @@ export default function TemplateProject() {
       icon: Filter,
     },
   ];
+  const displayedGroups = groups
+    .map((group) => ({
+      ...group,
+      items:
+        section === "ALL"
+          ? group.items
+          : group.items.filter((item) =>
+              visible.some((candidate) => candidate.id === item.id),
+            ),
+    }))
+    .filter((group) => group.items.length > 0);
+  const statusLabel =
+    project.status === "completed"
+      ? "Concluído"
+      : project.status === "active"
+        ? "Em andamento"
+        : "Rascunho";
   return (
     <div className="pb-20">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
@@ -254,7 +279,7 @@ export default function TemplateProject() {
                       <Pencil size={16} />
                     </button>
                     <span className="shrink-0 rounded-full border border-white/10 bg-zinc-950/40 px-2 py-0.5 text-xs text-zinc-400">
-                      Em Progresso
+                      {statusLabel}
                     </span>
                   </div>
                   <p className="mt-1 text-sm text-zinc-400">
@@ -319,8 +344,8 @@ export default function TemplateProject() {
       )}
       <div className="mt-8 grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_1px_338px]">
         <div className="min-w-0">
-        <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {groups.map(({ id: kind, label, icon: Icon }) => {
+        <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            {sectionInfo.map(({ id: kind, label, icon: Icon }) => {
               const total = count(kind);
               const pct = project.template_count
                 ? Math.round((total / project.template_count) * 100)
@@ -334,8 +359,10 @@ export default function TemplateProject() {
               return (
                 <button
                   key={kind}
+                  aria-label={`Filtrar por ${label}`}
+                  aria-pressed={section === kind}
                   onClick={() => setSection(kind)}
-                  className={`h-24 min-w-0 overflow-hidden rounded-2xl border p-4 text-left ${tone}`}
+                  className={`h-24 min-w-0 overflow-hidden rounded-2xl border p-4 text-left ${tone} ${section === kind ? "ring-2 ring-primary-500/70" : ""}`}
                 >
                   <span className="flex items-center justify-between">
                     <Icon size={19} />
@@ -350,9 +377,7 @@ export default function TemplateProject() {
             })}
           </div>
           <Card className="mt-6 min-h-[522px] overflow-hidden">
-            {groups
-              .filter((group) => group.items.length > 0)
-              .map((group) => (
+            {displayedGroups.map((group) => (
                 <ProjectGroup
                   key={group.id}
                   group={group}
@@ -360,9 +385,14 @@ export default function TemplateProject() {
                   setSelected={setSelected}
                   setPreview={setPreview}
                   setEditing={setEditing}
-                  remove={(itemId) => remove.mutate(itemId)}
+                  remove={(item) => setDeletingItem(item)}
                 />
               ))}
+            {project.items.length > 0 && displayedGroups.length === 0 && (
+              <div className="py-20 text-center text-sm text-zinc-500">
+                Nenhum template neste filtro.
+              </div>
+            )}
             {project.items.length === 0 && (
               <div className="py-20 text-center">
                 <p className="text-sm text-zinc-500">
@@ -405,6 +435,31 @@ export default function TemplateProject() {
           onSaved={refresh}
         />
       )}{" "}
+      {deletingItem && (
+        <Modal
+          titleId="delete-project-item-title"
+          onClose={() => setDeletingItem(null)}
+        >
+          <h2 id="delete-project-item-title" className="text-lg font-semibold">
+            Excluir template do projeto?
+          </h2>
+          <p className="mt-2 text-sm text-zinc-400">
+            O rascunho <strong className="text-white">{deletingItem.name}</strong> será removido. Esta ação não pode ser desfeita.
+          </p>
+          <div className="mt-6 flex justify-end gap-2">
+            <button className={btnSecondary} onClick={() => setDeletingItem(null)}>
+              Cancelar
+            </button>
+            <button
+              className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-500 disabled:opacity-50"
+              disabled={remove.isPending}
+              onClick={() => remove.mutate(deletingItem.id)}
+            >
+              <Trash2 size={15} /> {remove.isPending ? "Excluindo…" : "Excluir rascunho"}
+            </button>
+          </div>
+        </Modal>
+      )}
       {preview && (
         <div className="lg:hidden">
           <Preview item={preview} onClose={() => setPreview(null)} />
@@ -432,7 +487,7 @@ function ProjectGroup({
   setSelected: React.Dispatch<React.SetStateAction<string[]>>;
   setPreview: (item: ProjectItem) => void;
   setEditing: (item: ProjectItem) => void;
-  remove: (id: string) => void;
+  remove: (item: ProjectItem) => void;
 }) {
   const [open, setOpen] = useState(true);
   const selectable = group.items
@@ -522,9 +577,11 @@ function ProjectGroup({
                   <Pencil size={14} />
                 </IconButton>
               )}
-              <IconButton label="Excluir" onClick={() => remove(item.id)}>
-                <Trash2 size={14} />
-              </IconButton>
+              {!item.meta_id && (
+                <IconButton label="Excluir" onClick={() => remove(item)}>
+                  <Trash2 size={14} />
+                </IconButton>
+              )}
             </div>
           ))}
         </div>
@@ -585,6 +642,10 @@ function ItemEditor({
   const [name, setName] = useState(initial?.name || "");
   const [content, setContent] = useState(initial?.content || "");
   const [category, setCategory] = useState(initial?.category || "UTILITY");
+  const [samples, setSamples] = useState<Record<string, string>>(
+    initial?.sample_variables || initial?.variables || {},
+  );
+  const variables = positionalVariables(content);
   const save = useMutation({
     mutationFn: () =>
       api(
@@ -599,7 +660,8 @@ function ItemEditor({
             category,
             language: initial?.language || "pt_BR",
             buttons: initial?.buttons || [],
-            variables: initial?.variables || {},
+            variables: samples,
+            sampleVariables: samples,
           }),
         },
       ),
@@ -650,9 +712,35 @@ function ItemEditor({
             >
               <option>UTILITY</option>
               <option>MARKETING</option>
-              <option>AUTHENTICATION</option>
             </select>
           </label>
+          {variables.length > 0 && (
+            <fieldset className="rounded-xl border border-zinc-800 p-4">
+              <legend className="px-2 text-xs font-medium text-zinc-300">
+                Exemplos das variáveis
+              </legend>
+              <p className="mb-3 text-xs text-zinc-500">
+                A Meta exige um exemplo realista para cada variável.
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {variables.map((variable) => (
+                  <label key={variable} className="block text-xs text-zinc-400">
+                    Exemplo para {`{{${variable}}}`}
+                    <input
+                      value={samples[String(variable)] || ""}
+                      onChange={(event) =>
+                        setSamples((value) => ({
+                          ...value,
+                          [String(variable)]: event.target.value,
+                        }))
+                      }
+                      className={`mt-1 ${inputClass}`}
+                    />
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          )}
           <label className="block text-xs text-zinc-400">
             Conteúdo
             <textarea
@@ -671,7 +759,14 @@ function ItemEditor({
             </button>
             <button
               className={btnPrimary}
-              disabled={!name || !content || save.isPending}
+              disabled={
+                !name ||
+                !content ||
+                variables.some(
+                  (variable) => !samples[String(variable)]?.trim(),
+                ) ||
+                save.isPending
+              }
               onClick={() => save.mutate()}
             >
               {save.isPending ? "Salvando…" : "Salvar template"}

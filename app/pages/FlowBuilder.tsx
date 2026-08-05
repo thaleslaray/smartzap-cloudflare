@@ -184,6 +184,7 @@ type Flow = {
   validationErrors?: unknown;
   definition: Definition;
   mapping?: FlowMapping;
+  local_revision: number;
 };
 const baseScreen = (name: string): Screen => ({
   id: crypto.randomUUID(),
@@ -228,12 +229,17 @@ export default function FlowBuilder() {
     mutationFn: () =>
       api<Flow>(`/api/flows/${id}`, {
         method: "PATCH",
-        body: JSON.stringify({ name, definition, mapping }),
+        body: JSON.stringify({
+          name,
+          definition,
+          mapping,
+          expectedRevision: query.data?.local_revision,
+        }),
       }),
-    onSuccess: () => {
+    onSuccess: (flow) => {
       setDirty(false);
+      qc.setQueryData(["flow", id], flow);
       qc.invalidateQueries({ queryKey: ["flows"] });
-      qc.invalidateQueries({ queryKey: ["flow", id] });
     },
   });
   const publish = useMutation({
@@ -539,6 +545,8 @@ export default function FlowBuilder() {
                   <span className="relative flex items-center gap-3 text-xs text-zinc-500">
                     {save.isPending
                       ? "Salvando…"
+                      : save.isError
+                        ? save.error.message
                       : save.isSuccess
                         ? "Salvo"
                         : dirty

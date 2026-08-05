@@ -237,6 +237,32 @@ function operationalTemplateStatus(event: string): string {
   return event;
 }
 
+async function syncTemplatesAuthoritatively(env: Env, wabaId: string) {
+  const credentials = await getCredentials(env);
+  if (!credentials?.wabaId || credentials.wabaId !== wabaId)
+    throw new Error("WABA do webhook não corresponde às credenciais configuradas");
+  const templates = await whatsappClient(credentials).fetchTemplates(wabaId);
+  await templatesDb(env.DB).replaceFromMeta(templates);
+  return templates.length;
+}
+
+async function hasStoredTemplate(
+  env: Env,
+  input: { metaId?: string; name?: string; language?: string },
+) {
+  const row = await env.DB.prepare(
+    `SELECT 1 AS found FROM templates
+     WHERE (?1 IS NOT NULL AND meta_id=?1)
+        OR (?2 IS NOT NULL AND name=?2 AND (?3 IS NULL OR language=?3))
+     LIMIT 1`,
+  ).bind(
+    input.metaId ?? null,
+    input.name ?? null,
+    input.language ?? null,
+  ).first<{ found: number }>();
+  return row?.found === 1;
+}
+
 async function recordFor(event: MetaWebhookEvent): Promise<WebhookEventRecord> {
   if (event.kind === "status") {
     const error = firstStatusError(event);
@@ -363,6 +389,9 @@ async function recordFor(event: MetaWebhookEvent): Promise<WebhookEventRecord> {
         event.wabaId,
         String(event.template.message_template_id),
         event.template.event,
+        String(event.timestamp ?? 0),
+        event.template.reason ?? "",
+        event.template.other_info?.title ?? "",
       ].join(":"),
     ),
     waba_id: event.wabaId,
@@ -395,6 +424,12 @@ export async function handleWebhookBatch(
 
   for (const [eventIndex, event] of events.entries()) {
     const eventRecord = eventRecords[eventIndex];
+    if (
+      (event.kind === "platform_event" || event.kind === "template_status") &&
+      ["applied", "ignored"].includes(
+        (await statusInbox.applyState(eventRecord.event_key)) ?? "",
+      )
+    ) continue;
     if (event.kind === "platform_error") continue;
     if (event.kind === "platform_event") {
       if (
@@ -441,18 +476,81 @@ export async function handleWebhookBatch(
             settings.set("meta_throughput_webhook_at", new Date().toISOString()),
           ]);
         }
+      } else if (event.field === "message_template_quality_update") {
+        const templateId = String(event.summary.message_template_id ?? "");
+        const score = String(event.summary.new_quality_score ?? "").toUpperCase();
+        const eventAt = Number(event.summary.webhook_timestamp);
+        if (
+          templateId &&
+          ["GREEN", "YELLOW", "RED", "UNKNOWN"].includes(score) &&
+          Number.isSafeInteger(eventAt) && eventAt >= 0
+        ) {
+          let changed = await templatesDb(env.DB).setQualityFromWebhook({
+            metaId: templateId,
+            name: typeof event.summary.message_template_name === "string"
+              ? event.summary.message_template_name
+              : undefined,
+            language: typeof event.summary.message_template_language === "string"
+              ? event.summary.message_template_language.replace("-", "_")
+              : undefined,
+            score,
+            eventAt,
+          });
+          if (!changed && !await hasStoredTemplate(env, {
+            metaId: templateId,
+            name: typeof event.summary.message_template_name === "string"
+              ? event.summary.message_template_name
+              : undefined,
+            language: typeof event.summary.message_template_language === "string"
+              ? event.summary.message_template_language.replace("-", "_")
+              : undefined,
+          })) {
+            await syncTemplatesAuthoritatively(env, event.wabaId);
+            changed = 1;
+          }
+          templatesChanged ||= changed > 0;
+        }
+      } else if (event.field === "message_template_components_update") {
+        await syncTemplatesAuthoritatively(env, event.wabaId);
+        templatesChanged = true;
       } else if (event.field === "template_category_update") {
         const templateId = String(event.summary.message_template_id ?? event.summary.id ?? "");
-        const category = String(event.summary.category ?? "").toUpperCase();
-        if (templateId && ["MARKETING", "UTILITY", "AUTHENTICATION"].includes(category)) {
+        const newCategory = String(event.summary.new_category ?? "").toUpperCase();
+        const correctCategory = String(event.summary.correct_category ?? "").toUpperCase();
+        const previousCategory = String(event.summary.previous_category ?? "").toUpperCase();
+        const eventAt = Number(event.summary.webhook_timestamp);
+        const effectiveAt = Number(event.summary.category_update_timestamp);
+        const pending = Boolean(
+          correctCategory && Number.isSafeInteger(effectiveAt) && effectiveAt >= 0,
+        );
+        const targetCategory = pending ? correctCategory : newCategory;
+        if (
+          templateId &&
+          ["MARKETING", "UTILITY", "AUTHENTICATION"].includes(targetCategory) &&
+          Number.isSafeInteger(eventAt) && eventAt >= 0 &&
+          (pending || ["MARKETING", "UTILITY", "AUTHENTICATION"].includes(previousCategory))
+        ) {
           const template = await env.DB.prepare(
-            "SELECT name,language,category FROM templates WHERE meta_id=?1 LIMIT 1",
-          ).bind(templateId).first<{ name: string; language: string; category: string }>();
-          if (template && template.category !== category) {
+            "SELECT name,language,category,pending_category FROM templates WHERE meta_id=?1 LIMIT 1",
+          ).bind(templateId).first<{
+            name: string;
+            language: string;
+            category: string;
+            pending_category: string | null;
+          }>();
+          const changed = await templatesDb(env.DB).setCategoryFromWebhook({
+            metaId: templateId,
+            currentCategory: pending ? newCategory : undefined,
+            newCategory: targetCategory,
+            pending,
+            effectiveAt: pending ? effectiveAt : undefined,
+            eventAt,
+          });
+          if (template && changed > 0 && (
+            template.category !== targetCategory ||
+            template.pending_category !== (pending ? targetCategory : null)
+          )) {
             await env.DB.batch([
-              env.DB.prepare(
-                `UPDATE templates SET category=?2,synced_at=datetime('now') WHERE meta_id=?1`,
-              ).bind(templateId, category),
               env.DB.prepare(
                 `INSERT INTO campaign_cost_snapshots
                  (id,campaign_id,state,amount,currency,breakdown_json,assumptions_json,source)
@@ -467,12 +565,16 @@ export async function handleWebhookBatch(
               ).bind(
                 template.name,
                 template.language,
-                JSON.stringify(["Categoria efetiva alterada pela Meta; recalcule a estimativa"]),
+                JSON.stringify([
+                  pending
+                    ? `Categoria será alterada pela Meta para ${targetCategory}; recalcule a estimativa`
+                    : `Categoria efetiva alterada pela Meta para ${targetCategory}; recalcule a estimativa`,
+                ]),
                 `template_category_webhook:${eventRecord.event_key}`,
               ),
             ]);
-            templatesChanged = true;
           }
+          templatesChanged ||= changed > 0;
         }
       } else if (event.field === "flows") {
         const flowId = String(event.summary.flow_id ?? event.summary.id ?? "");
@@ -575,14 +677,38 @@ export async function handleWebhookBatch(
       continue;
     }
     if (event.kind === "template_status") {
-      const changed = await templatesDb(env.DB).setStatusFromWebhook({
+      const eventAt = event.timestamp ?? Math.floor(Date.now() / 1000);
+      const reason = event.template.reason && event.template.reason !== "NONE"
+        ? sanitizeMetaDetail(event.template.reason)
+        : null;
+      const rawDetail = event.template.rejection_info?.reason ??
+        event.template.other_info?.description;
+      const rawRecommendation = event.template.rejection_info?.recommendation;
+      const detail = rawDetail ? sanitizeMetaDetail(rawDetail) : null;
+      const recommendation = rawRecommendation
+        ? sanitizeMetaDetail(rawRecommendation)
+        : null;
+      let changed = await templatesDb(env.DB).setStatusFromWebhook({
         name: event.template.message_template_name,
-        language: event.template.message_template_language,
+        language: event.template.message_template_language.replace("-", "_"),
         metaId: String(event.template.message_template_id),
         status: operationalTemplateStatus(event.template.event),
         category: event.template.message_template_category,
+        reason,
+        detail,
+        recommendation,
+        eventAt,
       });
+      if (!changed && !await hasStoredTemplate(env, {
+        metaId: String(event.template.message_template_id),
+        name: event.template.message_template_name,
+        language: event.template.message_template_language.replace("-", "_"),
+      })) {
+        await syncTemplatesAuthoritatively(env, event.wabaId);
+        changed = 1;
+      }
       templatesChanged ||= changed > 0;
+      await statusInbox.markIgnored(eventRecord.event_key);
       continue;
     }
 

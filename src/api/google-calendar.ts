@@ -7,6 +7,7 @@ import {
   calendarConfiguration,
   calendarRedirectUri,
   completeGoogleAuthorization,
+  deleteCalendarEvent,
   disconnectGoogleCalendar,
   getBookingConfig,
   googleAuthorizationUrl,
@@ -98,4 +99,11 @@ export const googleCalendarRoutes = new Hono<{ Bindings: Env }>()
   .get("/slots", async (c) => {
     try { return c.json({ items: await availableSlots(c.env, c.env.DB, String(c.req.query("date") ?? "")) }); }
     catch (error) { return c.json({ error: error instanceof Error ? error.message : "Não foi possível consultar horários" }, 409); }
+  })
+  .delete("/qa-events/:eventId", async (c) => {
+    if (c.env.ENVIRONMENT !== "staging") return c.notFound();
+    const eventId = c.req.param("eventId");
+    if (!/^[a-f0-9]{64}$/.test(eventId)) return c.json({ error: "Evento de QA inválido" }, 400);
+    await deleteCalendarEvent(c.env, c.env.DB, eventId);
+    return c.json({ ok: true, deleted: true });
   });

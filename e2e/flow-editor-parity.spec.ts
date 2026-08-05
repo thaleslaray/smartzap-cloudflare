@@ -140,3 +140,95 @@ test("inícios por IA e do zero exibem estados completos", async ({ page }) => {
     await page.request.delete(`/api/flows/${flow.id}`);
   }
 });
+
+test("reordena, exclui, renomeia rotas e persiste o mapeamento final", async ({ page }) => {
+  await login(page);
+  const created = await page.request.post("/api/flows", {
+    data: {
+      name: "E2E ciclo estrutural completo",
+      definition: {
+        version: "7.3",
+        screens: [
+          {
+            id: "START",
+            title: "Cadastro",
+            final: false,
+            text: "Preencha os dados",
+            buttonText: "Continuar",
+            next: "MIDDLE",
+            blocks: [
+              { id: "heading", type: "TextHeading", text: "Cadastro" },
+              { id: "body", type: "TextBody", text: "Texto removível" },
+              { id: "name", type: "TextInput", label: "Nome", name: "name", inputType: "text", required: true },
+              { id: "email", type: "TextInput", label: "E-mail", name: "email", inputType: "email", required: true },
+            ],
+          },
+          {
+            id: "MIDDLE",
+            title: "Confirmação",
+            final: false,
+            text: "Confirme",
+            buttonText: "Avançar",
+            next: "FINAL",
+            blocks: [{ id: "middle", type: "TextBody", text: "Confirme" }],
+          },
+          {
+            id: "FINAL",
+            title: "Final",
+            final: true,
+            text: "Concluído",
+            buttonText: "Concluir",
+            next: null,
+            blocks: [{ id: "done", type: "TextHeading", text: "Concluído" }],
+          },
+        ],
+        branchesByScreen: {
+          START: [{ field: "name", op: "equals", value: "Pessoa", next: "MIDDLE" }],
+        },
+      },
+    },
+  });
+  expect(created.ok()).toBeTruthy();
+  const flow = await created.json();
+
+  try {
+    await page.goto(`/flows/builder/${flow.id}`);
+    await page.getByRole("button", { name: /2 Conteúdo/i }).click();
+    await page.getByRole("button", { name: "Cadastro", exact: true }).click();
+
+    await page.locator('[data-flow-block-id="email"]').getByRole("button", { name: "Mover bloco para cima" }).click();
+    await page.locator('[data-flow-block-id="body"]').getByRole("button", { name: "Excluir bloco" }).click();
+
+    await page.getByRole("button", { name: "Ações", exact: true }).click();
+    await page.getByRole("button", { name: "Ajustes avançados" }).click();
+    const dialog = page.getByRole("dialog", { name: "Ajustes avançados" });
+    await dialog.getByRole("button", { name: "MIDDLE", exact: true }).click();
+    await dialog.getByLabel("Screen ID").fill("RENAMED");
+    await dialog.getByRole("button", { name: "FINAL", exact: true }).click();
+    await dialog.getByRole("button", { name: "Remover tela" }).click();
+    await dialog.getByRole("button", { name: /Fechar/ }).click();
+
+    await page.getByRole("button", { name: /3 Finalizar/i }).click();
+    await page.getByLabel("Nome do MiniApp").fill("E2E estrutura persistida");
+    await page.getByLabel("Nome do contato").selectOption("name");
+    await page.getByLabel("E-mail do contato").selectOption("email");
+    await page.getByRole("button", { name: "Salvar rascunho" }).click();
+    await expect(page.getByText("MiniApp salva")).toBeVisible();
+
+    const persistedResponse = await page.request.get(`/api/flows/${flow.id}`);
+    expect(persistedResponse.ok()).toBeTruthy();
+    const persisted = await persistedResponse.json();
+    expect(persisted.name).toBe("E2E estrutura persistida");
+    expect(persisted.definition.screens.map((screen: { id: string }) => screen.id)).toEqual(["START", "RENAMED"]);
+    expect(persisted.definition.screens[0].next).toBe("RENAMED");
+    expect(persisted.definition.branchesByScreen.START[0].next).toBe("RENAMED");
+    expect(persisted.definition.screens[0].blocks.map((block: { id: string }) => block.id)).toEqual([
+      "heading",
+      "email",
+      "name",
+    ]);
+    expect(persisted.mapping.contact).toEqual({ nameField: "name", emailField: "email" });
+  } finally {
+    await page.request.delete(`/api/flows/${flow.id}`);
+  }
+});

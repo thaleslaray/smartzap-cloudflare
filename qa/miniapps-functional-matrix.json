@@ -1,0 +1,550 @@
+{
+  "schemaVersion": 1,
+  "matrixId": "MINI-FUNCTIONAL-V1",
+  "title": "Matriz de fechamento funcional dos MiniApps",
+  "updatedAt": "2026-08-04",
+  "lastExecution": {
+    "runId": "AUTOQA_MINI_20260804_CONTRACT_147_FINAL",
+    "finishedAt": "2026-08-04T13:43:55Z",
+    "functionalCases": { "passed": 147, "failed": 0, "retries": 0 },
+    "focusedRegression": { "passed": 188, "failed": 0 },
+    "browserRegression": {
+      "passed": 27,
+      "failed": 0,
+      "retries": 0,
+      "browsers": ["chromium", "firefox", "webkit"]
+    },
+    "providerCanary": {
+      "environment": "staging-cloudflare",
+      "status": "passed",
+      "published": true,
+      "sendAccepted": true,
+      "remoteCleanup": "DEPRECATED",
+      "localArtifactsRemaining": 0,
+      "report": "qa/reports/miniapps-meta-1785851024719/miniapps-meta-canary.json"
+    }
+  },
+  "realProviderHomologation": {
+    "journey": "MINI-11",
+    "status": "discontinued",
+    "requiredJourneys": 24,
+    "templates": 8,
+    "authorizedRecipients": 3,
+    "recipientLabels": ["R1-9966", "R2-4524", "R3-8242"],
+    "requiredEvidence": [
+      "meta-published",
+      "send-accepted",
+      "sent",
+      "delivered",
+      "opened-in-whatsapp",
+      "submitted-completed",
+      "staging-webhook",
+      "d1-persistence",
+      "mapping-or-confirmation-when-applicable",
+      "remote-and-local-cleanup"
+    ],
+    "completedJourneys": 8,
+    "lastRealExecution": {
+      "date": "2026-08-04",
+      "runId": "AUTOQA_MINI_REAL_20260804_R23_FINAL16",
+      "recipients": ["R2-4524", "R3-8242"],
+      "providerAccepted": 16,
+      "delivered": 8,
+      "read": 0,
+      "submitted": 0,
+      "failed": 0,
+      "verifiedEndToEndOverall": [
+        "feedback_v1",
+        "lead_interest_v1",
+        "support_request_v1",
+        "pesquisa_rapida_v1",
+        "lead_cadastro_v1",
+        "agendamento_v1",
+        "pesquisa_nps_v1",
+        "agendamento_dinamico_v1"
+      ],
+      "verifiedThisExecution": 0,
+      "pendingRecipients": [
+        {
+          "recipient": "R2-4524",
+          "accepted": 8,
+          "delivered": 8,
+          "read": 0,
+          "submitted": 0,
+          "reason": "interação física não realizada"
+        },
+        {
+          "recipient": "R3-8242",
+          "accepted": 8,
+          "delivered": 0,
+          "read": 0,
+          "submitted": 0,
+          "reason": "Meta registrou sent sem delivered nem failed"
+        }
+      ],
+      "reports": [
+        "qa/reports/AUTOQA_MINI_REAL_20260804_R1/miniapps-real-homologation.json",
+        "qa/reports/AUTOQA_MINI_REAL_20260804_FIX_FIELDS/miniapps-real-homologation.json",
+        "qa/reports/AUTOQA_MINI_REAL_20260804_R23_FINAL16/miniapps-real-homologation.json"
+      ],
+      "cleanup": "8/8 Flows da rodada removidos e callbacks restaurados para produção"
+    },
+    "note": "A matriz automatizada e o estresse não substituem as 24 interações reais. Os oito modelos possuem evidência ponta a ponta em R1-9966. R2-4524 recebeu os oito, mas não os abriu nem submeteu; R3-8242 ficou em sent sem delivered ou failed. Em 04/08/2026, o operador descontinuou as 16 combinações restantes e determinou que não sejam feitos novos disparos de MiniApps para esse gate."
+  },
+  "stressExecution": {
+    "journey": "MINI-10",
+    "status": "passed",
+    "date": "2026-08-04",
+    "stagingVersion": "d3f30594-3c2c-42bb-a5c8-f2816a8ad981",
+    "localFamilies": { "passed": 6, "failed": 0 },
+    "stagingFamilies": { "passed": 5, "failed": 0 },
+    "stagingBoundary": "MS-ENDPOINT-REPLAY foi executado localmente com D1 isolado; os outros cinco grupos foram repetidos no staging",
+    "focusedRegression": { "passed": 197, "failed": 0 },
+    "fullRegression": { "passed": 642, "failed": 0 },
+    "browserRegression": {
+      "passed": 6,
+      "failed": 0,
+      "browsers": ["chromium", "webkit"]
+    },
+    "metrics": {
+      "concurrentSave": "200 + 409; uma única revisão vencedora",
+      "concurrentPublish": "200 + 409; um único Flow remoto; latência máxima 6271.27 ms",
+      "endpointReplay": "20 requisições paralelas; uma mutação; processamento abandonado recuperado",
+      "listScale": "220 itens em 3 páginas; p95 de listagem 169.30 ms",
+      "maxPayload": "24443 bytes aceitos; máximo + 1 recusado",
+      "soak": "20 ciclos CRUD; p95 1706.17 ms; zero resíduo"
+    },
+    "cleanup": { "created": 243, "deleted": 243, "remaining": 0 },
+    "reports": [
+      "qa/reports/AUTOQA_MINI_STRESS_20260804_FINAL2/miniapps-stress.json",
+      "qa/reports/AUTOQA_MINI_E2E_20260804/playwright-results.json"
+    ]
+  },
+  "scope": {
+    "objective": "Comprovar todas as capacidades declaradas do MiniApps antes de iniciar testes de estresse.",
+    "coverageModel": "Partições de equivalência, limites e combinações pairwise; produto cartesiano integral não é exigido.",
+    "environments": ["local-isolado", "staging-cloudflare", "meta-real-controlado"],
+    "declaredProduct": [
+      "criação em branco",
+      "oito modelos estáticos ou dinâmicos",
+      "criação assistida por IA",
+      "editor visual com 14 opções de bloco",
+      "até 10 telas e 48 blocos editáveis por tela",
+      "ramificação condicional e destino padrão",
+      "mapeamento de contato e campos personalizados",
+      "Flow estático e dinâmico com endpoint criptografado",
+      "publicação, envio e submissão pela Meta"
+    ],
+    "excludedProduct": [
+      "JavaScript, HTML ou CSS arbitrário",
+      "componentes customizados de terceiros",
+      "layout fora de SingleColumnLayout",
+      "loops ou navegação para telas anteriores",
+      "pagamentos dentro do Flow",
+      "chamada arbitrária de APIs externas pelo editor",
+      "recursos beta da Meta não declarados neste contrato"
+    ]
+  },
+  "declaredCapabilities": {
+    "startModes": ["blank", "static-template", "ai"],
+    "templates": [
+      "feedback_v1",
+      "lead_interest_v1",
+      "support_request_v1",
+      "pesquisa_rapida_v1",
+      "lead_cadastro_v1",
+      "agendamento_v1",
+      "pesquisa_nps_v1",
+      "agendamento_dinamico_v1"
+    ],
+    "editorBlocks": [
+      "TextHeading",
+      "TextSubheading",
+      "TextBody",
+      "TextCaption",
+      "TextInput:text",
+      "TextInput:email",
+      "TextInput:phone",
+      "TextInput:number",
+      "TextArea",
+      "CalendarPicker",
+      "Dropdown",
+      "RadioButtonsGroup",
+      "CheckboxGroup",
+      "OptIn"
+    ],
+    "branchOperators": ["is_filled", "is_empty", "equals", "contains", "gt", "lt", "is_true", "is_false"],
+    "lifecycleStates": ["local-draft", "meta-draft", "published", "sent", "submitted", "rejected", "deleted"],
+    "browsers": ["chromium", "firefox", "webkit"],
+    "viewports": ["360x800", "390x844", "768x1024", "1440x900", "1920x1080"]
+  },
+  "contractDecisionsRequired": [
+    {
+      "capability": "DatePicker",
+      "foundIn": ["src/domain/flow-validation.ts", "src/whatsapp/flows.ts"],
+      "missingIn": ["app/pages/FlowBuilder.tsx"],
+      "decision": "blocked",
+      "risk": "P0",
+      "reason": "O contrato local e o validador Meta agora recusam DatePicker antes de salvar ou publicar; CalendarPicker é o componente declarado."
+    },
+    {
+      "capability": "PhotoPicker",
+      "foundIn": ["src/domain/flow-validation.ts"],
+      "missingIn": ["app/pages/FlowBuilder.tsx", "src/whatsapp/flows.ts"],
+      "decision": "blocked",
+      "risk": "P0",
+      "reason": "O contrato local e o validador Meta recusam PhotoPicker antes da persistência; o publicador falha fechado."
+    },
+    {
+      "capability": "DocumentPicker",
+      "foundIn": ["src/domain/flow-validation.ts"],
+      "missingIn": ["app/pages/FlowBuilder.tsx", "src/whatsapp/flows.ts"],
+      "decision": "blocked",
+      "risk": "P0",
+      "reason": "O contrato local e o validador Meta recusam DocumentPicker antes da persistência; o publicador falha fechado."
+    },
+    {
+      "capability": "open_url",
+      "foundIn": ["src/domain/flow-validation.ts"],
+      "missingIn": ["app/pages/FlowBuilder.tsx"],
+      "decision": "blocked",
+      "risk": "P1",
+      "reason": "Ação customizada recusada antes de salvar ou publicar; o produto usa somente navegação e ramificações declaradas."
+    },
+    {
+      "capability": "update_data",
+      "foundIn": ["src/domain/flow-validation.ts"],
+      "missingIn": ["app/pages/FlowBuilder.tsx"],
+      "decision": "blocked",
+      "risk": "P1",
+      "reason": "Ação customizada recusada antes de salvar ou publicar; o produto usa somente navegação e ramificações declaradas."
+    }
+  ],
+  "gates": {
+    "functionalClosure": {
+      "journeys": ["MINI-01", "MINI-02", "MINI-03", "MINI-04", "MINI-05", "MINI-06", "MINI-07", "MINI-08", "MINI-09"],
+      "required": [
+        "todos os casos P0 e P1 aprovados sem retry",
+        "zero capacidade aceita e descartada silenciosamente",
+        "todas as decisões implement-or-block resolvidas e testadas",
+        "matriz de interface aprovada nos três motores",
+        "limites aprovados no valor máximo e em máximo mais um",
+        "provas reais restritas aos casos marcados provider-real",
+        "cleanup sem artefatos AUTOQA residuais"
+      ]
+    },
+    "stress": {
+      "journey": "MINI-10",
+      "status": "passed",
+      "completedAt": "2026-08-04",
+      "blockedUntil": ["MINI-08", "MINI-09"],
+      "rule": "Não executar carga, concorrência ou soak enquanto o gate functionalClosure não estiver integralmente aprovado."
+    }
+  },
+  "testFamilies": [
+    {
+      "id": "MF-CONTRACT",
+      "journey": "MINI-08",
+      "priority": "P0",
+      "layer": "contract",
+      "title": "Consistência editor → persistência → gerador → validador → Meta",
+      "partitions": [
+        "cada bloco declarado atravessa o pipeline sem perda",
+        "DatePicker recebe decisão explícita",
+        "PhotoPicker recebe decisão explícita",
+        "DocumentPicker recebe decisão explícita",
+        "open_url recebe decisão explícita",
+        "update_data recebe decisão explícita",
+        "bloco desconhecido falha fechado com diagnóstico",
+        "definição reaberta é semanticamente idêntica à salva"
+      ],
+      "expectedCases": 8,
+      "targetTests": ["tests/domain/miniapps-functional-matrix.test.ts", "tests/automation-assets.test.ts"],
+      "evidence": ["contract", "flow-json", "no-silent-drop"],
+      "status": "covered"
+    },
+    {
+      "id": "MF-ENTRY",
+      "journey": "MINI-02",
+      "priority": "P1",
+      "layer": "ui",
+      "title": "Entradas e retomada da criação",
+      "partitions": [
+        "novo em branco pela lista",
+        "novo em branco pela aba MiniApps",
+        "modelo pela lista",
+        "modelo aplicado a fluxo aberto",
+        "IA pela lista",
+        "IA no passo Começar",
+        "cancelamento e retomada",
+        "nome vazio, duplicado e válido"
+      ],
+      "expectedCases": 8,
+      "targetTests": ["tests/domain/miniapps-functional-matrix.test.ts", "e2e/flow-editor-parity.spec.ts"],
+      "evidence": ["ui", "api", "persistence"],
+      "status": "covered"
+    },
+    {
+      "id": "MF-TEMPLATES",
+      "journey": "MINI-03",
+      "priority": "P1",
+      "layer": "ui-contract",
+      "title": "Catálogo integral de modelos",
+      "partitions": [
+        "feedback_v1",
+        "lead_interest_v1",
+        "support_request_v1",
+        "pesquisa_rapida_v1",
+        "lead_cadastro_v1",
+        "agendamento_v1",
+        "pesquisa_nps_v1",
+        "agendamento_dinamico_v1"
+      ],
+      "expectedCases": 8,
+      "targetTests": ["tests/domain/miniapps-functional-matrix.test.ts", "e2e/flow-template-modal.spec.ts", "e2e/flow-editor-parity.spec.ts"],
+      "evidence": ["ui", "definition", "mapping", "persistence"],
+      "status": "covered"
+    },
+    {
+      "id": "MF-BLOCKS",
+      "journey": "MINI-05",
+      "priority": "P1",
+      "layer": "ui-contract",
+      "title": "Todos os blocos declarados",
+      "partitions": [
+        "TextHeading",
+        "TextSubheading",
+        "TextBody",
+        "TextCaption",
+        "TextInput:text",
+        "TextInput:email",
+        "TextInput:phone",
+        "TextInput:number",
+        "TextArea",
+        "CalendarPicker",
+        "Dropdown",
+        "RadioButtonsGroup",
+        "CheckboxGroup",
+        "OptIn"
+      ],
+      "expectedCases": 14,
+      "targetTests": ["tests/domain/miniapps-functional-matrix.test.ts", "tests/domain/flow-json-matrix.test.ts", "e2e/flow-component-matrix.spec.ts"],
+      "evidence": ["ui", "preview", "flow-json", "save-reopen"],
+      "status": "covered"
+    },
+    {
+      "id": "MF-BOUNDARIES",
+      "journey": "MINI-09",
+      "priority": "P0",
+      "layer": "contract-ui",
+      "title": "Limites e validações",
+      "partitions": [
+        "1, 10 e 11 telas",
+        "47, 48 e 49 blocos editáveis por tela",
+        "5 e 6 OptIns por tela",
+        "texto no limite e limite mais um por tipo",
+        "label no limite e limite mais um por tipo",
+        "Dropdown com 200 e 201 opções",
+        "RadioButtonsGroup com 20 e 21 opções",
+        "CheckboxGroup com 20 e 21 opções",
+        "nome de campo válido, duplicado e inválido",
+        "Flow JSON abaixo, no limite e acima de 10 MiB",
+        "Footer ausente, duplicado e fora da última posição",
+        "zero e mais de uma tela de entrada"
+      ],
+      "expectedCases": 28,
+      "targetTests": ["tests/domain/miniapps-functional-matrix.test.ts", "tests/domain/flow-json-matrix.test.ts", "e2e/flow-component-matrix.spec.ts"],
+      "evidence": ["validation-code", "ui-feedback", "boundary"],
+      "status": "covered"
+    },
+    {
+      "id": "MF-SCREENS",
+      "journey": "MINI-05",
+      "priority": "P1",
+      "layer": "ui-contract",
+      "title": "Telas, ordem e rotas",
+      "partitions": [
+        "adicionar, renomear e excluir tela",
+        "renomear ID atualiza next, regras e routing_model",
+        "reordenar blocos preserva valores",
+        "destino padrão válido",
+        "destino inexistente é recusado",
+        "rota para si mesma é recusada",
+        "rota para trás é recusada",
+        "tela inalcançável é recusada",
+        "uma única tela terminal",
+        "múltiplas telas terminais válidas"
+      ],
+      "expectedCases": 10,
+      "targetTests": ["tests/domain/miniapps-functional-matrix.test.ts", "e2e/flow-editor-parity.spec.ts"],
+      "evidence": ["ui", "routing-model", "save-reopen"],
+      "status": "covered"
+    },
+    {
+      "id": "MF-BRANCHES",
+      "journey": "MINI-05",
+      "priority": "P1",
+      "layer": "ui-contract",
+      "title": "Ramificações condicionais",
+      "partitions": [
+        "is_filled",
+        "is_empty",
+        "equals",
+        "contains",
+        "gt",
+        "lt",
+        "is_true",
+        "is_false",
+        "primeira regra verdadeira vence",
+        "nenhuma regra usa destino padrão",
+        "campo removido invalida a regra com diagnóstico",
+        "destino removido invalida a regra com diagnóstico"
+      ],
+      "expectedCases": 12,
+      "targetTests": ["tests/domain/miniapps-functional-matrix.test.ts", "e2e/flow-editor-parity.spec.ts"],
+      "evidence": ["ui", "preview", "flow-json", "routing"],
+      "status": "covered"
+    },
+    {
+      "id": "MF-MAPPING",
+      "journey": "MINI-05",
+      "priority": "P1",
+      "layer": "integration",
+      "title": "Mapeamento e submissão",
+      "partitions": [
+        "nome do contato",
+        "e-mail do contato",
+        "um campo personalizado",
+        "múltiplos campos personalizados",
+        "campo opcional ausente",
+        "campo obrigatório ausente",
+        "OptIn verdadeiro e falso",
+        "submissão repetida idempotente",
+        "resumo de confirmação",
+        "resposta reaberta sem JSON truncado"
+      ],
+      "expectedCases": 10,
+      "targetTests": ["tests/domain/miniapps-functional-matrix.test.ts", "tests/automation-assets.test.ts", "e2e/flow-editor-parity.spec.ts"],
+      "evidence": ["api", "d1", "ui", "idempotency"],
+      "status": "covered"
+    },
+    {
+      "id": "MF-LIFECYCLE",
+      "journey": "MINI-06",
+      "priority": "P0",
+      "layer": "integration-provider",
+      "title": "Ciclo de vida local e Meta",
+      "partitions": [
+        "criar rascunho local",
+        "salvar e reabrir",
+        "criar draft remoto",
+        "validar draft remoto",
+        "publicar",
+        "republicar revisão sem clone remoto",
+        "enviar Flow publicado",
+        "receber submissão completed",
+        "rejeição com diagnóstico sanitizado",
+        "excluir local sem órfão remoto",
+        "timeout e retry finitos",
+        "credencial ausente falha antes da mutação"
+      ],
+      "expectedCases": 12,
+      "targetTests": ["tests/domain/miniapps-functional-matrix.test.ts", "tests/automation-assets.test.ts", "scripts/qa-miniapps-meta-canary.mjs"],
+      "evidence": ["api", "ui", "meta-contract", "provider-real", "cleanup"],
+      "status": "covered"
+    },
+    {
+      "id": "MF-DYNAMIC",
+      "journey": "MINI-07",
+      "priority": "P0",
+      "layer": "integration-provider",
+      "title": "Flow dinâmico e criptografia",
+      "partitions": [
+        "health-check",
+        "INIT válido",
+        "BACK válido",
+        "data_exchange válido",
+        "payload criptografado inválido",
+        "chave privada ausente",
+        "versão Data API 3.0 e 4.0",
+        "routing_model ausente",
+        "replay da mesma requisição",
+        "Google OAuth desconectado",
+        "sem slots disponíveis",
+        "conflito de agenda entre seleção e confirmação",
+        "criação e cleanup de evento real"
+      ],
+      "expectedCases": 13,
+      "targetTests": ["tests/domain/miniapps-functional-matrix.test.ts", "tests/flow-endpoint.test.ts", "tests/google-calendar.test.ts", "scripts/staging-calendar-flow-smoke.mjs"],
+      "evidence": ["crypto", "api", "d1", "provider-real", "cleanup"],
+      "status": "covered"
+    },
+    {
+      "id": "MF-CROSS",
+      "journey": "MINI-09",
+      "priority": "P1",
+      "layer": "e2e",
+      "title": "Combinações pairwise e compatibilidade visual",
+      "partitions": [
+        "14 blocos distribuídos em três telas",
+        "required e optional cruzados com todos os inputs",
+        "cada operador cruzado com tipo de campo compatível",
+        "template cruzado com editar, salvar e reabrir",
+        "origem blank, template e IA cruzada com publicar",
+        "estático e dinâmico cruzados com erro e sucesso",
+        "Chromium, Firefox e WebKit sem retry",
+        "360x800, 390x844, 768x1024, 1440x900 e 1920x1080",
+        "teclado, foco, labels e mensagens de erro",
+        "sem overflow horizontal ou controle inacessível"
+      ],
+      "expectedCases": 24,
+      "targetTests": ["tests/domain/miniapps-functional-matrix.test.ts", "e2e/flow-component-matrix.spec.ts", "e2e/flow-editor-parity.spec.ts", "e2e/flow-template-modal.spec.ts"],
+      "evidence": ["ui", "cross-browser", "responsive", "accessibility", "retry-zero"],
+      "status": "covered"
+    }
+  ],
+  "deferredStressFamilies": [
+    {
+      "id": "MS-CONCURRENT-SAVE",
+      "title": "PATCH concorrente da mesma definição",
+      "risk": "P0",
+      "expected": "conflito explícito ou controle de versão; nunca last-write-wins silencioso",
+      "status": "covered"
+    },
+    {
+      "id": "MS-CONCURRENT-PUBLISH",
+      "title": "Publicações simultâneas",
+      "risk": "P0",
+      "expected": "um único Flow remoto correlacionado e operação idempotente",
+      "status": "covered"
+    },
+    {
+      "id": "MS-ENDPOINT-REPLAY",
+      "title": "Replay concorrente no endpoint dinâmico",
+      "risk": "P0",
+      "expected": "uma única mutação e recuperação de processamento abandonado",
+      "status": "covered"
+    },
+    {
+      "id": "MS-LIST-SCALE",
+      "title": "Listagem volumosa",
+      "risk": "P1",
+      "expected": "paginação, latência e memória dentro do orçamento definido",
+      "status": "covered"
+    },
+    {
+      "id": "MS-MAX-PAYLOAD",
+      "title": "Payload e definição nos limites",
+      "risk": "P1",
+      "expected": "sem timeout, truncamento ou queda do Worker",
+      "status": "covered"
+    },
+    {
+      "id": "MS-SOAK",
+      "title": "Soak de criação, edição, publicação e submissão",
+      "risk": "P1",
+      "expected": "zero vazamento, órfão, flake ou degradação progressiva",
+      "status": "covered"
+    }
+  ]
+}

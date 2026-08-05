@@ -35,6 +35,10 @@ import {
   renderTemplateParameters,
   variableMappingSchema,
 } from "../domain/template-render";
+import {
+  isSimpleTemplateCategory,
+  isSimpleTemplateSendContract,
+} from "../../shared/template-validation";
 
 const PAGE_SIZE = 50;
 const IdSchema = z.string().uuid();
@@ -541,6 +545,22 @@ export const conversationsRoutes = new Hono<{ Bindings: Env }>()
     );
     if (!template || template.status.toUpperCase() !== "APPROVED")
       return c.json({ error: "template aprovado não encontrado" }, 409);
+    if (!isSimpleTemplateCategory(template.category))
+      return c.json(
+        {
+          error: "templates de autenticação exigem um fluxo OTP próprio e não podem ser enviados pela Inbox",
+          code: "AUTHENTICATION_TEMPLATE_UNSUPPORTED",
+        },
+        409,
+      );
+    if (!isSimpleTemplateSendContract(template.components))
+      return c.json(
+        {
+          error: "este template exige mídia, OTP, Flow ou outro componente que o envio simples da Inbox não representa",
+          code: "TEMPLATE_CONTRACT_UNSUPPORTED",
+        },
+        409,
+      );
     const contact = await loadTemplateContact(c.env.DB, conversation.contact_id);
     if (!contact) return c.json({ error: "contato não encontrado" }, 404);
     let rendered: ReturnType<typeof renderTemplateParameters>;

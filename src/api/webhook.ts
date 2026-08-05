@@ -67,7 +67,52 @@ const TemplateStatusSchema = z.object({
   message_template_language: z.string().min(1).max(64),
   message_template_category: z.string().max(64).optional(),
   reason: z.string().max(500).nullable().optional(),
+  disable_info: z.object({
+    disable_date: z.union([z.string().max(64), z.number().int().nonnegative()]).optional(),
+  }).passthrough().optional(),
+  other_info: z.object({
+    title: z.string().max(256).optional(),
+    description: z.string().max(2000).optional(),
+  }).passthrough().optional(),
+  rejection_info: z.object({
+    reason: z.string().max(2000).optional(),
+    recommendation: z.string().max(2000).optional(),
+  }).passthrough().optional(),
 }).passthrough()
+
+const TemplateQualitySchema = z.object({
+  previous_quality_score: z.enum(['GREEN', 'YELLOW', 'RED', 'UNKNOWN']),
+  new_quality_score: z.enum(['GREEN', 'YELLOW', 'RED', 'UNKNOWN']),
+  message_template_id: z.union([z.string(), z.number()]),
+  message_template_name: z.string().min(1).max(512),
+  message_template_language: z.string().min(1).max(64),
+}).passthrough()
+
+const TemplateComponentsSchema = z.object({
+  message_template_id: z.union([z.string(), z.number()]),
+  message_template_name: z.string().min(1).max(512),
+  message_template_language: z.string().min(1).max(64),
+  message_template_element: z.string().max(4096),
+  message_template_title: z.string().max(1024).optional(),
+  message_template_footer: z.string().max(1024).optional(),
+  message_template_buttons: z.array(z.record(z.string(), z.unknown())).max(10).optional(),
+}).passthrough()
+
+const TemplateCategorySchema = z.object({
+  message_template_id: z.union([z.string(), z.number()]),
+  message_template_name: z.string().min(1).max(512),
+  message_template_language: z.string().min(1).max(64),
+  new_category: z.enum(['MARKETING', 'UTILITY', 'AUTHENTICATION']),
+  correct_category: z.enum(['MARKETING', 'UTILITY', 'AUTHENTICATION']).optional(),
+  previous_category: z.enum(['MARKETING', 'UTILITY', 'AUTHENTICATION']).optional(),
+  category_update_timestamp: z.number().int().nonnegative().optional(),
+}).passthrough().refine(
+  (value) => Boolean(
+    value.previous_category ||
+    (value.correct_category && value.category_update_timestamp !== undefined)
+  ),
+  'mudança de categoria sem estado programado ou anterior',
+)
 
 const InboundMessageSchema = z.object({
   from: z.string().regex(/^\d{5,32}$/).optional(),
@@ -247,13 +292,13 @@ export type MetaWebhookEvent =
   | { kind: 'status'; wabaId: string; phoneNumberId: string; status: MetaStatus }
   | { kind: 'inbound_message'; wabaId: string; phoneNumberId: string; message: MetaInboundMessage }
   | { kind: 'user_preference'; wabaId: string; phoneNumberId: string; preference: z.infer<typeof UserPreferenceSchema> }
-  | { kind: 'template_status'; wabaId: string; template: z.infer<typeof TemplateStatusSchema> }
+  | { kind: 'template_status'; wabaId: string; timestamp?: number; template: z.infer<typeof TemplateStatusSchema> }
   | { kind: 'platform_event'; wabaId: string; field: string; summary: Record<string, string | number | boolean | null> }
   | { kind: 'platform_error'; wabaId: string; phoneNumberId: string; scope: string; referenceId?: string; error: MetaWebhookError }
 
 type MetaWebhook = {
   object?: unknown
-  entry?: { id?: unknown; changes?: { field?: unknown; value?: unknown }[] }[]
+  entry?: { id?: unknown; time?: unknown; changes?: { field?: unknown; value?: unknown }[] }[]
 }
 
 export const webhookRoutes = new Hono<{ Bindings: Env }>()
@@ -291,6 +336,8 @@ export const webhookRoutes = new Hono<{ Bindings: Env }>()
     let invalidRecognizedEvent = false
     for (const entry of payload.entry) {
       const wabaId = typeof entry.id === 'string' ? entry.id : ''
+      const entryTimestamp = typeof entry.time === 'number' && Number.isSafeInteger(entry.time)
+        && entry.time >= 0 ? entry.time : Math.floor(Date.now() / 1000)
       if (!wabaId || !Array.isArray(entry.changes)
         || entry.changes.length > MAX_CHANGES_PER_ENTRY) {
         invalidRecognizedEvent = true
@@ -306,7 +353,9 @@ export const webhookRoutes = new Hono<{ Bindings: Env }>()
         const value = change.value && typeof change.value === 'object'
           ? change.value as Record<string, unknown> : null
         if (!value) {
-          if (['messages', 'user_preferences', 'message_template_status_update'].includes(field))
+          if (['messages', 'user_preferences', 'message_template_status_update',
+            'message_template_components_update', 'message_template_quality_update',
+            'template_category_update'].includes(field))
             invalidRecognizedEvent = true
           continue
         }
@@ -404,15 +453,63 @@ export const webhookRoutes = new Hono<{ Bindings: Env }>()
           }
         } else if (field === 'message_template_status_update') {
           const parsed = TemplateStatusSchema.safeParse(value)
-          if (parsed.success) events.push({ kind: 'template_status', wabaId, template: parsed.data })
+          if (parsed.success) events.push({ kind: 'template_status', wabaId, timestamp: entryTimestamp, template: parsed.data })
+          else invalidRecognizedEvent = true
+        } else if (field === 'message_template_quality_update') {
+          const parsed = TemplateQualitySchema.safeParse(value)
+          if (parsed.success) events.push({
+            kind: 'platform_event', wabaId, field,
+            summary: {
+              previous_quality_score: parsed.data.previous_quality_score,
+              new_quality_score: parsed.data.new_quality_score,
+              message_template_id: String(parsed.data.message_template_id),
+              message_template_name: parsed.data.message_template_name,
+              message_template_language: parsed.data.message_template_language,
+              webhook_timestamp: entryTimestamp,
+            },
+          })
+          else invalidRecognizedEvent = true
+        } else if (field === 'message_template_components_update') {
+          const parsed = TemplateComponentsSchema.safeParse(value)
+          if (parsed.success) events.push({
+            kind: 'platform_event', wabaId, field,
+            summary: {
+              message_template_id: String(parsed.data.message_template_id),
+              message_template_name: parsed.data.message_template_name,
+              message_template_language: parsed.data.message_template_language,
+              webhook_timestamp: entryTimestamp,
+              requires_authoritative_sync: true,
+            },
+          })
+          else invalidRecognizedEvent = true
+        } else if (field === 'template_category_update') {
+          const parsed = TemplateCategorySchema.safeParse(value)
+          if (parsed.success) events.push({
+            kind: 'platform_event', wabaId, field,
+            summary: {
+              message_template_id: String(parsed.data.message_template_id),
+              message_template_name: parsed.data.message_template_name,
+              message_template_language: parsed.data.message_template_language,
+              new_category: parsed.data.new_category,
+              ...(parsed.data.correct_category
+                ? { correct_category: parsed.data.correct_category }
+                : {}),
+              ...(parsed.data.previous_category
+                ? { previous_category: parsed.data.previous_category }
+                : {}),
+              ...(parsed.data.category_update_timestamp !== undefined
+                ? { category_update_timestamp: parsed.data.category_update_timestamp }
+                : {}),
+              webhook_timestamp: entryTimestamp,
+            },
+          })
           else invalidRecognizedEvent = true
         } else if ([
           'account_update', 'account_alerts', 'account_review_update',
           'business_capability_update', 'phone_number_quality_update',
           'phone_number_name_update', 'security',
           'business_username_updates',
-          'message_template_components_update', 'message_template_quality_update',
-          'template_category_update', 'pricing', 'flows',
+          'pricing', 'flows',
         ].includes(field)) {
           // Eventos de conta/preço evoluem com o contrato da Meta. Preservamos
           // somente metadados escalares conhecidos, sem rejeitar o webhook por

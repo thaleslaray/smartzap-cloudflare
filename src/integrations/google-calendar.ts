@@ -10,6 +10,7 @@ const OAUTH_CONFIG_KEY = "google_calendar_oauth_config_v1";
 const scopes = [
   "https://www.googleapis.com/auth/calendar.freebusy",
   "https://www.googleapis.com/auth/calendar.events",
+  "https://www.googleapis.com/auth/calendar.calendarlist.readonly",
 ];
 
 export type CalendarConnection = {
@@ -457,4 +458,24 @@ export async function createCalendarEvent(env: Env, db: D1Database, input: { slo
     );
   }
   return { id: String(result.id ?? "created"), link: typeof result.htmlLink === "string" ? result.htmlLink : null };
+}
+
+/** Remove somente um evento conhecido; usado pelo cleanup autenticado de QA em staging. */
+export async function deleteCalendarEvent(
+  env: Env,
+  db: D1Database,
+  eventId: string,
+): Promise<void> {
+  const connection = await getConnection(db);
+  if (!connection) throw new Error("Google Calendar não está conectado");
+  try {
+    await googleApi(
+      env,
+      db,
+      `/calendars/${encodeURIComponent(connection.calendarId)}/events/${encodeURIComponent(eventId)}`,
+      { method: "DELETE" },
+    );
+  } catch (error) {
+    if ((error as Error & { status?: number }).status !== 404) throw error;
+  }
 }

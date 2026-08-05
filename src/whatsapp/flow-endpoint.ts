@@ -285,11 +285,14 @@ export async function handleFlowRequest(
   const tokenHash = await sha256(request.flow_token!);
   const requestHash = await sha256(JSON.stringify(request));
   const screen = request.screen ?? "_";
+  const claimToken = crypto.randomUUID();
   const claimed = await db.prepare(
     `INSERT OR IGNORE INTO flow_endpoint_actions
-     (id,flow_token_hash,screen,action,request_hash,status)
-     VALUES(?1,?2,?3,?4,?5,'processing')`,
-  ).bind(crypto.randomUUID(), tokenHash, screen, request.action, requestHash).run();
+     (id,flow_token_hash,screen,action,request_hash,status,claim_token)
+     VALUES(?1,?2,?3,?4,?5,'processing',?6)`,
+  ).bind(
+    crypto.randomUUID(), tokenHash, screen, request.action, requestHash, claimToken,
+  ).run();
   if ((claimed.meta.changes ?? 0) === 0) {
     const previous = await db.prepare(
       `SELECT status,response_json FROM flow_endpoint_actions
@@ -298,14 +301,21 @@ export async function handleFlowRequest(
       .first<{ status: string; response_json: string | null }>();
     if (previous?.status === "completed" && previous.response_json)
       return JSON.parse(previous.response_json) as Record<string, unknown>;
-    throw new Error("Ação do MiniApp já está em processamento");
+    const reclaimed = await db.prepare(
+      `UPDATE flow_endpoint_actions SET claim_token=?5,claimed_at=datetime('now'),
+       updated_at=datetime('now'),error_code=NULL,response_json=NULL
+       WHERE flow_token_hash=?1 AND screen=?2 AND action=?3 AND request_hash=?4
+       AND status='processing' AND claimed_at<=datetime('now','-60 seconds')`,
+    ).bind(tokenHash, screen, request.action, requestHash, claimToken).run();
+    if ((reclaimed.meta.changes ?? 0) === 0)
+      throw new Error("Ação do MiniApp já está em processamento");
   }
   if (row.submission_status === "completed") {
     await db.prepare(
       `UPDATE flow_endpoint_actions SET status='failed',error_code='SUBMISSION_COMPLETED',
        completed_at=datetime('now'),updated_at=datetime('now') WHERE flow_token_hash=?1
-       AND screen=?2 AND action=?3 AND request_hash=?4`,
-    ).bind(tokenHash, screen, request.action, requestHash).run();
+       AND screen=?2 AND action=?3 AND request_hash=?4 AND claim_token=?5`,
+    ).bind(tokenHash, screen, request.action, requestHash, claimToken).run();
     throw new Error("Submissão do MiniApp já foi concluída");
   }
 
@@ -365,20 +375,23 @@ export async function handleFlowRequest(
     await db.prepare(
       `UPDATE flow_endpoint_actions SET status='completed',response_json=?2,
        completed_at=datetime('now'),updated_at=datetime('now') WHERE flow_token_hash=?1
-       AND screen=?3 AND action=?4 AND request_hash=?5`,
-    ).bind(tokenHash, JSON.stringify(response), screen, request.action, requestHash).run();
+       AND screen=?3 AND action=?4 AND request_hash=?5 AND claim_token=?6`,
+    ).bind(
+      tokenHash, JSON.stringify(response), screen, request.action, requestHash, claimToken,
+    ).run();
     return response;
   } catch (error) {
     await db.prepare(
       `UPDATE flow_endpoint_actions SET status='failed',error_code=?2,
        completed_at=datetime('now'),updated_at=datetime('now') WHERE flow_token_hash=?1
-       AND screen=?3 AND action=?4 AND request_hash=?5`,
+       AND screen=?3 AND action=?4 AND request_hash=?5 AND claim_token=?6`,
     ).bind(
       tokenHash,
       error instanceof Error ? error.message.slice(0, 120) : "FLOW_ACTION_FAILED",
       screen,
       request.action,
       requestHash,
+      claimToken,
     ).run();
     throw error;
   }

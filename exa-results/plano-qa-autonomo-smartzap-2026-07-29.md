@@ -586,3 +586,47 @@ O SmartZap deixa de ser “um app com muitos testes” e passa a ser um produto 
 - nenhuma IA é aprovada por uma conversa bonita;
 - nenhum deploy ocorre sem baseline, preview, staging e rollback;
 - todo bug corrigido vira regressão permanente.
+
+## Adendo operacional — 03/08/2026 — execução integral sem GitHub Actions
+
+Este adendo substitui somente a dependência operacional de GitHub Actions. Os critérios de qualidade, isolamento, evidência, staging, canário, rollback e promoção permanecem obrigatórios.
+
+### Decisão
+
+- GitHub Actions não faz parte do caminho crítico desta execução.
+- Os mesmos gates serão executados localmente, com Wrangler autenticado e nos ambientes Cloudflare canônicos.
+- Nenhuma aprovação será inferida de build, teste de API ou health quando a jornada exigir interface ou provedor real.
+- Produção só será promovida manualmente depois de todos os gates aplicáveis ficarem verdes.
+
+### Baseline confirmado no início
+
+- revisão local: `9245271cf11f8b35afdbaada3cf7e609878407e6`;
+- revisão integrada em `origin/main`: `f87aa2ee9eb60b028ef0c5f99431ad9039bf3d92`;
+- staging Cloudflare: saudável, versão publicada mais recente `125e3d09-971b-442a-a5ab-62436aac034c`;
+- produção Cloudflare: saudável, versão publicada `5e244aab-44f5-43c7-8f53-8534e9235684`;
+- catálogo: 84 jornadas, 58 aprovadas, 14 em reteste, 6 em teste, 1 não testada, 2 bloqueadas e 3 fora do escopo;
+- alteração preexistente do usuário `docs/.DS_Store`: preservada e excluída de qualquer checkpoint ou commit.
+
+### Ordem obrigatória de execução
+
+1. Consolidar a revisão principal e preservar o worktree.
+2. Corrigir a checagem de tipos e a suíte Vitest integral.
+3. Retestar e corrigir as 14 jornadas em `corrigida — reteste pendente`.
+4. Fechar as jornadas em teste, não testadas e bloqueadas; quando uma integração externa não puder ser comprovada, retirar sua superfície da liberação em vez de declará-la aprovada.
+5. Executar `qa:preflight`, `qa:unit`, `qa:contract`, `qa:e2e:p0`, `qa:e2e:matrix`, `qa:visual`, `qa:ai`, `qa:cleanup` e o build sanitizado.
+6. Publicar e homologar staging manualmente, incluindo migrações, smoke autenticado, monitoramento e rollback em até dez minutos.
+7. Executar somente os canários Meta/WAHooks necessários nos quatro números autorizados, respeitando o teto explícito de até dez rodadas reais por dia e sem reenvio automático de mensagem já aceita pela Meta.
+8. Restaurar callbacks para produção, comprovar zero resíduo e iniciar/concluir o soak monitorado.
+9. Atualizar `jornada.md` e `Auditoria.md` por variação executada.
+10. Promover manualmente para produção somente com o critério final atendido.
+
+### Critério final desta execução
+
+- zero jornada em escopo nos estados `em teste`, `não testada`, `bloqueada` ou `corrigida — reteste pendente`, salvo decisão explícita de retirar a função da liberação;
+- zero falha, retry ocultando flake P0/P1, erro de tipo, segredo em artefato ou resíduo `AUTOQA`;
+- interface real aprovada em Chromium, Firefox e WebKit e nos seis viewports canônicos;
+- Workers AI aprovado em 84/84 sessões;
+- canal Meta real correlacionado por aceite, identificador, webhook e estado terminal compatível;
+- callbacks de número, WABA e efetivo restaurados para produção;
+- health, shell, autenticação, observabilidade e rollback aprovados;
+- evidência registrada no catálogo e na auditoria antes do veredito de produção.

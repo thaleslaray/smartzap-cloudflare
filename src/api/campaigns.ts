@@ -26,6 +26,20 @@ import {
 } from "../domain/template-render";
 import { campaignBatchesDb } from "../db/campaign-batches";
 import { settingsDb } from "../db/settings";
+import {
+  isSimpleTemplateCategory,
+  isSimpleTemplateSendContract,
+} from "../../shared/template-validation";
+
+const unsupportedTemplateCategory = {
+  error: "templates de autenticação exigem um fluxo OTP próprio e não podem ser enviados por campanhas",
+  code: "AUTHENTICATION_TEMPLATE_UNSUPPORTED",
+};
+
+const unsupportedTemplateContract = {
+  error: "este template exige mídia, OTP, Flow ou outro componente que o envio simples da campanha não representa",
+  code: "TEMPLATE_CONTRACT_UNSUPPORTED",
+};
 
 function previewComponents(components: unknown, resolved: Record<string, string>): unknown[] {
   if (!Array.isArray(components)) return [];
@@ -820,6 +834,10 @@ export const campaignsRoutes = new Hono<{ Bindings: Env }>()
         { error: "template/idioma não encontrado — sincronize com a Meta" },
         400,
       );
+    if (!isSimpleTemplateCategory(template.category))
+      return c.json(unsupportedTemplateCategory, 409);
+    if (!isSimpleTemplateSendContract(template.components))
+      return c.json(unsupportedTemplateContract, 409);
     const variables = extractTemplateVariables(template.components);
     if (templateRequiresParameters(template.components) && !variables.length)
       return c.json(
@@ -1370,6 +1388,10 @@ export const campaignsRoutes = new Hono<{ Bindings: Env }>()
     )) as TemplateRow | null;
     if (!liveTemplate || liveTemplate.status !== "APPROVED")
       return c.json({ error: "template não está aprovado na Meta" }, 409);
+    if (!isSimpleTemplateCategory(liveTemplate.category))
+      return c.json(unsupportedTemplateCategory, 409);
+    if (!isSimpleTemplateSendContract(liveTemplate.components))
+      return c.json(unsupportedTemplateContract, 409);
     if (liveTemplate.quality_score === "RED")
       return c.json(
         {

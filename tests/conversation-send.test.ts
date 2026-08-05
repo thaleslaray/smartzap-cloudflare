@@ -176,6 +176,61 @@ describe('envio manual de rascunho aprovado', () => {
     })
   })
 
+  it('bloqueia template de autenticação antes de reservar ou chamar a Meta', async () => {
+    const app = createApp()
+    const draft = await approvedDraft(Math.floor(Date.now() / 1000) - 86_401)
+    const name = `inbox_auth_${crypto.randomUUID().replaceAll('-', '').slice(0, 12)}`
+    await env.DB.prepare(
+      `INSERT INTO templates(name, language, meta_id, category, status, components, synced_at)
+       VALUES (?1, 'pt_BR', 'meta-inbox-auth', 'AUTHENTICATION', 'APPROVED', ?2, datetime('now'))`,
+    ).bind(name, JSON.stringify([
+      { type: 'BODY', text: '*{{1}}* é seu código de verificação.' },
+      { type: 'BUTTONS', buttons: [{ type: 'OTP', otp_type: 'COPY_CODE', text: 'Copiar código' }] },
+    ])).run()
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    const response = await templateSendRequest(app, draft.conversationId, {
+      requestKey: crypto.randomUUID(),
+      name,
+      mapping: { 'body.1': { source: 'fixed', value: '123456' } },
+    })
+
+    expect(response.status).toBe(409)
+    expect(await response.json()).toMatchObject({
+      code: 'AUTHENTICATION_TEMPLATE_UNSUPPORTED',
+    })
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(await env.DB.prepare(
+      "SELECT COUNT(*) AS total FROM ai_drafts WHERE conversation_id = ?1 AND model = 'template'",
+    ).bind(draft.conversationId).first()).toEqual({ total: 0 })
+  })
+
+  it('bloqueia contrato com mídia antes de reservar ou chamar a Meta', async () => {
+    const app = createApp()
+    const draft = await approvedDraft(Math.floor(Date.now() / 1000) - 86_401)
+    const name = `inbox_video_${crypto.randomUUID().replaceAll('-', '').slice(0, 12)}`
+    await env.DB.prepare(
+      `INSERT INTO templates(name, language, meta_id, category, status, components, synced_at)
+       VALUES (?1, 'pt_BR', 'meta-inbox-video', 'MARKETING', 'APPROVED', ?2, datetime('now'))`,
+    ).bind(name, JSON.stringify([
+      { type: 'HEADER', format: 'VIDEO', example: { header_handle: ['meta-video'] } },
+      { type: 'BODY', text: 'Olá {{1}}' },
+    ])).run()
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    const response = await templateSendRequest(app, draft.conversationId, {
+      requestKey: crypto.randomUUID(), name,
+      mapping: { 'body.1': { source: 'fixed', value: 'cliente' } },
+    })
+    expect(response.status).toBe(409)
+    expect(await response.json()).toMatchObject({ code: 'TEMPLATE_CONTRACT_UNSUPPORTED' })
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(await env.DB.prepare(
+      "SELECT COUNT(*) AS total FROM ai_drafts WHERE conversation_id = ?1 AND model = 'template'",
+    ).bind(draft.conversationId).first()).toEqual({ total: 0 })
+  })
+
   it('não envia template com variável obrigatória ausente', async () => {
     const app = createApp()
     const draft = await approvedDraft()

@@ -21,6 +21,14 @@ import { Card, PageError } from "../components/ui";
 
 type Health = {
   ai: { enabled: boolean; configured: boolean; ready: boolean; model: string };
+  knowledge?: {
+    searchConfigured: boolean;
+    total: number;
+    ready: number;
+    indexing: number;
+    failed: number;
+  };
+  agents?: { globalEnabled: boolean; total: number; active: number };
 };
 type Config = {
   strategyMarketing: string;
@@ -48,6 +56,15 @@ export default function AICenter() {
     queryFn: () => api<Config>("/api/settings/ai-center"),
   });
   const value = draft ?? config.data;
+  const knowledgeStatus = !health.data?.knowledge?.searchConfigured
+    ? "AI Search indisponível"
+    : health.data.knowledge.failed > 0
+      ? "Requer atenção"
+      : health.data.knowledge.indexing > 0
+        ? "Indexando"
+        : health.data.knowledge.ready > 0
+          ? "Pronto"
+          : "Sem documentos";
   const save = useMutation({
     mutationFn: () =>
       api<Config>("/api/settings/ai-center", {
@@ -99,7 +116,9 @@ export default function AICenter() {
           <span>
             <strong className="block text-sm">Agentes de Atendimento</strong>
             <small className="block text-xs text-[var(--ds-text-secondary)]">
-              Configure os agentes IA para o Inbox
+              {health.data?.agents
+                ? `${health.data.agents.active} de ${health.data.agents.total} ativos · atendimento ${health.data.agents.globalEnabled ? "ligado" : "desligado"}`
+                : "Configure os agentes IA para o Inbox"}
             </small>
           </span>
         </span>
@@ -147,7 +166,7 @@ export default function AICenter() {
       <Card className="p-6">
         <div className="flex items-center gap-2 text-sm font-semibold">
           <FileImage size={17} className="text-emerald-300" />
-          OCR (Extração de Documentos)
+          Extração e indexação de documentos
         </div>
         <p className="mt-1 text-sm text-[var(--ds-text-secondary)]">
           Converta PDFs e documentos antes da indexação.
@@ -157,14 +176,16 @@ export default function AICenter() {
             <span className="text-lg">✨</span>
             <span>
               <strong className="block text-sm">
-                Workers AI + parser local
+                Parser local + AI Search
               </strong>
               <small className="text-[var(--ds-text-secondary)]">
-                Mesmo provedor, sem chave externa
+                {health.data?.knowledge
+                  ? `${health.data.knowledge.ready} prontos · ${health.data.knowledge.indexing} indexando · ${health.data.knowledge.failed} com falha`
+                  : "Verificando documentos"}
               </small>
             </span>
-            <span className="ml-auto rounded-full bg-emerald-500/20 px-2.5 py-1 text-xs text-emerald-300">
-              Em uso
+            <span className={`ml-auto rounded-full px-2.5 py-1 text-xs ${health.data?.knowledge?.failed || !health.data?.knowledge?.searchConfigured ? "bg-amber-500/20 text-amber-300" : "bg-emerald-500/20 text-emerald-300"}`}>
+              {knowledgeStatus}
             </span>
           </div>
         </div>

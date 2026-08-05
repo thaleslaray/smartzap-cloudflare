@@ -31,6 +31,25 @@ describe('renderização determinística de template', () => {
     expect(result.components[1]).toEqual({
       type: 'body', parameters: [{ type: 'text', text: 'cliente' }, { type: 'text', text: '42' }],
     })
+    expect(result.components[2]).toEqual({
+      type: 'button', sub_type: 'url', index: '0',
+      parameters: [{ type: 'text', text: '+5521999999999' }],
+    })
+  })
+
+  it('não cria parâmetros de envio para resposta rápida, URL estática ou telefone', () => {
+    const staticButtons = [{
+      type: 'BUTTONS',
+      buttons: [
+        { type: 'QUICK_REPLY', text: 'Confirmar' },
+        { type: 'URL', text: 'Acompanhar', url: 'https://exemplo.com/pedido' },
+        { type: 'PHONE_NUMBER', text: 'Ligar', phone_number: '+5511999999999' },
+      ],
+    }]
+    expect(extractTemplateVariables(staticButtons)).toEqual([])
+    expect(renderTemplateParameters(staticButtons, {}, {
+      name: 'Ana', phone: '+5521999999999',
+    }).components).toEqual([])
   })
 
   it('resolve e-mail do contato como variável dinâmica', () => {

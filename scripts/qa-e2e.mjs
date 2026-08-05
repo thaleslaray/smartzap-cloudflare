@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdirSync, readFileSync, rmSync } from "node:fs";
+import { mkdirSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { resolve, relative } from "node:path";
 import { randomUUID } from "node:crypto";
 import { createServer } from "node:net";
@@ -22,6 +22,10 @@ const reportRoot = resolve(
   root,
   process.env.QA_REPORT_DIR || "test-results",
 );
+const nonSmokeSpecs = readdirSync(resolve(root, "e2e"))
+  .filter((file) => file.endsWith(".spec.ts") && file !== "smoke.spec.ts")
+  .map((file) => `e2e/${file}`)
+  .sort();
 
 const matrix = {
   p0: [
@@ -82,7 +86,35 @@ const matrix = {
   matrix: [
     { project: "chromium", files: [] },
     { project: "firefox", files: [] },
-    { project: "webkit", files: [] },
+    // O WebKit pode deixar uma navegação pendente depois de dezenas de
+    // páginas instrumentadas pelo axe. Isolamos os mesmos grupos do P0 para
+    // que a matriz continue completa sem compartilhar um único processo de
+    // navegador por toda a suíte.
+    { label: "webkit-features", project: "webkit", files: nonSmokeSpecs },
+    {
+      label: "webkit-core",
+      project: "webkit",
+      files: ["e2e/smoke.spec.ts"],
+      grepInvert: coreTestTitleExclusions,
+    },
+    {
+      label: "webkit-a11y",
+      project: "webkit",
+      files: ["e2e/smoke.spec.ts"],
+      grep: a11yTestTitle,
+    },
+    {
+      label: "webkit-responsive",
+      project: "webkit",
+      files: ["e2e/smoke.spec.ts"],
+      grep: responsiveTestTitle,
+    },
+    {
+      label: "webkit-inbox",
+      project: "webkit",
+      files: ["e2e/smoke.spec.ts"],
+      grep: inboxTestTitle,
+    },
   ],
   visual: [
     { project: "chromium", files: ["e2e/qa-visual.spec.ts"] },
@@ -105,6 +137,16 @@ function explicitGrepMatchesItem(item) {
   if (!explicitGrep) return true;
   if (item.grep && !new RegExp(item.grep).test(explicitGrep)) return false;
   if (item.grepInvert && new RegExp(item.grepInvert).test(explicitGrep)) return false;
+  if (item.grepInvert && item.files.length) {
+    const source = item.files
+      .map((file) => readFileSync(resolve(root, file), "utf8"))
+      .join("\n");
+    try {
+      if (!new RegExp(explicitGrep).test(source)) return false;
+    } catch {
+      if (!source.includes(explicitGrep)) return false;
+    }
+  }
   return true;
 }
 

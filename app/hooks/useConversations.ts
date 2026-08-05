@@ -373,6 +373,7 @@ export type InboxTemplate = {
   status: string;
   components: unknown;
   source: "meta" | "draft";
+  simpleSendSupported?: boolean;
 };
 
 export function useInboxTemplates() {
@@ -382,7 +383,10 @@ export function useInboxTemplates() {
       const result = await api<{ items: InboxTemplate[] }>("/api/templates");
       return {
         items: result.items.filter(
-          (item) => item.source === "meta" && item.status.toUpperCase() === "APPROVED",
+          (item) =>
+            item.source === "meta" &&
+            item.status.toUpperCase() === "APPROVED" &&
+            item.simpleSendSupported === true,
         ),
       };
     },

@@ -43,7 +43,7 @@
     "PILOT_MAX_RUNS_PER_DAY": "10",
     "PILOT_TIME_WINDOW_ENABLED": "true",
     "PILOT_SUPERVISED_OUTSIDE_WINDOW": "false",
-    "PILOT_TEMPLATE_ALLOWLIST": "hello_world"
+    "PILOT_TEMPLATE_ALLOWLIST": "hello_world,template_20260125_1739,template_20260125_1841,ea_comunidade_assinatura_renovada,qa_suporte_telefone_20260803"
   },
   "secrets": { "required": [
     "MASTER_PASSWORD",
@@ -51,7 +51,8 @@
     "META_APP_SECRET",
     "META_VERIFY_TOKEN",
     "WHATSAPP_TOKEN",
-    "PILOT_RECIPIENT_ALLOWLIST"
+    "PILOT_RECIPIENT_ALLOWLIST",
+    "GOOGLE_CALENDAR_ENCRYPTION_KEY"
   ] },
   "d1_databases": [{
     "binding": "DB",

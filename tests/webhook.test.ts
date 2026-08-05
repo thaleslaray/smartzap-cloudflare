@@ -58,6 +58,29 @@ function inboundPayload(messageId: string, from: string, body = 'Olá, preciso d
   }
 }
 
+async function enqueueOfficialWebhook(payload: unknown): Promise<MetaWebhookEvent> {
+  const body = JSON.stringify(payload)
+  const sendBatch = vi.spyOn(env.WEBHOOK_QUEUE, 'sendBatch')
+  try {
+    const response = await SELF.fetch('https://x.com/webhook', {
+      method: 'POST', body,
+      headers: { 'x-hub-signature-256': await sign('dev-meta-secret', body) },
+    })
+    expect(response.status).toBe(200)
+    expect(sendBatch).toHaveBeenCalledOnce()
+    return Array.from(sendBatch.mock.calls[0][0])[0].body as MetaWebhookEvent
+  } finally {
+    sendBatch.mockRestore()
+  }
+}
+
+function templateWebhook(field: string, value: Record<string, unknown>, time: number) {
+  return {
+    object: 'whatsapp_business_account',
+    entry: [{ id: WABA, time, changes: [{ field, value }] }],
+  }
+}
+
 describe('GET /webhook (verificação da Meta)', () => {
   it('token correto ecoa o challenge', async () => {
     const res = await SELF.fetch(
@@ -190,6 +213,53 @@ describe('POST /webhook (fail-closed)', () => {
       headers: { 'x-hub-signature-256': await sign('dev-meta-secret', body) },
     })
     expect(res.status).toBe(400)
+  })
+  it('aceita todos os estados oficiais de ciclo de vida do template', async () => {
+    const statuses = [
+      'APPROVED', 'ARCHIVED', 'UNARCHIVED', 'DELETED', 'DISABLED', 'FLAGGED',
+      'IN_APPEAL', 'LIMIT_EXCEEDED', 'LOCKED', 'PAUSED', 'PENDING',
+      'REINSTATED', 'PENDING_DELETION', 'REJECTED',
+    ] as const
+    for (const [index, event] of statuses.entries()) {
+      const queued = await enqueueOfficialWebhook(templateWebhook(
+        'message_template_status_update',
+        {
+          event,
+          message_template_id: 9_000_000 + index,
+          message_template_name: `lifecycle_${event.toLowerCase()}`,
+          message_template_language: 'pt_BR',
+          message_template_category: 'UTILITY',
+          reason: event === 'REJECTED' ? 'INVALID_FORMAT' : 'NONE',
+        },
+        1_750_000_000 + index,
+      ))
+      expect(queued).toMatchObject({ kind: 'template_status', timestamp: 1_750_000_000 + index })
+      if (queued.kind !== 'template_status') throw new Error('status de template esperado')
+      expect(queued.template.event).toBe(event)
+    }
+  })
+  it('rejeita eventos de qualidade, componentes e categoria incompletos', async () => {
+    for (const payload of [
+      templateWebhook('message_template_quality_update', {
+        message_template_id: 1, message_template_name: 'incompleto',
+        message_template_language: 'pt_BR', new_quality_score: 'GREEN',
+      }, 100),
+      templateWebhook('message_template_components_update', {
+        message_template_id: 2, message_template_name: 'incompleto',
+        message_template_language: 'pt_BR',
+      }, 100),
+      templateWebhook('template_category_update', {
+        message_template_id: 3, message_template_name: 'incompleto',
+        message_template_language: 'pt_BR', new_category: 'MARKETING',
+      }, 100),
+    ]) {
+      const body = JSON.stringify(payload)
+      const response = await SELF.fetch('https://x.com/webhook', {
+        method: 'POST', body,
+        headers: { 'x-hub-signature-256': await sign('dev-meta-secret', body) },
+      })
+      expect(response.status).toBe(400)
+    }
   })
   it('rejeita lote agregado acima de 1000 eventos sem enfileirar parcialmente', async () => {
     const payload = statusPayload('wamid.batch-0', 'delivered')
@@ -661,28 +731,67 @@ describe('handleWebhookBatch', () => {
     expect((await resolveAudience(env.DB, {})).eligible.some((item) => item.id === contact!.id)).toBe(false)
   })
 
-  it('atualiza template imediatamente pelo webhook de status', async () => {
+  it('aplica status oficial com diagnóstico, deduplica e não regride por evento antigo', async () => {
     const name = 'template_' + crypto.randomUUID()
+    const metaId = String(Date.now() + 123)
     await templatesDb(env.DB).replaceFromMeta([{
-      name, language: 'pt_BR', category: 'MARKETING', status: 'APPROVED', components: [],
+      id: metaId, name, language: 'pt_BR', category: 'MARKETING', status: 'APPROVED', components: [],
     }])
-    await handleWebhookBatch([{
-      kind: 'template_status', wabaId: WABA,
-      template: {
-        event: 'PAUSED', message_template_id: '123', message_template_name: name,
+    const rejected = await enqueueOfficialWebhook(templateWebhook(
+      'message_template_status_update',
+      {
+        event: 'REJECTED', message_template_id: metaId, message_template_name: name,
         message_template_language: 'pt_BR', message_template_category: 'MARKETING',
+        reason: 'INVALID_FORMAT',
+        rejection_info: {
+          reason: 'Variáveis {{1}}{{2}} estão juntas sem texto.',
+          recommendation: 'Separe as variáveis com texto descritivo.',
+        },
       },
-    }], env)
-    expect((await templatesDb(env.DB).get(name, 'pt_BR') as unknown as { status: string })?.status).toBe('PAUSED')
+      200,
+    ))
+    await handleWebhookBatch([rejected, rejected], env)
+    expect(await env.DB.prepare(
+      `SELECT status,status_reason,status_detail,status_recommendation,status_event_at
+       FROM templates WHERE meta_id=?1`,
+    ).bind(metaId).first()).toEqual({
+      status: 'REJECTED',
+      status_reason: 'INVALID_FORMAT',
+      status_detail: 'Variáveis {{1}}{{2}} estão juntas sem texto.',
+      status_recommendation: 'Separe as variáveis com texto descritivo.',
+      status_event_at: 200,
+    })
+    expect((await env.DB.prepare(
+      `SELECT COUNT(*) n FROM status_events
+       WHERE event_kind='template_status' AND raw LIKE ?1`,
+    ).bind(`%${name}%`).first<{ n: number }>())?.n).toBe(1)
 
-    await handleWebhookBatch([{
-      kind: 'template_status', wabaId: WABA,
-      template: {
-        event: 'REINSTATED', message_template_id: '123', message_template_name: name,
-        message_template_language: 'pt_BR', message_template_category: 'MARKETING',
+    const reinstated = await enqueueOfficialWebhook(templateWebhook(
+      'message_template_status_update',
+      {
+        event: 'REINSTATED', message_template_id: metaId, message_template_name: name,
+        message_template_language: 'pt_BR', message_template_category: 'MARKETING', reason: 'NONE',
       },
-    }], env)
-    expect((await templatesDb(env.DB).get(name, 'pt_BR') as unknown as { status: string })?.status).toBe('APPROVED')
+      300,
+    ))
+    const stalePause = await enqueueOfficialWebhook(templateWebhook(
+      'message_template_status_update',
+      {
+        event: 'PAUSED', message_template_id: metaId, message_template_name: name,
+        message_template_language: 'pt_BR', message_template_category: 'MARKETING', reason: 'NONE',
+        other_info: { title: 'FIRST_PAUSE', description: 'Evento anterior atrasado.' },
+      },
+      250,
+    ))
+    await handleWebhookBatch([reinstated], env)
+    await handleWebhookBatch([stalePause], env)
+    expect(await env.DB.prepare(
+      `SELECT status,status_reason,status_detail,status_recommendation,status_event_at
+       FROM templates WHERE meta_id=?1`,
+    ).bind(metaId).first()).toEqual({
+      status: 'APPROVED', status_reason: null, status_detail: null,
+      status_recommendation: null, status_event_at: 300,
+    })
   })
 
   it('preserva erro assíncrono no nível value.errors sem PII', async () => {
@@ -862,7 +971,7 @@ describe('consumer da Queue', () => {
     }
   })
 
-  it('aplica a categoria efetiva da Meta e invalida estimativa ainda não disparada', async () => {
+  it('aplica categoria oficial programada e efetiva sem regredir nem duplicar custo', async () => {
     const templateName = `category_${crypto.randomUUID().slice(0, 8)}`
     const metaId = String(Date.now() + 7)
     const campaignId = crypto.randomUUID()
@@ -881,18 +990,132 @@ describe('consumer da Queue', () => {
          VALUES(?1,?2,'estimated',0.03,'BRL','rate-card-before-change')`,
       ).bind(crypto.randomUUID(), campaignId),
     ])
-    const event: MetaWebhookEvent = {
-      kind: 'platform_event', wabaId: WABA, field: 'template_category_update',
-      summary: { message_template_id: metaId, category: 'MARKETING' },
-    }
-    await handleWebhookBatch([event, event], env)
-    expect((await env.DB.prepare(
-      'SELECT category FROM templates WHERE meta_id=?1',
-    ).bind(metaId).first<{ category: string }>())?.category).toBe('MARKETING')
+    const impending = await enqueueOfficialWebhook(templateWebhook(
+      'template_category_update',
+      {
+        message_template_id: Number(metaId), message_template_name: templateName,
+        message_template_language: 'pt_BR', new_category: 'UTILITY',
+        correct_category: 'MARKETING', category_update_timestamp: 300,
+      },
+      200,
+    ))
+    await handleWebhookBatch([impending, impending], env)
+    expect(await env.DB.prepare(
+      `SELECT category,pending_category,category_update_at,category_event_at
+       FROM templates WHERE meta_id=?1`,
+    ).bind(metaId).first()).toEqual({
+      category: 'UTILITY', pending_category: 'MARKETING',
+      category_update_at: 300, category_event_at: 200,
+    })
     expect((await env.DB.prepare(
       `SELECT COUNT(*) n FROM campaign_cost_snapshots
        WHERE campaign_id=?1 AND state='unavailable'`,
     ).bind(campaignId).first<{ n: number }>())?.n).toBe(1)
+
+    const completed = await enqueueOfficialWebhook(templateWebhook(
+      'template_category_update',
+      {
+        message_template_id: Number(metaId), message_template_name: templateName,
+        message_template_language: 'pt_BR', previous_category: 'UTILITY',
+        new_category: 'MARKETING',
+      },
+      300,
+    ))
+    await handleWebhookBatch([completed], env)
+    if (impending.kind !== 'platform_event') throw new Error('evento de categoria esperado')
+    await handleWebhookBatch([{
+      ...impending,
+      summary: { ...impending.summary, webhook_timestamp: 150 },
+    }], env)
+    expect(await env.DB.prepare(
+      `SELECT category,pending_category,category_update_at,category_event_at
+       FROM templates WHERE meta_id=?1`,
+    ).bind(metaId).first()).toEqual({
+      category: 'MARKETING', pending_category: null,
+      category_update_at: null, category_event_at: 300,
+    })
+  })
+
+  it('persiste qualidade oficial e ignora atualização atrasada', async () => {
+    const name = `quality_${crypto.randomUUID().slice(0, 8)}`
+    const metaId = String(Date.now() + 17)
+    await templatesDb(env.DB).replaceFromMeta([{
+      id: metaId, name, language: 'pt_BR', category: 'MARKETING',
+      status: 'APPROVED', components: [], quality_score: { score: 'GREEN' },
+    }])
+    const quality = async (score: 'GREEN' | 'YELLOW' | 'RED' | 'UNKNOWN', time: number) =>
+      enqueueOfficialWebhook(templateWebhook(
+        'message_template_quality_update',
+        {
+          previous_quality_score: score === 'YELLOW' ? 'GREEN' : 'YELLOW',
+          new_quality_score: score,
+          message_template_id: Number(metaId), message_template_name: name,
+          message_template_language: 'pt_BR',
+        },
+        time,
+      ))
+    await handleWebhookBatch([await quality('YELLOW', 200)], env)
+    await handleWebhookBatch([await quality('RED', 150)], env)
+    expect(await env.DB.prepare(
+      `SELECT quality_score,quality_event_at FROM templates WHERE meta_id=?1`,
+    ).bind(metaId).first()).toEqual({ quality_score: 'YELLOW', quality_event_at: 200 })
+    await handleWebhookBatch([await quality('RED', 300)], env)
+    expect(await env.DB.prepare(
+      `SELECT quality_score,quality_event_at FROM templates WHERE meta_id=?1`,
+    ).bind(metaId).first()).toEqual({ quality_score: 'RED', quality_event_at: 300 })
+  })
+
+  it('sincroniza componentes pela Graph API e não repete a ação para duplicata', async () => {
+    const name = `components_${crypto.randomUUID().slice(0, 8)}`
+    const metaId = String(Date.now() + 27)
+    await templatesDb(env.DB).replaceFromMeta([{
+      id: metaId, name, language: 'pt_BR', category: 'UTILITY',
+      status: 'APPROVED', components: [{ type: 'BODY', text: 'Texto antigo' }],
+    }])
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO settings(key,value) VALUES('whatsapp_phone_id',?1)
+         ON CONFLICT(key) DO UPDATE SET value=?1`,
+      ).bind(PHONE_ID),
+      env.DB.prepare(
+        `INSERT INTO settings(key,value) VALUES('whatsapp_waba_id',?1)
+         ON CONFLICT(key) DO UPDATE SET value=?1`,
+      ).bind(WABA),
+    ])
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
+      data: [{
+        id: metaId, name, language: 'pt_BR', category: 'UTILITY', status: 'APPROVED',
+        components: [
+          { type: 'BODY', text: 'Texto atualizado pela Meta' },
+          { type: 'BUTTONS', buttons: [{ type: 'PHONE_NUMBER', text: 'Ligar', phone_number: '+15550783881' }] },
+        ],
+        quality_score: { score: 'GREEN', date: '2026-08-03' },
+      }],
+    }), { status: 200, headers: { 'content-type': 'application/json' } }))
+    try {
+      const event = await enqueueOfficialWebhook(templateWebhook(
+        'message_template_components_update',
+        {
+          message_template_id: Number(metaId), message_template_name: name,
+          message_template_language: 'pt_BR',
+          message_template_element: 'Texto atualizado pela Meta',
+          message_template_buttons: [{
+            message_template_button_type: 'PHONE_NUMBER',
+            message_template_button_text: 'Ligar',
+            message_template_button_phone_number: '+15550783881',
+          }],
+        },
+        400,
+      ))
+      await handleWebhookBatch([event, event], env)
+      expect(fetchMock).toHaveBeenCalledOnce()
+      expect((await templatesDb(env.DB).get(name, 'pt_BR'))?.components).toEqual([
+        { type: 'BODY', text: 'Texto atualizado pela Meta' },
+        { type: 'BUTTONS', buttons: [{ type: 'PHONE_NUMBER', text: 'Ligar', phone_number: '+15550783881' }] },
+      ])
+    } finally {
+      fetchMock.mockRestore()
+    }
   })
 
   it('preserva status e health de webhook flows', async () => {

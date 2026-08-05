@@ -5,9 +5,72 @@ import {
   configureMetaPhoneWebhookOverride,
   configureMetaWabaWebhookOverride,
 } from "../src/whatsapp/flows";
+import { FLOW_TEMPLATES } from "../app/lib/flow-templates";
 const AUTH = { "x-api-key": "dev-api-key", "content-type": "application/json" };
 afterEach(() => vi.unstubAllGlobals());
 describe("MiniApps e formulários", () => {
+  it("provisiona os campos personalizados semânticos usados pelo mapeamento do MiniApp", async () => {
+    const template = FLOW_TEMPLATES.find((item) => item.key === "feedback_v1")!;
+    const created = await SELF.fetch("https://x.com/api/flows", {
+      method: "POST",
+      headers: AUTH,
+      body: JSON.stringify({
+        name: "Feedback com mapeamento",
+        definition: template.definition,
+        mapping: { customFields: { qa_feedback_comment: "comment" } },
+      }),
+    });
+    expect(created.status).toBe(201);
+    expect(
+      await env.DB.prepare(
+        "SELECT key,label,type FROM custom_field_defs WHERE key='qa_feedback_comment'",
+      ).first(),
+    ).toEqual({
+      key: "qa_feedback_comment",
+      label: "Qa Feedback Comment",
+      type: "text",
+    });
+
+    const flow = (await created.json()) as { id: string };
+    const edited = await SELF.fetch(`https://x.com/api/flows/${flow.id}`, {
+      method: "PATCH",
+      headers: AUTH,
+      body: JSON.stringify({
+        name: "Feedback editado",
+        definition: template.definition,
+        mapping: { customFields: { qa_feedback_comment: "comment" } },
+        expectedRevision: 1,
+      }),
+    });
+    expect(edited.status).toBe(200);
+    expect(
+      await env.DB.prepare(
+        "SELECT COUNT(*) total FROM custom_field_defs WHERE key='qa_feedback_comment'",
+      ).first(),
+    ).toEqual({ total: 1 });
+  });
+
+  it("rejeita escopo arbitrário na troca operacional de callback", async () => {
+    await env.DB.batch([
+      env.DB.prepare(
+        "INSERT INTO settings(key,value)VALUES('whatsapp_phone_id','11111') ON CONFLICT(key) DO UPDATE SET value='11111'",
+      ),
+      env.DB.prepare(
+        "INSERT INTO settings(key,value)VALUES('whatsapp_waba_id','22222') ON CONFLICT(key) DO UPDATE SET value='22222'",
+      ),
+    ]);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const response = await SELF.fetch("https://x.com/api/flows/meta/webhook-subscription", {
+      method: "POST",
+      headers: AUTH,
+      body: JSON.stringify({ qaCallbackTarget: "staging", qaCallbackScope: "global" }),
+    });
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "qaCallbackScope inválido" });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("configura o callback alternativo da WABA usado pelo canário", async () => {
     const fetchMock = vi.fn(async () =>
       new Response(JSON.stringify({ success: true }), { status: 200 }),
@@ -211,6 +274,17 @@ describe("MiniApps e formulários", () => {
         },
       ]),
     );
+    expect(children.at(-1)).toMatchObject({
+      type: "Footer",
+      "on-click-action": {
+        name: "complete",
+        payload: {
+          flow_completed: true,
+          email: "${form.email}",
+          interesse: "${form.interesse}",
+        },
+      },
+    });
     expect(JSON.stringify(json)).not.toContain("ui-1");
   });
 
@@ -396,7 +470,7 @@ describe("MiniApps e formulários", () => {
 
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual(
-      expect.objectContaining({ error: "O MiniApp precisa ter ao menos uma tela" }),
+      expect.objectContaining({ error: expect.stringContaining("O MiniApp precisa ter ao menos uma tela") }),
     );
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -492,7 +566,7 @@ describe("MiniApps e formulários", () => {
     const edited = await SELF.fetch(`https://x.com/api/flows/${flow.id}`, {
       method: "PATCH",
       headers: AUTH,
-      body: JSON.stringify({ name: "Qualificação atualizada", definition }),
+      body: JSON.stringify({ name: "Qualificação atualizada", definition, expectedRevision: 1 }),
     });
     expect(edited.status).toBe(200);
     expect(await edited.json()).toEqual(
@@ -527,6 +601,156 @@ describe("MiniApps e formulários", () => {
       ).status,
     ).toBe(200);
   });
+  it.each(["DatePicker", "PhotoPicker", "DocumentPicker"])(
+    "recusa %s antes de persistir o MiniApp",
+    async (type) => {
+      const name = `Incompatível ${type} ${crypto.randomUUID()}`;
+      const response = await SELF.fetch("https://x.com/api/flows", {
+        method: "POST",
+        headers: AUTH,
+        body: JSON.stringify({
+          name,
+          definition: {
+            screens: [{
+              id: "START",
+              title: "Início",
+              final: true,
+              blocks: [{ type, name: "field", label: "Campo" }],
+            }],
+          },
+        }),
+      });
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({
+        code: "INVALID_LOCAL_FLOW_DEFINITION",
+        issues: [expect.objectContaining({ code: "UNSUPPORTED_EDITOR_COMPONENT" })],
+      });
+      expect(
+        await env.DB.prepare("SELECT COUNT(*) AS total FROM flows WHERE name=?1")
+          .bind(name)
+          .first("total"),
+      ).toBe(0);
+    },
+  );
+  it.each(["open_url", "update_data"])(
+    "recusa ação %s antes de alterar a versão salva",
+    async (action) => {
+      const created = await SELF.fetch("https://x.com/api/flows", {
+        method: "POST",
+        headers: AUTH,
+        body: JSON.stringify({ name: `Ação ${action}` }),
+      });
+      expect(created.status).toBe(201);
+      const flow = (await created.json()) as { id: string };
+      try {
+        const response = await SELF.fetch(`https://x.com/api/flows/${flow.id}`, {
+          method: "PATCH",
+          headers: AUTH,
+          body: JSON.stringify({
+            name: `Ação ${action} alterada`,
+            expectedRevision: 1,
+            definition: {
+              screens: [{
+                id: "START",
+                title: "Início",
+                final: true,
+                blocks: [{
+                  type: "TextBody",
+                  text: "Texto",
+                  "on-click-action": { name: action },
+                }],
+              }],
+            },
+          }),
+        });
+        expect(response.status).toBe(400);
+        expect(await response.json()).toMatchObject({
+          code: "INVALID_LOCAL_FLOW_DEFINITION",
+          issues: [expect.objectContaining({ code: "UNSUPPORTED_LOCAL_ACTION" })],
+        });
+        expect(
+          await env.DB.prepare("SELECT local_revision FROM flows WHERE id=?1")
+            .bind(flow.id)
+            .first("local_revision"),
+        ).toBe(1);
+      } finally {
+        await SELF.fetch(`https://x.com/api/flows/${flow.id}`, { method: "DELETE", headers: AUTH });
+      }
+    },
+  );
+  it("exclui o rascunho remoto antes de apagar o MiniApp local", async () => {
+    const id = crypto.randomUUID();
+    await env.DB.prepare(
+      `INSERT INTO flows(id,name,status,meta_status,meta_id,definition_json)
+       VALUES(?1,'Rascunho remoto','DRAFT','DRAFT','77110022','{}')`,
+    ).bind(id).run();
+    const fetchMock = vi.fn(async () => Response.json({ success: true }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await SELF.fetch(`https://x.com/api/flows/${id}`, {
+      method: "DELETE",
+      headers: AUTH,
+    });
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("https://graph.facebook.com/v25.0/77110022");
+    expect(init.method).toBe("DELETE");
+    expect(await env.DB.prepare("SELECT id FROM flows WHERE id=?1").bind(id).first()).toBeNull();
+  });
+  it("deprecia todas as versões publicadas antes de apagar o MiniApp local", async () => {
+    const id = crypto.randomUUID();
+    await env.DB.prepare(
+      `INSERT INTO flows(id,name,status,meta_status,meta_id,published_meta_id,definition_json)
+       VALUES(?1,'Publicado remoto','PUBLISHED','PUBLISHED','88110022','88110022','{}')`,
+    ).bind(id).run();
+    await env.DB.prepare(
+      `INSERT INTO flow_meta_versions
+       (id,flow_local_id,meta_flow_id,status,local_revision,definition_json)
+       VALUES(?1,?2,'88110011','PUBLISHED',1,'{}')`,
+    ).bind(crypto.randomUUID(), id).run();
+    const fetchMock = vi.fn(async () => Response.json({ success: true }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await SELF.fetch(`https://x.com/api/flows/${id}`, {
+      method: "DELETE",
+      headers: AUTH,
+    });
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const calls = fetchMock.mock.calls as unknown as Array<[string, RequestInit]>;
+    expect(calls.map(([url]) => url).sort()).toEqual([
+      "https://graph.facebook.com/v25.0/88110011/deprecate",
+      "https://graph.facebook.com/v25.0/88110022/deprecate",
+    ]);
+    expect(calls.every(([, init]) => init.method === "POST")).toBe(true);
+    expect(await env.DB.prepare("SELECT id FROM flows WHERE id=?1").bind(id).first()).toBeNull();
+  });
+  it("preserva o MiniApp local quando a limpeza remota falha", async () => {
+    const id = crypto.randomUUID();
+    await env.DB.prepare(
+      `INSERT INTO flows(id,name,status,meta_status,meta_id,definition_json)
+       VALUES(?1,'Falha remota','DRAFT','DRAFT','99110022','{}')`,
+    ).bind(id).run();
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json(
+      { error: { message: "provider detail", code: 190 } },
+      { status: 500 },
+    )));
+
+    const response = await SELF.fetch(`https://x.com/api/flows/${id}`, {
+      method: "DELETE",
+      headers: AUTH,
+    });
+
+    expect(response.status).toBe(502);
+    expect(await response.json()).toMatchObject({
+      error: "A Meta não confirmou a remoção do MiniApp; o registro local foi preservado",
+      code: 190,
+    });
+    expect(await env.DB.prepare("SELECT id FROM flows WHERE id=?1").bind(id).first("id")).toBe(id);
+  });
   it("editar MiniApp publicado cria revisão local DRAFT sem perder a versão Meta", async () => {
     const id = crypto.randomUUID();
     await env.DB.prepare(
@@ -539,7 +763,7 @@ describe("MiniApps e formulários", () => {
     };
     const response = await SELF.fetch(`https://x.com/api/flows/${id}`, {
       method: 'PATCH', headers: AUTH,
-      body: JSON.stringify({ name: 'Publicado editado', definition }),
+      body: JSON.stringify({ name: 'Publicado editado', definition, expectedRevision: 1 }),
     });
     expect(response.status).toBe(200);
     const stored = await env.DB.prepare(
@@ -726,7 +950,7 @@ describe("MiniApps e formulários", () => {
         headers: AUTH,
         body: JSON.stringify({
           name: "convite_lancamento",
-          content: "Olá {{1}}",
+          content: "Olá {{1}}, tudo bem?",
           language: "pt_BR",
           category: "MARKETING",
           variables: { "1": "nome" },

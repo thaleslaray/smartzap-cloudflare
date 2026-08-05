@@ -30,6 +30,22 @@ const reportDir = resolve(
 );
 const transportOnly = process.env.QA_META_TRANSPORT_ONLY === "1";
 const sendCount = Number(process.env.QA_META_SEND_COUNT || 1);
+const templateName = process.env.QA_META_TEMPLATE_NAME || "hello_world";
+const templateLanguage = process.env.QA_META_TEMPLATE_LANGUAGE || "en_US";
+const expectedTemplateCategory = process.env.QA_META_TEMPLATE_CATEGORY || "UTILITY";
+const variableMapping = (() => {
+  const raw = process.env.QA_META_VARIABLE_MAPPING;
+  if (!raw) return undefined;
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error("QA_META_VARIABLE_MAPPING precisa ser um JSON válido.");
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+    throw new Error("QA_META_VARIABLE_MAPPING precisa ser um objeto JSON.");
+  return parsed;
+})();
 mkdirSync(reportDir, { recursive: true });
 
 function readEnv(path) {
@@ -144,6 +160,12 @@ if (process.env.QA_ALLOW_REAL_META !== "1")
   throw new Error("Defina QA_ALLOW_REAL_META=1 para autorizar o canário real.");
 if (!Number.isInteger(sendCount) || sendCount < 1 || sendCount > 3)
   throw new Error("QA_META_SEND_COUNT precisa estar entre 1 e 3.");
+if (!/^[a-z0-9_]{1,512}$/.test(templateName))
+  throw new Error("QA_META_TEMPLATE_NAME inválido.");
+if (!/^[a-z]{2}_[A-Z]{2}$/.test(templateLanguage))
+  throw new Error("QA_META_TEMPLATE_LANGUAGE inválido.");
+if (!["MARKETING", "UTILITY"].includes(expectedTemplateCategory))
+  throw new Error("QA_META_TEMPLATE_CATEGORY precisa ser MARKETING ou UTILITY.");
 
 const nowBrt = brtParts();
 const guard = resolveMetaCanaryGuard();
@@ -286,6 +308,12 @@ const report = {
   status: "running",
   authorizedRecipients: recipients.map(maskPhone),
   sendCount,
+  template: {
+    name: templateName,
+    language: templateLanguage,
+    expectedCategory: expectedTemplateCategory,
+    variableMappingKeys: Object.keys(variableMapping || {}).sort(),
+  },
   guard: {
     maxRunsPerDay: guard.maxRunsPerDay,
     outsideWindowAuthorized: guard.outsideWindowAuthorized,
@@ -321,6 +349,12 @@ try {
     );
 
   const health = (await api("/api/settings/health")).body;
+  const templates = (await api("/api/templates")).body.items;
+  const canaryTemplate = templates.find((item) =>
+    item.source === "meta" &&
+    item.name === templateName &&
+    item.language === templateLanguage
+  );
   const callback = resolveMetaCallbackPreflight(health, baseUrl);
   report.preflight = {
     databaseOk: health.databaseOk === true,
@@ -338,6 +372,15 @@ try {
     effectiveCallbackUrl: callback.effectiveCallbackUrl,
     callbackMatchesStaging: callback.callbackMatchesStaging,
     pilot: health.pilot,
+    template: canaryTemplate
+      ? {
+          name: canaryTemplate.name,
+          language: canaryTemplate.language,
+          category: canaryTemplate.category,
+          status: canaryTemplate.status,
+          simpleSendSupported: canaryTemplate.simpleSendSupported === true,
+        }
+      : null,
   };
   persist(report);
   if (
@@ -349,6 +392,13 @@ try {
     !report.preflight.tokenRequiredScopesPresent
   )
     throw new Error("Preflight operacional do staging não está verde.");
+  if (
+    !canaryTemplate ||
+    canaryTemplate.status !== "APPROVED" ||
+    canaryTemplate.category !== expectedTemplateCategory ||
+    canaryTemplate.simpleSendSupported !== true
+  )
+    throw new Error("O template escolhido para o canário não está aprovado ou não pertence ao contrato simples suportado.");
   if (!callback.callbackMatchesStaging) {
     report.limitation =
       "O callback efetivo da Meta aponta para produção. O staging pode provar aceite do transporte, mas não entrega/leitura/inbound isolados.";
@@ -468,8 +518,9 @@ try {
         method: "POST",
         body: JSON.stringify({
           name: `[PILOT REAL] ${runId}`,
-          template_name: "hello_world",
-          template_language: "en_US",
+          template_name: templateName,
+          template_language: templateLanguage,
+          ...(variableMapping ? { variable_mapping: variableMapping } : {}),
         }),
       },
       [201],
@@ -478,7 +529,9 @@ try {
   report.artifacts.campaigns.push({
     id: campaign.id,
     created: true,
-    template: "hello_world",
+    template: templateName,
+    language: templateLanguage,
+    category: expectedTemplateCategory,
   });
   const selectedIds = report.artifacts.contacts
     .slice(0, sendCount)

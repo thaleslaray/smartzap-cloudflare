@@ -9,10 +9,10 @@ const SUPPORTED_DATA_API_VERSIONS = new Set(["3.0", "4.0"]);
 const TEXT_COMPONENTS = new Set(["TextHeading", "TextSubheading", "TextBody", "TextCaption"]);
 const INPUT_COMPONENTS = new Set([
   "TextInput", "TextArea", "Dropdown", "RadioButtonsGroup", "CheckboxGroup",
-  "OptIn", "DatePicker", "CalendarPicker", "PhotoPicker", "DocumentPicker",
+  "OptIn", "CalendarPicker",
 ]);
 const CONTAINERS = new Set(["Form"]);
-const ACTIONS = new Set(["navigate", "complete", "data_exchange", "open_url", "update_data"]);
+const ACTIONS = new Set(["navigate", "complete", "data_exchange"]);
 const MAX_BYTES = 10 * 1024 * 1024;
 const MAX_SCREENS = 10;
 const MAX_COMPONENTS_PER_SCREEN = 50;
@@ -30,10 +30,7 @@ const FIELD_LABEL_LIMITS: Record<string, number> = {
   Dropdown: 20,
   RadioButtonsGroup: 30,
   CheckboxGroup: 30,
-  DatePicker: 40,
   CalendarPicker: 40,
-  PhotoPicker: 40,
-  DocumentPicker: 40,
   OptIn: 120,
 };
 
@@ -246,17 +243,24 @@ export function validateFlowJson(value: unknown): FlowValidationIssue[] {
           const name = String(next?.name ?? "");
           if (!name) add(`${component.path}.on-click-action.next`, "MISSING_NAVIGATION_TARGET", "navigate exige next.name");
         }
-        if (actionName === "open_url" && typeof action?.url !== "string")
-          add(`${component.path}.on-click-action.url`, "MISSING_OPEN_URL", "open_url exige url");
         if (actionName === "complete" && screen.terminal !== true)
           add(`${component.path}.on-click-action.name`, "COMPLETE_ON_NON_TERMINAL", "complete exige tela terminal");
-        if (screen.terminal === true && actionName !== "complete")
-          add(`${component.path}.on-click-action.name`, "TERMINAL_WITHOUT_COMPLETE", "Tela terminal exige ação complete");
+        if (screen.terminal === true && !["complete", "data_exchange"].includes(actionName))
+          add(`${component.path}.on-click-action.name`, "TERMINAL_WITHOUT_COMPLETION", "Tela terminal exige complete ou data_exchange");
       }
     }
     if (screen.terminal === true && !components.some((item) => item.value.type === "Footer"))
       add(path, "TERMINAL_WITHOUT_FOOTER", "Tela terminal precisa de Footer");
     const data = object(screen.data) ?? {};
+    for (const component of components) {
+      const visible = component.value.visible;
+      if (typeof visible !== "string") continue;
+      const match = /^\$\{data\.([A-Za-z_][A-Za-z0-9_]*)\}$/.exec(visible);
+      if (!match) continue;
+      const declaration = object(data[match[1]]);
+      if (declaration?.type !== "boolean")
+        add(`${component.path}.visible`, "INVALID_VISIBLE_BINDING_TYPE", "visible exige binding de data boolean");
+    }
     for (const binding of bindings(screen)) {
       if (binding.scope === "data" && !(binding.name in data))
         add(path, "UNKNOWN_DATA_BINDING", `Binding data.${binding.name} não foi declarado`);
@@ -269,8 +273,8 @@ export function validateFlowJson(value: unknown): FlowValidationIssue[] {
           add(`${path}.sensitive`, "UNKNOWN_SENSITIVE_FIELD", `Campo sensível inexistente: ${String(field)}`);
     }
   });
-  if (screens.length && terminalCount === 0 && !hasDataExchange)
-    add("$.screens", "MISSING_TERMINAL", "Flow estático precisa de ao menos uma tela terminal");
+  if (screens.length && terminalCount === 0)
+    add("$.screens", "MISSING_TERMINAL", "Flow precisa de ao menos uma tela terminal");
 
   const routing = object(flow.routing_model);
   const edges = new Map<string, string[]>();

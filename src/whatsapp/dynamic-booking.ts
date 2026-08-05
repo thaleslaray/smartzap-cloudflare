@@ -15,7 +15,7 @@ export function dynamicBookingFlowJson(dataApiVersion: "3.0" | "4.0" = "3.0"): R
       {
         id: "BOOKING_START", title: "${data.title}",
         data: {
-          title: { type: "string", __example__: "Agendar atendimento" }, subtitle: { type: "string", __example__: "Escolha o serviço e a data" }, error_message: { type: "string", __example__: "" },
+          title: { type: "string", __example__: "Agendar atendimento" }, subtitle: { type: "string", __example__: "Escolha o serviço e a data" }, error_message: { type: "string", __example__: "" }, show_error: { type: "boolean", __example__: false },
           services: { type: "array", items: { type: "object", properties: { id: { type: "string" }, title: { type: "string" } } }, __example__: [{ id: "consulta", title: "Consulta" }] },
           dates: { type: "array", items: { type: "object", properties: { id: { type: "string" }, title: { type: "string" } } }, __example__: [{ id: "2026-07-15", title: "15 jul." }] },
         },
@@ -23,7 +23,7 @@ export function dynamicBookingFlowJson(dataApiVersion: "3.0" | "4.0" = "3.0"): R
           { type: "TextSubheading", text: "${data.subtitle}" },
           { type: "Dropdown", name: "selected_service", label: "Tipo de atendimento", required: true, "data-source": "${data.services}" },
           { type: "Dropdown", name: "selected_date", label: "Data", required: true, "data-source": "${data.dates}" },
-          { type: "TextCaption", text: "${data.error_message}", visible: "${data.error_message}" },
+          { type: "TextCaption", text: "${data.error_message}", visible: "${data.show_error}" },
           { type: "Footer", label: "Ver horários", "on-click-action": { name: "data_exchange", payload: { selected_service: "${form.selected_service}", selected_date: "${form.selected_date}" } } },
         ] }] },
       },
@@ -40,7 +40,7 @@ export function dynamicBookingFlowJson(dataApiVersion: "3.0" | "4.0" = "3.0"): R
         ] }] },
       },
       {
-        id: "CUSTOMER_INFO", title: "${data.title}",
+        id: "CUSTOMER_INFO", title: "${data.title}", terminal: true,
         data: { title: { type: "string", __example__: "Seus dados" }, subtitle: { type: "string", __example__: "Confirme para agendar" }, selected_service: { type: "string", __example__: "consulta" }, selected_date: { type: "string", __example__: "2026-07-15" }, selected_slot: { type: "string", __example__: "2026-07-15T12:00:00.000Z" } },
         layout: { type: "SingleColumnLayout", children: [{ type: "Form", name: "customer_form", children: [
           { type: "TextSubheading", text: "${data.subtitle}" },
@@ -61,7 +61,7 @@ export async function handleDynamicBookingRequest(env: Env, db: D1Database, requ
   if (request.action === "ping") return { data: { status: "active" } };
   if (request.action === "INIT") return {
     screen: "BOOKING_START",
-    data: { title: "Agendar atendimento", subtitle: "Escolha o serviço e a data", services: config.services.map(({ id, title }) => ({ id, title })), dates: await availableDates(db), error_message: "" },
+    data: { title: "Agendar atendimento", subtitle: "Escolha o serviço e a data", services: config.services.map(({ id, title }) => ({ id, title })), dates: await availableDates(db), error_message: "", show_error: false },
   };
   if (request.action === "BACK") {
     if (request.screen === "SELECT_TIME") return handleDynamicBookingRequest(env, db, { ...request, action: "INIT" });
@@ -74,7 +74,7 @@ export async function handleDynamicBookingRequest(env: Env, db: D1Database, requ
     const selectedService = text(data.selected_service);
     if (!selectedDate || !config.services.some((service) => service.id === selectedService)) throw new Error("Selecione serviço e data");
     const slots = await availableSlots(env, db, selectedDate);
-    if (!slots.length) return { screen: "BOOKING_START", data: { title: "Agendar atendimento", subtitle: "Escolha o serviço e a data", services: config.services.map(({ id, title }) => ({ id, title })), dates: await availableDates(db), error_message: "Não há horários disponíveis nesta data." } };
+    if (!slots.length) return { screen: "BOOKING_START", data: { title: "Agendar atendimento", subtitle: "Escolha o serviço e a data", services: config.services.map(({ id, title }) => ({ id, title })), dates: await availableDates(db), error_message: "Não há horários disponíveis nesta data.", show_error: true } };
     return { screen: "SELECT_TIME", data: { title: "Escolha o horário", subtitle: "Horários disponíveis", selected_service: selectedService, selected_date: selectedDate, slots } };
   }
   if (request.screen === "SELECT_TIME") {

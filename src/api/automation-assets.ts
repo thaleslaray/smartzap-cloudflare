@@ -7,13 +7,26 @@ import { generateTemplateFactory } from "../ai/template-factory";
 import { generateFlowDefinition } from "../ai/flow-generator";
 import { getCredentials } from "../whatsapp/credentials";
 import { whatsappClient } from "../whatsapp/client";
-import { assertPilotInboxRecipient, PilotSafetyError } from "../domain/pilot";
+import {
+  isSimpleTemplateSendSupported,
+  positionalVariables,
+  validateMetaTemplateComponents,
+  validateSimpleTemplateButtons,
+} from "../../shared/template-validation";
+import {
+  assertPilotRecipient,
+  assertPilotTimeWindow,
+  PilotSafetyError,
+} from "../domain/pilot";
 import { googleCalendarStatus } from "../integrations/google-calendar";
 import { resolveQaMetaCallbackUrl } from "../domain/meta-callback";
+import { validateLocalFlowDefinition } from "../domain/flow-definition";
 import {
   buildMetaFlowJson,
   validateMetaFlowJson,
   createMetaFlow,
+  deleteMetaFlow,
+  deprecateMetaFlow,
   configureMetaAppWebhookSubscription,
   configureMetaPhoneWebhookOverride,
   configureMetaWabaWebhookOverride,
@@ -34,6 +47,9 @@ const flowSchema = z
     definition: z.record(z.string(), z.unknown()).optional(),
     mapping: z.record(z.string(), z.unknown()).optional(),
   })
+  .strict();
+const flowUpdateSchema = flowSchema
+  .extend({ expectedRevision: z.number().int().min(1) })
   .strict();
 const flowSendSchema = z
   .object({
@@ -118,6 +134,40 @@ const percentile = (values: number[], ratio: number) => {
   const sorted = [...values].sort((a, b) => a - b);
   return sorted[Math.min(sorted.length - 1, Math.ceil(sorted.length * ratio) - 1)];
 };
+const localFlowValidationResponse = (
+  definition: unknown,
+  mapping: unknown,
+) => {
+  const issues = validateLocalFlowDefinition(definition, mapping);
+  return issues.length
+    ? {
+        error: "A definição contém recursos ou valores incompatíveis com o editor atual",
+        code: "INVALID_LOCAL_FLOW_DEFINITION",
+        issues,
+      }
+    : null;
+};
+function flowCustomFieldLabel(key: string): string {
+  return key
+    .split("_")
+    .filter(Boolean)
+    .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+    .join(" ")
+    .slice(0, 120);
+}
+async function ensureFlowCustomFieldDefinitions(
+  db: D1Database,
+  mapping: Record<string, unknown>,
+): Promise<void> {
+  const customFields = mapping.customFields;
+  if (!customFields || typeof customFields !== "object" || Array.isArray(customFields)) return;
+  const keys = Object.keys(customFields).filter((key) => /^[a-z][a-z0-9_]{0,63}$/.test(key));
+  if (!keys.length) return;
+  await db.batch(keys.map((key) => db.prepare(
+    `INSERT OR IGNORE INTO custom_field_defs(id,key,label,type)
+     VALUES(?1,?2,?3,'text')`,
+  ).bind(crypto.randomUUID(), key, flowCustomFieldLabel(key))));
+}
 async function persistFlowPublication(
   db: D1Database,
   id: string,
@@ -157,21 +207,65 @@ async function persistFlowPublication(
     .run();
 }
 export const flowsRoutes = new Hono<{ Bindings: Env }>()
-  .get("/", async (c) =>
-    c.json({
-      items: (
-        await c.env.DB.prepare(
-          "SELECT * FROM flows ORDER BY updated_at DESC,id",
-        ).all()
-      ).results.map((r) => decodeFlow(r as Record<string, unknown>)),
-    }),
-  )
+  .get("/", async (c) => {
+    const rawLimit = c.req.query("limit");
+    const rawCursor = c.req.query("cursor");
+    if (!rawLimit && !rawCursor) {
+      return c.json({
+        items: (
+          await c.env.DB.prepare(
+            "SELECT * FROM flows ORDER BY updated_at DESC,id",
+          ).all()
+        ).results.map((r) => decodeFlow(r as Record<string, unknown>)),
+        nextCursor: null,
+      });
+    }
+    const limit = Number(rawLimit || 100);
+    if (!Number.isInteger(limit) || limit < 1 || limit > 200)
+      return c.json({ error: "limit precisa estar entre 1 e 200" }, 400);
+    let cursor: { updatedAt: string; id: string } | null = null;
+    if (rawCursor) {
+      try {
+        const decoded = JSON.parse(atob(rawCursor.replace(/-/g, "+").replace(/_/g, "/")));
+        if (
+          !decoded || typeof decoded.updatedAt !== "string" ||
+          typeof decoded.id !== "string"
+        ) throw new Error("cursor inválido");
+        cursor = { updatedAt: decoded.updatedAt, id: decoded.id };
+      } catch {
+        return c.json({ error: "cursor inválido" }, 400);
+      }
+    }
+    const query = cursor
+      ? c.env.DB.prepare(
+          `SELECT * FROM flows
+           WHERE updated_at<?1 OR (updated_at=?1 AND id>?2)
+           ORDER BY updated_at DESC,id LIMIT ?3`,
+        ).bind(cursor.updatedAt, cursor.id, limit + 1)
+      : c.env.DB.prepare(
+          "SELECT * FROM flows ORDER BY updated_at DESC,id LIMIT ?1",
+        ).bind(limit + 1);
+    const rows = (await query.all()).results as Array<Record<string, unknown>>;
+    const page = rows.slice(0, limit);
+    const last = page.at(-1);
+    const nextCursor = rows.length > limit && last
+      ? btoa(JSON.stringify({ updatedAt: String(last.updated_at), id: String(last.id) }))
+          .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "")
+      : null;
+    return c.json({ items: page.map(decodeFlow), nextCursor });
+  })
   .post("/", async (c) => {
     const raw = await readJsonBody(c, 64_000);
     if (!raw.ok) return c.json({ error: raw.error }, raw.status);
     const body = flowSchema.safeParse(raw.value);
     if (!body.success) return c.json({ error: "MiniApp inválido" }, 400);
+    const validation = localFlowValidationResponse(
+      body.data.definition || {},
+      body.data.mapping || {},
+    );
+    if (validation) return c.json(validation, 400);
     const id = crypto.randomUUID();
+    await ensureFlowCustomFieldDefinitions(c.env.DB, body.data.mapping || {});
     await c.env.DB.prepare(
       "INSERT INTO flows(id,name,definition_json,mapping_json)VALUES(?1,?2,?3,?4)",
     )
@@ -302,6 +396,12 @@ export const flowsRoutes = new Hono<{ Bindings: Env }>()
       rawBody.value && typeof rawBody.value === "object"
         ? (rawBody.value as Record<string, unknown>).qaCallbackTarget
         : undefined;
+    const requestedScope =
+      rawBody.value && typeof rawBody.value === "object"
+        ? (rawBody.value as Record<string, unknown>).qaCallbackScope
+        : undefined;
+    if (requestedScope !== undefined && !["app", "overrides"].includes(String(requestedScope)))
+      return c.json({ error: "qaCallbackScope inválido" }, 400);
     const callback = resolveQaMetaCallbackUrl(
       c.env.ENVIRONMENT,
       requestedTarget,
@@ -309,7 +409,15 @@ export const flowsRoutes = new Hono<{ Bindings: Env }>()
     );
     if (!callback.ok) return c.json({ error: callback.error }, callback.status);
     try {
-      if (callback.target) {
+      if (callback.target && requestedScope === "app") {
+        await configureMetaAppWebhookSubscription({
+          version: credentials.graphVersion,
+          appId: credentials.appId,
+          appSecret: credentials.appSecret,
+          callbackUrl: callback.url,
+          verifyToken: c.env.META_VERIFY_TOKEN,
+        });
+      } else if (callback.target) {
         await configureMetaWabaWebhookOverride({
           version: credentials.graphVersion,
           wabaId: credentials.wabaId,
@@ -336,10 +444,13 @@ export const flowsRoutes = new Hono<{ Bindings: Env }>()
       const probe = await whatsappClient(credentials).checkOperational(credentials.wabaId);
       return c.json({
         ok: true,
-        callbackUrl: callback.target
-          ? probe.phoneWebhookCallbackUrl ?? callback.url
-          : probe.appWebhookCallbackUrl ?? callback.url,
+        callbackUrl: callback.target && requestedScope === "app"
+          ? probe.appWebhookCallbackUrl ?? callback.url
+          : callback.target
+            ? probe.phoneWebhookCallbackUrl ?? callback.url
+            : probe.appWebhookCallbackUrl ?? callback.url,
         qaCallbackTarget: callback.target,
+        qaCallbackScope: callback.target ? requestedScope ?? "overrides" : "app",
         fields: probe.appWebhookFields,
         flowsSubscribed: probe.appWebhookFields.includes("flows"),
       });
@@ -360,25 +471,59 @@ export const flowsRoutes = new Hono<{ Bindings: Env }>()
   .patch("/:id", async (c) => {
     const raw = await readJsonBody(c, 256_000);
     if (!raw.ok) return c.json({ error: raw.error }, raw.status);
-    const body = flowSchema.safeParse(raw.value);
+    const body = flowUpdateSchema.safeParse(raw.value);
     if (!body.success) return c.json({ error: "MiniApp inválido" }, 400);
+    const validation = localFlowValidationResponse(
+      body.data.definition || {},
+      body.data.mapping || {},
+    );
+    if (validation) return c.json(validation, 400);
+    const current = await c.env.DB.prepare(
+      "SELECT local_revision FROM flows WHERE id=?1",
+    ).bind(c.req.param("id")).first<{ local_revision: number }>();
+    if (!current) return c.json({ error: "MiniApp não encontrado" }, 404);
+    if (Number(current.local_revision) !== body.data.expectedRevision)
+      return c.json(
+        {
+          error: "Este MiniApp foi alterado em outra sessão. Recarregue antes de salvar novamente.",
+          code: "FLOW_REVISION_CONFLICT",
+          currentRevision: Number(current.local_revision),
+        },
+        409,
+      );
     await c.env.DB.prepare(
       `INSERT OR IGNORE INTO flow_meta_versions
        (id,flow_local_id,meta_flow_id,status,local_revision,definition_json)
        SELECT lower(hex(randomblob(16))),id,meta_id,meta_status,local_revision,definition_json
        FROM flows WHERE id=?1 AND meta_id IS NOT NULL AND meta_status='PUBLISHED'`,
     ).bind(c.req.param("id")).run();
-    await c.env.DB.prepare(
+    const updated = await c.env.DB.prepare(
       `UPDATE flows SET name=?2,definition_json=?3,mapping_json=?4,status='DRAFT',
-       local_revision=local_revision+1,updated_at=datetime('now') WHERE id=?1`,
+       local_revision=local_revision+1,updated_at=datetime('now')
+       WHERE id=?1 AND local_revision=?5`,
     )
       .bind(
         c.req.param("id"),
         body.data.name,
         JSON.stringify(body.data.definition || {}),
         JSON.stringify(body.data.mapping || {}),
+        body.data.expectedRevision,
       )
       .run();
+    if ((updated.meta.changes ?? 0) !== 1) {
+      const latest = await c.env.DB.prepare(
+        "SELECT local_revision FROM flows WHERE id=?1",
+      ).bind(c.req.param("id")).first<{ local_revision: number }>();
+      return c.json(
+        {
+          error: "Este MiniApp foi alterado em outra sessão. Recarregue antes de salvar novamente.",
+          code: "FLOW_REVISION_CONFLICT",
+          currentRevision: Number(latest?.local_revision ?? body.data.expectedRevision),
+        },
+        409,
+      );
+    }
+    await ensureFlowCustomFieldDefinitions(c.env.DB, body.data.mapping || {});
     const row = await c.env.DB.prepare("SELECT * FROM flows WHERE id=?1")
       .bind(c.req.param("id"))
       .first();
@@ -421,7 +566,8 @@ export const flowsRoutes = new Hono<{ Bindings: Env }>()
     const credentials = await getCredentials(c.env);
     if (!credentials) return c.json({ error: "Credenciais da Meta não configuradas" }, 400);
     try {
-      assertPilotInboxRecipient(c.env, to);
+      assertPilotRecipient(c.env, to);
+      assertPilotTimeWindow(c.env);
     } catch (error) {
       if (error instanceof PilotSafetyError)
         return c.json({ error: error.message }, error.status);
@@ -512,6 +658,22 @@ export const flowsRoutes = new Hono<{ Bindings: Env }>()
         400,
       );
     }
+    const publishClaimToken = crypto.randomUUID();
+    const publishClaim = await c.env.DB.prepare(
+      `UPDATE flows SET publish_claim_token=?2,publish_claimed_at=datetime('now')
+       WHERE id=?1 AND (
+         publish_claim_token IS NULL OR
+         publish_claimed_at<=datetime('now','-5 minutes')
+       )`,
+    ).bind(row.id, publishClaimToken).run();
+    if ((publishClaim.meta.changes ?? 0) !== 1)
+      return c.json(
+        {
+          error: "A publicação deste MiniApp já está em andamento.",
+          code: "FLOW_PUBLISH_IN_PROGRESS",
+        },
+        409,
+      );
     try {
       const requiresEndpoint = typeof flowJson.data_api_version === "string";
       const endpointUri = requiresEndpoint
@@ -719,11 +881,82 @@ export const flowsRoutes = new Hono<{ Bindings: Env }>()
       if (error instanceof DOMException && error.name === "TimeoutError")
         return c.json({ error: "A Meta não respondeu no tempo esperado" }, 504);
       throw error;
+    } finally {
+      await c.env.DB.prepare(
+        `UPDATE flows SET publish_claim_token=NULL,publish_claimed_at=NULL
+         WHERE id=?1 AND publish_claim_token=?2`,
+      ).bind(row.id, publishClaimToken).run();
     }
   })
   .delete("/:id", async (c) => {
+    const flowId = c.req.param("id");
+    const row = await c.env.DB.prepare(
+      "SELECT id,meta_id,meta_status,published_meta_id FROM flows WHERE id=?1",
+    ).bind(flowId).first<Record<string, unknown>>();
+    if (!row) return c.json({ error: "MiniApp não encontrado" }, 404);
+
+    const versions = (
+      await c.env.DB.prepare(
+        "SELECT meta_flow_id,status FROM flow_meta_versions WHERE flow_local_id=?1",
+      ).bind(flowId).all<Record<string, unknown>>()
+    ).results;
+    const remoteVersions = new Map<string, string>();
+    for (const version of versions) {
+      const remoteId = String(version.meta_flow_id ?? "");
+      if (remoteId) remoteVersions.set(remoteId, String(version.status ?? ""));
+    }
+    const currentMetaId = String(row.meta_id ?? "");
+    if (currentMetaId) remoteVersions.set(currentMetaId, String(row.meta_status ?? ""));
+    const publishedMetaId = String(row.published_meta_id ?? "");
+    if (publishedMetaId && !remoteVersions.has(publishedMetaId))
+      remoteVersions.set(publishedMetaId, "PUBLISHED");
+
+    if (remoteVersions.size) {
+      const credentials = await getCredentials(c.env);
+      if (!credentials)
+        return c.json(
+          { error: "Credenciais da Meta não configuradas; o MiniApp local foi preservado" },
+          409,
+        );
+      try {
+        for (const [remoteId, status] of remoteVersions) {
+          if (status === "DEPRECATED") continue;
+          try {
+            if (status === "PUBLISHED")
+              await deprecateMetaFlow({
+                token: credentials.token,
+                version: credentials.graphVersion,
+                flowId: remoteId,
+              });
+            else
+              await deleteMetaFlow({
+                token: credentials.token,
+                version: credentials.graphVersion,
+                flowId: remoteId,
+              });
+          } catch (error) {
+            // Um 404 significa que o remoto já foi limpo; os demais erros
+            // preservam o registro local para permitir nova tentativa segura.
+            if (!(error instanceof MetaFlowApiError && error.httpStatus === 404))
+              throw error;
+          }
+        }
+      } catch (error) {
+        if (error instanceof MetaFlowApiError)
+          return c.json(
+            {
+              error: "A Meta não confirmou a remoção do MiniApp; o registro local foi preservado",
+              code: error.code,
+              subcode: error.subcode,
+            },
+            error.httpStatus >= 400 && error.httpStatus < 500 ? 409 : 502,
+          );
+        throw error;
+      }
+    }
+
     const r = await c.env.DB.prepare("DELETE FROM flows WHERE id=?1")
-      .bind(c.req.param("id"))
+      .bind(flowId)
       .run();
     return r.meta.changes
       ? c.json({ ok: true })
@@ -906,11 +1139,9 @@ const projectItemSchema = z
       .string()
       .trim()
       .regex(/^[a-z0-9_]{1,512}$/),
-    content: z.string().max(32_000),
+    content: z.string().trim().min(1).max(32_000),
     language: z.string().trim().min(2).max(16).default("pt_BR"),
-    category: z
-      .enum(["MARKETING", "UTILITY", "AUTHENTICATION"])
-      .default("UTILITY"),
+    category: z.enum(["MARKETING", "UTILITY"]).default("UTILITY"),
     header: z.record(z.string(), z.unknown()).nullable().optional(),
     footer: z.record(z.string(), z.unknown()).nullable().optional(),
     buttons: z.array(z.record(z.string(), z.unknown())).max(10).optional(),
@@ -919,6 +1150,100 @@ const projectItemSchema = z
     marketingVariables: z.record(z.string(), z.string()).optional(),
   })
   .strict();
+const projectUpdateSchema = z
+  .object({
+    title: z.string().trim().min(1).max(160),
+    strategy: z.enum(["marketing", "utility", "bypass"]),
+  })
+  .strict();
+type ProjectItemInput = z.infer<typeof projectItemSchema>;
+type ProjectValidationIssue = { code: string; message: string };
+const projectItemSamples = (item: ProjectItemInput) =>
+  Object.keys(item.sampleVariables || {}).length
+    ? item.sampleVariables || {}
+    : item.variables || {};
+const projectItemComponents = (item: ProjectItemInput) => {
+  const components: Array<Record<string, unknown>> = [];
+  if (item.header) components.push({ type: "HEADER", ...item.header });
+  const body: Record<string, unknown> = { type: "BODY", text: item.content };
+  const samples = projectItemSamples(item);
+  const orderedSamples = positionalVariables(item.content)
+    .map((variable) => samples[String(variable)]?.trim())
+    .filter((value): value is string => Boolean(value));
+  if (orderedSamples.length)
+    body.example = { body_text: [orderedSamples] };
+  components.push(body);
+  if (item.footer) components.push({ type: "FOOTER", ...item.footer });
+  if (item.buttons?.length)
+    components.push({ type: "BUTTONS", buttons: item.buttons });
+  return components;
+};
+const validateProjectItem = (item: ProjectItemInput): ProjectValidationIssue[] => {
+  const components = projectItemComponents(item);
+  const issues: ProjectValidationIssue[] = [
+    ...validateMetaTemplateComponents(components),
+    ...validateSimpleTemplateButtons(item.buttons || []),
+  ];
+  if (!isSimpleTemplateSendSupported(item.category, components))
+    issues.push({
+      code: "unsupported_template_contract",
+      message:
+        "Projetos aceita somente templates simples de Marketing ou Utilidade.",
+    });
+  const samples = projectItemSamples(item);
+  const missing = positionalVariables(item.content).filter(
+    (variable) => !samples[String(variable)]?.trim(),
+  );
+  if (missing.length)
+    issues.push({
+      code: "body_example_required",
+      message: `Informe um exemplo para ${missing.map((value) => `{{${value}}}`).join(", ")}.`,
+    });
+  return issues;
+};
+const parseProjectRow = (row: Record<string, unknown>): ProjectItemInput => ({
+  name: String(row.name || ""),
+  content: String(row.content || ""),
+  language: String(row.language || "pt_BR"),
+  category: String(row.category || "UTILITY") as ProjectItemInput["category"],
+  header: row.header_json
+    ? (JSON.parse(String(row.header_json)) as Record<string, unknown>)
+    : null,
+  footer: row.footer_json
+    ? (JSON.parse(String(row.footer_json)) as Record<string, unknown>)
+    : null,
+  buttons: JSON.parse(String(row.buttons_json || "[]")) as Array<
+    Record<string, unknown>
+  >,
+  variables: JSON.parse(String(row.variables_json || "{}")) as Record<
+    string,
+    string
+  >,
+  sampleVariables: JSON.parse(
+    String(row.sample_variables_json || "{}"),
+  ) as Record<string, string>,
+  marketingVariables: JSON.parse(
+    String(row.marketing_variables_json || "{}"),
+  ) as Record<string, string>,
+});
+const touchTemplateProject = async (db: D1Database, projectId: string) => {
+  await db
+    .prepare(
+      `UPDATE template_projects SET
+        template_count=(SELECT COUNT(*) FROM template_project_items WHERE project_id=?1),
+        approved_count=(SELECT COUNT(*) FROM template_project_items WHERE project_id=?1 AND meta_status='APPROVED'),
+        status=CASE
+          WHEN NOT EXISTS(SELECT 1 FROM template_project_items WHERE project_id=?1) THEN 'draft'
+          WHEN NOT EXISTS(SELECT 1 FROM template_project_items WHERE project_id=?1 AND (meta_status IS NULL OR meta_status!='APPROVED')) THEN 'completed'
+          WHEN EXISTS(SELECT 1 FROM template_project_items WHERE project_id=?1 AND (meta_id IS NOT NULL OR status='submitting')) THEN 'active'
+          ELSE 'draft'
+        END,
+        updated_at=datetime('now')
+      WHERE id=?1`,
+    )
+    .bind(projectId)
+    .run();
+};
 const decodeProjectItem = (row: Record<string, unknown>): Record<string, unknown> => ({
   ...row,
   components: JSON.parse(String(row.components_json || "[]")),
@@ -1018,6 +1343,20 @@ export const templateProjectsRoutes = new Hono<{ Bindings: Env }>()
       .strict()
       .safeParse(raw.value);
     if (!body.success) return c.json({ error: "projeto gerado inválido" }, 400);
+    const normalizedNames = body.data.items.map((item) => item.name.toLowerCase());
+    if (new Set(normalizedNames).size !== normalizedNames.length)
+      return c.json(
+        { error: "há templates com o mesmo nome no projeto", code: "DUPLICATE_TEMPLATE_NAME" },
+        409,
+      );
+    const invalidItems = body.data.items
+      .map((item) => ({ name: item.name, issues: validateProjectItem(item) }))
+      .filter((item) => item.issues.length);
+    if (invalidItems.length)
+      return c.json(
+        { error: "templates fora das regras da Meta", items: invalidItems },
+        400,
+      );
     const projectId = crypto.randomUUID();
     const statements = [
       c.env.DB.prepare(
@@ -1044,7 +1383,7 @@ export const templateProjectsRoutes = new Hono<{ Bindings: Env }>()
           item.footer ? JSON.stringify(item.footer) : null,
           JSON.stringify(item.buttons || []),
           JSON.stringify(item.variables || {}),
-          JSON.stringify(item.sampleVariables || {}),
+          JSON.stringify(projectItemSamples(item)),
           JSON.stringify(item.marketingVariables || {}),
         ),
       ),
@@ -1074,48 +1413,48 @@ export const templateProjectsRoutes = new Hono<{ Bindings: Env }>()
     if (!creds?.wabaId)
       return c.json({ error: "credenciais Meta não configuradas" }, 400);
     const client = whatsappClient(creds);
-    const created: Array<{ id: string; name: string; metaId: string | null }> =
-      [];
+    const created: Array<{ id: string; name: string; metaId: string }> = [];
     const failed: Array<{ id: string; name: string; error: string }> = [];
     for (const item of items) {
       const name = String(item.name);
       try {
-        const components: Array<Record<string, unknown>> = [];
-        const header = item.header_json
-          ? (JSON.parse(String(item.header_json)) as Record<string, unknown>)
-          : null;
-        if (header) components.push({ type: "HEADER", ...header });
-        const bodyComponent: Record<string, unknown> = {
-          type: "BODY",
-          text: String(item.content || ""),
-        };
-        const samples = JSON.parse(
-          String(item.sample_variables_json || "{}"),
-        ) as Record<string, string>;
-        const orderedSamples = Object.keys(samples)
-          .filter((key) => /^\d+$/.test(key))
-          .sort((a, b) => Number(a) - Number(b))
-          .map((key) => samples[key]);
-        if (orderedSamples.length)
-          bodyComponent.example = { body_text: [orderedSamples] };
-        components.push(bodyComponent);
-        const footer = item.footer_json
-          ? (JSON.parse(String(item.footer_json)) as Record<string, unknown>)
-          : null;
-        if (footer) components.push({ type: "FOOTER", ...footer });
-        const buttons = JSON.parse(String(item.buttons_json || "[]")) as Array<
-          Record<string, unknown>
-        >;
-        if (buttons.length) components.push({ type: "BUTTONS", buttons });
+        const parsed = parseProjectRow(item);
+        const issues = validateProjectItem(parsed);
+        if (issues.length) {
+          failed.push({
+            id: String(item.id),
+            name,
+            error: issues.map((issue) => issue.message).join(" "),
+          });
+          continue;
+        }
+        const claim = await c.env.DB.prepare(
+          `UPDATE template_project_items SET status='submitting',updated_at=datetime('now')
+           WHERE id=?1 AND project_id=?2 AND meta_id IS NULL
+             AND (status!='submitting' OR updated_at<datetime('now','-5 minutes'))`,
+        )
+          .bind(String(item.id), c.req.param("id"))
+          .run();
+        if (!claim.meta.changes) {
+          failed.push({
+            id: String(item.id),
+            name,
+            error: "Este template já está em envio. Aguarde a conclusão antes de tentar novamente.",
+          });
+          continue;
+        }
+        const components = projectItemComponents(parsed);
         const result = (await client.createTemplate(creds.wabaId, {
           name,
           language: String(item.language || "pt_BR"),
           category: String(item.category || "UTILITY"),
           components,
         })) as Record<string, unknown>;
-        const metaId = typeof result.id === "string" ? result.id : null;
+        const metaId =
+          typeof result.id === "string" && result.id.trim() ? result.id : null;
+        if (!metaId) throw new Error("A Meta aceitou a chamada sem retornar o ID do template.");
         await c.env.DB.prepare(
-          "UPDATE template_project_items SET meta_id=?2,meta_status=?3,updated_at=datetime('now') WHERE id=?1",
+          "UPDATE template_project_items SET meta_id=?2,meta_status=?3,status='submitted',submitted_at=datetime('now'),updated_at=datetime('now') WHERE id=?1 AND status='submitting'",
         )
           .bind(
             String(item.id),
@@ -1125,6 +1464,11 @@ export const templateProjectsRoutes = new Hono<{ Bindings: Env }>()
           .run();
         created.push({ id: String(item.id), name, metaId });
       } catch (error) {
+        await c.env.DB.prepare(
+          "UPDATE template_project_items SET status='draft',updated_at=datetime('now') WHERE id=?1 AND status='submitting' AND meta_id IS NULL",
+        )
+          .bind(String(item.id))
+          .run();
         failed.push({
           id: String(item.id),
           name,
@@ -1132,6 +1476,7 @@ export const templateProjectsRoutes = new Hono<{ Bindings: Env }>()
         });
       }
     }
+    await touchTemplateProject(c.env.DB, c.req.param("id"));
     return c.json({ created, failed }, failed.length ? 207 : 200);
   })
   .post("/:id/sync", async (c) => {
@@ -1141,6 +1486,19 @@ export const templateProjectsRoutes = new Hono<{ Bindings: Env }>()
       .bind(c.req.param("id"))
       .first();
     if (!project) return c.json({ error: "projeto não encontrado" }, 404);
+    const duplicate = await c.env.DB.prepare(
+      "SELECT name,COUNT(*) total FROM template_project_items WHERE project_id=?1 GROUP BY name HAVING COUNT(*)>1 LIMIT 1",
+    )
+      .bind(c.req.param("id"))
+      .first<{ name: string; total: number }>();
+    if (duplicate)
+      return c.json(
+        {
+          error: `Existem ${duplicate.total} itens locais com o nome ${duplicate.name}. Renomeie-os antes de sincronizar.`,
+          code: "DUPLICATE_TEMPLATE_NAME",
+        },
+        409,
+      );
     const creds = await getCredentials(c.env);
     if (!creds?.wabaId)
       return c.json({ error: "credenciais Meta não configuradas" }, 400);
@@ -1160,6 +1518,7 @@ export const templateProjectsRoutes = new Hono<{ Bindings: Env }>()
         .run();
       updated += result.meta.changes;
     }
+    await touchTemplateProject(c.env.DB, c.req.param("id"));
     return c.json({ updated });
   })
   .get("/:id", async (c) => {
@@ -1198,9 +1557,16 @@ export const templateProjectsRoutes = new Hono<{ Bindings: Env }>()
         { error: "template inválido", issues: body.error.issues },
         400,
       );
+    const issues = validateProjectItem(body.data);
+    if (issues.length)
+      return c.json({ error: "template fora das regras da Meta", issues }, 400);
     const id = crypto.randomUUID();
-    await c.env.DB.prepare(
-      `INSERT INTO template_project_items(id,project_id,name,content,language,category,header_json,footer_json,buttons_json,variables_json,sample_variables_json,marketing_variables_json)VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12)`,
+    const inserted = await c.env.DB.prepare(
+      `INSERT INTO template_project_items(id,project_id,name,content,language,category,header_json,footer_json,buttons_json,variables_json,sample_variables_json,marketing_variables_json)
+       SELECT ?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12
+       WHERE NOT EXISTS(
+         SELECT 1 FROM template_project_items WHERE project_id=?2 AND lower(name)=lower(?3)
+       )`,
     )
       .bind(
         id,
@@ -1213,15 +1579,16 @@ export const templateProjectsRoutes = new Hono<{ Bindings: Env }>()
         body.data.footer ? JSON.stringify(body.data.footer) : null,
         JSON.stringify(body.data.buttons || []),
         JSON.stringify(body.data.variables || {}),
-        JSON.stringify(body.data.sampleVariables || {}),
+        JSON.stringify(projectItemSamples(body.data)),
         JSON.stringify(body.data.marketingVariables || {}),
       )
       .run();
-    await c.env.DB.prepare(
-      "UPDATE template_projects SET updated_at=datetime('now') WHERE id=?1",
-    )
-      .bind(c.req.param("id"))
-      .run();
+    if (!inserted.meta.changes)
+      return c.json(
+        { error: "já existe um template com esse nome no projeto", code: "DUPLICATE_TEMPLATE_NAME" },
+        409,
+      );
+    await touchTemplateProject(c.env.DB, c.req.param("id"));
     return c.json(
       decodeProjectItem(
         (await c.env.DB.prepare(
@@ -1238,8 +1605,29 @@ export const templateProjectsRoutes = new Hono<{ Bindings: Env }>()
     if (!raw.ok) return c.json({ error: raw.error }, raw.status);
     const body = projectItemSchema.safeParse(raw.value);
     if (!body.success) return c.json({ error: "template inválido" }, 400);
-    await c.env.DB.prepare(
-      `UPDATE template_project_items SET name=?2,content=?3,language=?4,category=?5,header_json=?6,footer_json=?7,buttons_json=?8,variables_json=?9,sample_variables_json=?10,marketing_variables_json=?11,updated_at=datetime('now') WHERE id=?1`,
+    const existing = await c.env.DB.prepare(
+      "SELECT project_id,meta_id FROM template_project_items WHERE id=?1",
+    )
+      .bind(c.req.param("itemId"))
+      .first<{ project_id: string; meta_id: string | null }>();
+    if (!existing) return c.json({ error: "template não encontrado" }, 404);
+    if (existing.meta_id)
+      return c.json(
+        {
+          error: "template já publicado não pode ser editado localmente",
+          code: "REMOTE_TEMPLATE_MUTATION_BLOCKED",
+        },
+        409,
+      );
+    const issues = validateProjectItem(body.data);
+    if (issues.length)
+      return c.json({ error: "template fora das regras da Meta", issues }, 400);
+    const updated = await c.env.DB.prepare(
+      `UPDATE template_project_items SET name=?2,content=?3,language=?4,category=?5,header_json=?6,footer_json=?7,buttons_json=?8,variables_json=?9,sample_variables_json=?10,marketing_variables_json=?11,updated_at=datetime('now')
+       WHERE id=?1 AND NOT EXISTS(
+         SELECT 1 FROM template_project_items duplicate
+         WHERE duplicate.project_id=?12 AND lower(duplicate.name)=lower(?2) AND duplicate.id!=?1
+       )`,
     )
       .bind(
         c.req.param("itemId"),
@@ -1251,10 +1639,17 @@ export const templateProjectsRoutes = new Hono<{ Bindings: Env }>()
         body.data.footer ? JSON.stringify(body.data.footer) : null,
         JSON.stringify(body.data.buttons || []),
         JSON.stringify(body.data.variables || {}),
-        JSON.stringify(body.data.sampleVariables || {}),
+        JSON.stringify(projectItemSamples(body.data)),
         JSON.stringify(body.data.marketingVariables || {}),
+        existing.project_id,
       )
       .run();
+    if (!updated.meta.changes)
+      return c.json(
+        { error: "já existe um template com esse nome no projeto", code: "DUPLICATE_TEMPLATE_NAME" },
+        409,
+      );
+    await touchTemplateProject(c.env.DB, existing.project_id);
     const item = await c.env.DB.prepare(
       "SELECT * FROM template_project_items WHERE id=?1",
     )
@@ -1265,11 +1660,26 @@ export const templateProjectsRoutes = new Hono<{ Bindings: Env }>()
       : c.json({ error: "template não encontrado" }, 404);
   })
   .delete("/items/:itemId", async (c) => {
+    const existing = await c.env.DB.prepare(
+      "SELECT project_id,meta_id FROM template_project_items WHERE id=?1",
+    )
+      .bind(c.req.param("itemId"))
+      .first<{ project_id: string; meta_id: string | null }>();
+    if (!existing) return c.json({ error: "template não encontrado" }, 404);
+    if (existing.meta_id)
+      return c.json(
+        {
+          error: "template publicado continua na Meta e não pode ser excluído somente do SmartZap",
+          code: "REMOTE_TEMPLATE_DELETE_BLOCKED",
+        },
+        409,
+      );
     const r = await c.env.DB.prepare(
       "DELETE FROM template_project_items WHERE id=?1",
     )
       .bind(c.req.param("itemId"))
       .run();
+    if (r.meta.changes) await touchTemplateProject(c.env.DB, existing.project_id);
     return r.meta.changes
       ? c.json({ ok: true })
       : c.json({ error: "template não encontrado" }, 404);
@@ -1277,7 +1687,7 @@ export const templateProjectsRoutes = new Hono<{ Bindings: Env }>()
   .patch("/:id", async (c) => {
     const raw = await readJsonBody(c, 16_000);
     if (!raw.ok) return c.json({ error: raw.error }, raw.status);
-    const body = projectSchema.safeParse(raw.value);
+    const body = projectUpdateSchema.safeParse(raw.value);
     if (!body.success) return c.json({ error: "projeto inválido" }, 400);
     await c.env.DB.prepare(
       "UPDATE template_projects SET title=?2,strategy=?3,updated_at=datetime('now') WHERE id=?1",
@@ -1294,6 +1704,19 @@ export const templateProjectsRoutes = new Hono<{ Bindings: Env }>()
       : c.json({ error: "projeto não encontrado" }, 404);
   })
   .delete("/:id", async (c) => {
+    const remote = await c.env.DB.prepare(
+      "SELECT COUNT(*) total FROM template_project_items WHERE project_id=?1 AND meta_id IS NOT NULL",
+    )
+      .bind(c.req.param("id"))
+      .first<{ total: number }>();
+    if (Number(remote?.total || 0) > 0)
+      return c.json(
+        {
+          error: "o projeto contém templates publicados na Meta e não pode ser excluído somente do SmartZap",
+          code: "REMOTE_PROJECT_DELETE_BLOCKED",
+        },
+        409,
+      );
     const r = await c.env.DB.prepare(
       "DELETE FROM template_projects WHERE id=?1",
     )

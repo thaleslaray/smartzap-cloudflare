@@ -11,6 +11,8 @@ type MetaErrorPayload = {
   message?: string;
   type?: string;
   code?: number;
+  error_user_title?: string;
+  error_user_msg?: string;
   error_data?: { details?: string; messaging_product?: string };
   fbtrace_id?: string;
 };
@@ -186,7 +188,7 @@ export function whatsappClient(creds: {
     const error = data?.error as MetaErrorPayload | undefined;
     if (!res.ok || error || !data) {
       const detail = sanitizeMetaDetail(
-        error?.error_data?.details ?? error?.message ?? `HTTP ${res.status}`,
+        error?.error_data?.details ?? error?.error_user_msg ?? error?.message ?? `HTTP ${res.status}`,
       );
       throw new MetaApiRequestError(
         detail,
@@ -256,7 +258,7 @@ export function whatsappClient(creds: {
       ok: false,
       code: error?.code ?? (res.status || -1),
       detail: sanitizeMetaDetail(
-        error?.error_data?.details ?? error?.message ?? `HTTP ${res.status}`,
+        error?.error_data?.details ?? error?.error_user_msg ?? error?.message ?? `HTTP ${res.status}`,
       ),
       httpStatus: res.status,
       fbtraceId: error?.fbtrace_id,
@@ -296,6 +298,7 @@ export function whatsappClient(creds: {
       throw new MetaApiRequestError(
         sanitizeMetaDetail(
           error?.error_data?.details ??
+            error?.error_user_msg ??
             error?.message ??
             `HTTP ${response.status}`,
         ),
@@ -350,7 +353,7 @@ export function whatsappClient(creds: {
       const id = typeof data?.id === "string" ? data.id : "";
       if (!response.ok || error || !/^\d{1,512}$/.test(id))
         throw new MetaApiRequestError(
-          sanitizeMetaDetail(error?.error_data?.details ?? error?.message ?? "upload de mídia rejeitado"),
+          sanitizeMetaDetail(error?.error_data?.details ?? error?.error_user_msg ?? error?.message ?? "upload de mídia rejeitado"),
           error?.code ?? response.status,
           response.status || 502,
           error?.fbtrace_id,

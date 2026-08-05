@@ -19,8 +19,11 @@ import {
 import {
   META_TEMPLATE_BODY_MAX_LENGTH,
   META_TEMPLATE_FOOTER_MAX_LENGTH,
+  type SimpleTemplateCategory,
+  isSimpleTemplateCategory,
   templateBodyExample,
   validateMetaTemplateContent,
+  validateSimpleTemplateButtons,
 } from "../../shared/template-validation";
 
 type Draft = {
@@ -41,11 +44,12 @@ type TemplateButton = {
   text: string;
   url?: string;
   phone_number?: string;
+  example?: string[];
 };
 type Form = {
   name: string;
   language: string;
-  category: Draft["category"];
+  category: SimpleTemplateCategory;
   body: string;
   footer: string;
   buttons: TemplateButton[];
@@ -100,6 +104,7 @@ export default function TemplateDraft() {
         button.type === "URL" ||
         button.type === "PHONE_NUMBER",
     );
+    if (!isSimpleTemplateCategory(draft.data.category)) return;
     setForm({
       name: draft.data.name,
       language: draft.data.language,
@@ -133,7 +138,7 @@ export default function TemplateDraft() {
             : {}),
         },
         ...(form.footer.trim() ? [{ type: "FOOTER", text: form.footer }] : []),
-        ...(form.buttons.length
+        ...(form.buttons.length || form.preservedButtons.length
           ? [
               {
                 type: "BUTTONS",
@@ -141,6 +146,9 @@ export default function TemplateDraft() {
                   type: button.type,
                   text: button.text.trim(),
                   ...(button.type === "URL" ? { url: button.url?.trim() } : {}),
+                  ...(button.type === "URL" && button.url?.includes("{{1}}")
+                    ? { example: button.example?.map((value) => value.trim()) }
+                    : {}),
                   ...(button.type === "PHONE_NUMBER"
                     ? { phone_number: button.phone_number?.trim() }
                     : {}),
@@ -185,13 +193,12 @@ export default function TemplateDraft() {
         onRetry={() => draft.refetch()}
       />
     );
-  const buttonsValid = form.buttons.every(
-    (button) =>
-      button.text.trim() &&
-      (button.type === "QUICK_REPLY" ||
-        (button.type === "URL" && /^https:\/\//.test(button.url?.trim() || "")) ||
-        (button.type === "PHONE_NUMBER" && /^\+?[1-9]\d{7,14}$/.test(button.phone_number?.trim() || ""))),
-  );
+  if (draft.data && !isSimpleTemplateCategory(draft.data.category))
+    return (
+      <PageError message="Este template de Autenticação usa o contrato especializado de OTP da Meta. Ele permanece sincronizado e protegido, mas não pode ser editado ou publicado pelo editor simples." />
+    );
+  const buttonIssues = validateSimpleTemplateButtons(form.buttons);
+  const buttonsValid = buttonIssues.length === 0;
   const contentIssues = validateMetaTemplateContent(form.body, form.footer);
   const bodyIssues = contentIssues.filter((issue) => issue.field === "body");
   const footerIssues = contentIssues.filter((issue) => issue.field === "footer");
@@ -278,6 +285,7 @@ export default function TemplateDraft() {
                       Nome
                     </label>
                     <input
+                      aria-label="Nome do template"
                       value={form.name}
                       onChange={(e) =>
                         setForm({ ...form, name: e.target.value })
@@ -293,25 +301,29 @@ export default function TemplateDraft() {
                       Categoria
                     </label>
                     <select
+                      aria-label="Categoria do template"
                       value={form.category}
                       onChange={(e) =>
                         setForm({
                           ...form,
-                          category: e.target.value as Form["category"],
+                          category: e.target.value as SimpleTemplateCategory,
                         })
                       }
                       className={draftControlClass}
                     >
                       <option value="MARKETING">Marketing</option>
                       <option value="UTILITY">Utilidade</option>
-                      <option value="AUTHENTICATION">Autenticacao</option>
                     </select>
+                    <span className="block text-xs font-normal text-zinc-500">
+                      Autenticação exige OTP e não faz parte do editor simples.
+                    </span>
                   </div>
                   <div className="space-y-2">
                     <label className="text-xs font-medium text-zinc-400">
                       Idioma
                     </label>
                     <select
+                      aria-label="Idioma do template"
                       value={form.language}
                       onChange={(e) =>
                         setForm({ ...form, language: e.target.value })
@@ -391,6 +403,7 @@ export default function TemplateDraft() {
                 <label className="mt-4 block text-xs text-zinc-400">
                   Rodapé opcional
                   <input
+                    aria-label="Rodapé do template"
                     value={form.footer}
                     maxLength={META_TEMPLATE_FOOTER_MAX_LENGTH}
                     onChange={(e) =>
@@ -498,22 +511,42 @@ export default function TemplateDraft() {
                             className={draftControlClass}
                           />
                           {button.type === "URL" && (
-                            <input
-                              aria-label={`URL do botão ${index + 1}`}
-                              value={button.url || ""}
-                              placeholder="https://exemplo.com"
-                              onChange={(event) =>
-                                setForm({
-                                  ...form,
-                                  buttons: form.buttons.map((item, itemIndex) =>
-                                    itemIndex === index
-                                      ? { ...item, url: event.target.value }
-                                      : item,
-                                  ),
-                                })
-                              }
-                              className={draftControlClass}
-                            />
+                            <>
+                              <input
+                                aria-label={`URL do botão ${index + 1}`}
+                                value={button.url || ""}
+                                placeholder="https://exemplo.com/pedido/{{1}}"
+                                onChange={(event) =>
+                                  setForm({
+                                    ...form,
+                                    buttons: form.buttons.map((item, itemIndex) =>
+                                      itemIndex === index
+                                        ? { ...item, url: event.target.value }
+                                        : item,
+                                    ),
+                                  })
+                                }
+                                className={draftControlClass}
+                              />
+                              {button.url?.includes("{{1}}") && (
+                                <input
+                                  aria-label={`Exemplo da URL do botão ${index + 1}`}
+                                  value={button.example?.[0] || ""}
+                                  placeholder="Ex.: pedido-123"
+                                  onChange={(event) =>
+                                    setForm({
+                                      ...form,
+                                      buttons: form.buttons.map((item, itemIndex) =>
+                                        itemIndex === index
+                                          ? { ...item, example: [event.target.value] }
+                                          : item,
+                                      ),
+                                    })
+                                  }
+                                  className={draftControlClass}
+                                />
+                              )}
+                            </>
                           )}
                           {button.type === "PHONE_NUMBER" && (
                             <input
@@ -555,6 +588,16 @@ export default function TemplateDraft() {
                 ) : (
                   <div className="mt-6 rounded-xl border border-dashed border-zinc-700 p-8 text-center text-sm text-zinc-500">
                     Nenhum botão adicionado.
+                  </div>
+                )}
+                {buttonIssues.length > 0 && (
+                  <div role="alert" className="mt-4 rounded-xl border border-red-500/35 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                    <p className="font-medium">Corrija os botões antes de enviar:</p>
+                    <ul className="mt-1 list-disc space-y-1 pl-5">
+                      {buttonIssues.map((issue, index) => (
+                        <li key={`${issue.code}-${issue.index ?? index}`}>{issue.message}</li>
+                      ))}
+                    </ul>
                   </div>
                 )}
               </div>
