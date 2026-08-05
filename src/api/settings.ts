@@ -363,11 +363,11 @@ export const settingsRoutes = new Hono<{ Bindings: Env }>()
       ? SMARTZAP_REQUIRED_META_WEBHOOK_FIELDS.filter(
           (field) => !metaProbe.health!.appWebhookFields.includes(field),
         )
-      : [...SMARTZAP_REQUIRED_META_WEBHOOK_FIELDS];
+      : null;
     const webhookConfigured =
       webhookSecretsConfigured &&
       Boolean(metaProbe?.health?.webhookSubscribed) &&
-      appWebhookMissingFields.length === 0;
+      appWebhookMissingFields?.length === 0;
     const turnstileEnabled = c.env.TURNSTILE_ENABLED === "true";
     const turnstileConfigured =
       !turnstileEnabled ||
@@ -410,49 +410,58 @@ export const settingsRoutes = new Hono<{ Bindings: Env }>()
       metaLive,
       meta: metaProbe
         ? {
+            verificationStatus: metaProbe.verificationStatus,
+            retryable: metaProbe.retryable,
             qualityRating: metaProbe.health?.qualityRating ?? null,
-            phoneBelongsToWaba: metaProbe.health?.phoneBelongsToWaba ?? false,
+            phoneBelongsToWaba: metaProbe.health?.phoneBelongsToWaba ?? null,
             phoneWebhookCallbackUrl:
               metaProbe.health?.phoneWebhookCallbackUrl ?? null,
             effectiveWebhookCallbackUrl:
               metaProbe.health?.effectiveWebhookCallbackUrl ?? null,
             effectiveWebhookCallbackMatches:
-              metaProbe.health?.effectiveWebhookCallbackMatches ?? false,
+              metaProbe.health?.effectiveWebhookCallbackMatches ?? null,
             codeVerificationStatus:
               metaProbe.health?.codeVerificationStatus ?? null,
             messagingLimit: metaProbe.health?.messagingLimit ?? null,
-            throughputLevel: metaProbe.health?.throughputLevel ?? "UNKNOWN",
+            throughputLevel: metaProbe.health?.throughputLevel ?? null,
             throughputMps: metaProbe.health?.throughputMps ?? null,
-            webhookSubscribed: metaProbe.health?.webhookSubscribed ?? false,
+            webhookSubscribed: metaProbe.health?.webhookSubscribed ?? null,
             phoneStatus: metaProbe.health?.phoneStatus ?? null,
             platformType: metaProbe.health?.platformType ?? null,
             accountMode: metaProbe.health?.accountMode ?? null,
-            subscribedAppIds: metaProbe.health?.subscribedAppIds ?? [],
+            subscribedAppIds: metaProbe.health?.subscribedAppIds ?? null,
             webhookCallbackUrl: metaProbe.health?.webhookCallbackUrl ?? null,
             webhookCallbackMatches:
-              metaProbe.health?.webhookCallbackMatches ?? false,
+              metaProbe.health?.webhookCallbackMatches ?? null,
             tokenAppId: metaProbe.health?.tokenAppId ?? null,
-            tokenAppMatches: metaProbe.health?.tokenAppMatches ?? false,
-            tokenValid: metaProbe.health?.tokenValid ?? false,
+            tokenAppMatches: metaProbe.health?.tokenAppMatches ?? null,
+            tokenValid:
+              metaProbe.health?.tokenValid ??
+              (metaProbe.verificationStatus === "credential_invalid"
+                ? false
+                : null),
             tokenType: metaProbe.health?.tokenType ?? null,
-            tokenScopes: metaProbe.health?.tokenScopes ?? [],
+            tokenScopes: metaProbe.health?.tokenScopes ?? null,
             tokenRequiredScopesPresent:
-              metaProbe.health?.tokenRequiredScopesPresent ?? false,
+              metaProbe.health?.tokenRequiredScopesPresent ?? null,
             tokenWabaTargeted: metaProbe.health?.tokenWabaTargeted ?? null,
             tokenExpiresAt: metaProbe.health?.tokenExpiresAt ?? null,
             tokenDataAccessExpiresAt:
               metaProbe.health?.tokenDataAccessExpiresAt ?? null,
-            appWebhookActive: metaProbe.health?.appWebhookActive ?? false,
-            appWebhookFields: metaProbe.health?.appWebhookFields ?? [],
+            appWebhookActive: metaProbe.health?.appWebhookActive ?? null,
+            appWebhookFields: metaProbe.health?.appWebhookFields ?? null,
             appWebhookMessagesSubscribed:
-              metaProbe.health?.appWebhookMessagesSubscribed ?? false,
+              metaProbe.health?.appWebhookMessagesSubscribed ?? null,
             appWebhookRequiredFieldsPresent:
-              appWebhookMissingFields.length === 0,
+              appWebhookMissingFields
+                ? appWebhookMissingFields.length === 0
+                : null,
             appWebhookMissingFields,
             appWebhookCallbackUrl:
               metaProbe.health?.appWebhookCallbackUrl ?? null,
             error: metaProbe.error,
             code: metaProbe.code,
+            httpStatus: metaProbe.httpStatus,
             fbtraceId: metaProbe.fbtraceId,
           }
         : null,

@@ -10,6 +10,11 @@ import {
 } from "lucide-react";
 import { api } from "../lib/api";
 import {
+  metaConnectionPresentation,
+  metaFactPresentation,
+  type MetaVerificationStatus,
+} from "../lib/meta-health";
+import {
   Card,
   PageError,
   PageHeader,
@@ -26,14 +31,17 @@ type Health = {
   approvedTemplates: number;
   readyForPilot: boolean;
   meta: null | {
-    tokenValid: boolean;
-    tokenAppMatches: boolean;
-    tokenRequiredScopesPresent: boolean;
-    phoneBelongsToWaba: boolean;
-    effectiveWebhookCallbackMatches: boolean;
-    appWebhookMessagesSubscribed: boolean;
-    appWebhookRequiredFieldsPresent: boolean;
-    appWebhookMissingFields: string[];
+    verificationStatus: MetaVerificationStatus;
+    retryable: boolean;
+    code: number | null;
+    tokenValid: boolean | null;
+    tokenAppMatches: boolean | null;
+    tokenRequiredScopesPresent: boolean | null;
+    phoneBelongsToWaba: boolean | null;
+    effectiveWebhookCallbackMatches: boolean | null;
+    appWebhookMessagesSubscribed: boolean | null;
+    appWebhookRequiredFieldsPresent: boolean | null;
+    appWebhookMissingFields: string[] | null;
     qualityRating: string | null;
     messagingLimit: string | number | null;
     throughputLevel: string;
@@ -61,13 +69,24 @@ export default function MetaDiagnostics() {
     return <PageLoading label="Executando diagnóstico Meta…" />;
   if (query.error) return <PageError message={query.error.message} />;
   const h = query.data!;
-  const integrationReady =
-    h.databaseOk &&
-    h.metaConfigured &&
-    h.metaLive &&
-    h.webhookConfigured &&
-    h.webhookSecretsConfigured &&
-    h.templatesConfigured;
+  const connection = metaConnectionPresentation({
+    metaConfigured: h.metaConfigured,
+    metaLive: h.metaLive,
+    meta: h.meta,
+  });
+  const providerCheck = (
+    value: boolean | null | undefined,
+    passMessage: string,
+    failMessage: string,
+  ): { status: Status; message: string } => {
+    if (!h.meta) {
+      return {
+        status: "info",
+        message: "Configure as credenciais obrigatórias para executar esta verificação.",
+      };
+    }
+    return metaFactPresentation(value ?? null, h.meta, passMessage, failMessage);
+  };
   const checks: { title: string; message: string; status: Status }[] = [
     {
       title: "Credenciais Meta",
@@ -78,52 +97,59 @@ export default function MetaDiagnostics() {
     },
     {
       title: "Token de acesso",
-      message: h.meta?.tokenValid
-        ? "Token válido na Graph API."
-        : h.meta?.error || "Token não validado.",
-      status: h.meta?.tokenValid ? "pass" : "fail",
+      ...providerCheck(
+        h.meta?.tokenValid,
+        "Token válido na Graph API.",
+        h.meta?.error || "A Meta confirmou que o token é inválido.",
+      ),
     },
     {
       title: "Aplicativo vinculado",
-      message: h.meta?.tokenAppMatches
-        ? "O token pertence ao aplicativo esperado."
-        : "O aplicativo do token diverge do configurado.",
-      status: h.meta?.tokenAppMatches ? "pass" : "fail",
+      ...providerCheck(
+        h.meta?.tokenAppMatches,
+        "O token pertence ao aplicativo esperado.",
+        "O aplicativo do token diverge do configurado.",
+      ),
     },
     {
       title: "Escopos WhatsApp",
-      message: h.meta?.tokenRequiredScopesPresent
-        ? "Permissões obrigatórias presentes."
-        : "Permissões whatsapp_business_* ausentes.",
-      status: h.meta?.tokenRequiredScopesPresent ? "pass" : "fail",
+      ...providerCheck(
+        h.meta?.tokenRequiredScopesPresent,
+        "Permissões obrigatórias presentes.",
+        "Permissões whatsapp_business_* ausentes.",
+      ),
     },
     {
       title: "Telefone e WABA",
-      message: h.meta?.phoneBelongsToWaba
-        ? "O número pertence à WABA configurada."
-        : "Phone ID não confirmado dentro da WABA.",
-      status: h.meta?.phoneBelongsToWaba ? "pass" : "fail",
+      ...providerCheck(
+        h.meta?.phoneBelongsToWaba,
+        "O número pertence à WABA configurada.",
+        "Phone ID não confirmado dentro da WABA.",
+      ),
     },
     {
       title: "Webhook efetivo",
-      message: h.meta?.effectiveWebhookCallbackMatches
-        ? "Callback efetivo corresponde ao Worker."
-        : "Callback ausente ou divergente.",
-      status: h.meta?.effectiveWebhookCallbackMatches ? "pass" : "fail",
+      ...providerCheck(
+        h.meta?.effectiveWebhookCallbackMatches,
+        "Callback efetivo corresponde ao Worker.",
+        "Callback ausente ou divergente.",
+      ),
     },
     {
       title: "Campo messages",
-      message: h.meta?.appWebhookMessagesSubscribed
-        ? "Eventos messages assinados."
-        : "Assinatura messages ausente.",
-      status: h.meta?.appWebhookMessagesSubscribed ? "pass" : "fail",
+      ...providerCheck(
+        h.meta?.appWebhookMessagesSubscribed,
+        "Eventos messages assinados.",
+        "Assinatura messages ausente.",
+      ),
     },
     {
       title: "Eventos operacionais",
-      message: h.meta?.appWebhookRequiredFieldsPresent
-        ? "Status, preferências, templates, pricing e throughput assinados."
-        : `Campos ausentes: ${h.meta?.appWebhookMissingFields.join(", ") || "não foi possível consultar"}.`,
-      status: h.meta?.appWebhookRequiredFieldsPresent ? "pass" : "fail",
+      ...providerCheck(
+        h.meta?.appWebhookRequiredFieldsPresent,
+        "Status, preferências, templates, pricing e throughput assinados.",
+        `Campos ausentes: ${h.meta?.appWebhookMissingFields?.join(", ") || "não informados"}.`,
+      ),
     },
     {
       title: "Templates",
@@ -148,7 +174,7 @@ export default function MetaDiagnostics() {
         subtitle="Validação ponta a ponta da configuração do WhatsApp Cloud API"
         action={
           <div className="flex flex-wrap gap-2">
-            {query.data?.meta && (
+            {query.data?.meta?.verificationStatus === "complete" && (
               <button
                 className={btnSecondary}
                 disabled={configureWebhook.isPending}
@@ -170,23 +196,33 @@ export default function MetaDiagnostics() {
         }
       />
       <Card
-        className={`flex items-center gap-4 p-5 ${integrationReady ? "border-primary-700/50" : "border-red-800/50"}`}
+        className={`flex items-center gap-4 p-5 ${
+          connection.tone === "success"
+            ? "border-primary-700/50"
+            : connection.tone === "warning"
+              ? "border-amber-700/50"
+              : "border-red-800/50"
+        }`}
       >
-        <ShieldCheck
-          size={30}
-          className={integrationReady ? "text-primary-400" : "text-red-400"}
-        />
+        {connection.tone === "warning" ? (
+          <AlertTriangle size={30} className="text-amber-400" />
+        ) : connection.tone === "success" ? (
+          <ShieldCheck size={30} className="text-primary-400" />
+        ) : (
+          <XCircle size={30} className="text-red-400" />
+        )}
         <div>
-          <h2 className="font-semibold">
-            {integrationReady ? "Integração Meta conectada" : "Atenção necessária"}
-          </h2>
+          <h2 className="font-semibold">{connection.title}</h2>
+          <p className="mt-1 text-sm text-zinc-400">{connection.message}</p>
           <p className="text-sm text-zinc-500">
             Status do número: {h.meta?.phoneStatus || "não informado"} ·
             Qualidade: {h.meta?.qualityRating || "não informada"} · Limite:{" "}
             {h.meta?.messagingLimit || "não informado"} · Throughput: {h.meta?.throughputLevel || "não informado"}
             {h.meta?.throughputMps ? ` (até ${h.meta.throughputMps} msg/s)` : ""}
           </p>
-          {!h.metaLive && h.meta?.error && (
+          {!h.metaLive &&
+            h.meta?.error &&
+            h.meta.verificationStatus !== "unavailable" && (
             <p className="mt-1 text-sm text-red-400">{h.meta.error}</p>
           )}
         </div>

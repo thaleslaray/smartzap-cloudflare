@@ -822,6 +822,64 @@ test("Central de IA exibe estado pendente quando o provedor global não está pr
   await expect(page.getByText("Cloudflare Workers AI", { exact: true })).toBeVisible();
 });
 
+test("diagnóstico Meta não transforma limite temporário em credencial inválida", async ({
+  page,
+}) => {
+  await page.route("**/api/settings/health", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        databaseOk: true,
+        metaConfigured: true,
+        metaLive: false,
+        webhookConfigured: false,
+        webhookSecretsConfigured: true,
+        templatesConfigured: true,
+        approvedTemplates: 52,
+        readyForPilot: false,
+        ai: { enabled: true, configured: true, ready: true, model: "test" },
+        meta: {
+          verificationStatus: "unavailable",
+          retryable: true,
+          code: 4,
+          httpStatus: 400,
+          error: "(#4) Application request limit reached",
+          fbtraceId: "TRACE_RATE_LIMIT",
+          tokenValid: null,
+          tokenAppMatches: null,
+          tokenRequiredScopesPresent: null,
+          phoneBelongsToWaba: null,
+          effectiveWebhookCallbackMatches: null,
+          appWebhookMessagesSubscribed: null,
+          appWebhookRequiredFieldsPresent: null,
+          appWebhookMissingFields: null,
+          qualityRating: null,
+          messagingLimit: null,
+          throughputLevel: null,
+          throughputMps: null,
+          phoneStatus: null,
+        },
+      }),
+    });
+  });
+  await page.goto("/login");
+  await page.getByLabel("Senha mestra").fill("dev");
+  await Promise.all([
+    page.waitForURL((url) => !url.pathname.includes("/login")),
+    page.getByRole("button", { name: "Entrar" }).click(),
+  ]);
+
+  await page.goto("/settings");
+  await expect(page.getByRole("heading", { name: "Verificação indisponível" })).toBeVisible();
+  await expect(page.getByText("Desconectado", { exact: true })).toHaveCount(0);
+
+  await page.goto("/settings/meta-diagnostics");
+  await expect(page.getByRole("heading", { name: "Verificação indisponível" })).toBeVisible();
+  await expect(page.getByText(/Nenhuma credencial foi declarada inválida/).first()).toBeVisible();
+  await expect(page.getByText("Token Meta inválido.", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Corrigir assinatura|Atualizar assinaturas/ })).toHaveCount(0);
+});
+
 test("Configurações permitem ativar Google Calendar opcionalmente sem expor segredo", async ({
   page,
 }) => {

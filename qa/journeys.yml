@@ -155,16 +155,16 @@
     "SET": {
       "risk": "P0",
       "owners": ["settings"],
-      "tests": ["tests/health.test.ts", "tests/infrastructure-usage.test.ts", "tests/templates.test.ts", "e2e/smoke.spec.ts"],
+      "tests": ["tests/health.test.ts", "tests/infrastructure-usage.test.ts", "tests/templates.test.ts", "tests/whatsapp.test.ts", "tests-node/meta-health.node.test.ts", "e2e/smoke.spec.ts"],
       "evidence": ["api", "ui", "secrets-redacted", "provider-health"],
-      "invalidatedBy": ["src/api/settings.ts", "src/whatsapp/credentials.ts", "app/pages/Settings.tsx", "app/pages/MetaDiagnostics.tsx"]
+      "invalidatedBy": ["src/api/settings.ts", "src/whatsapp/credentials.ts", "src/whatsapp/health.ts", "app/lib/meta-health.ts", "app/pages/Settings.tsx", "app/pages/MetaDiagnostics.tsx"]
     },
     "META": {
       "risk": "P0",
       "owners": ["meta"],
       "tests": ["tests/webhook.test.ts", "tests/whatsapp.test.ts", "tests/reconcile-status-events.test.ts"],
       "evidence": ["contract", "meta-canary", "timeline", "cleanup"],
-      "invalidatedBy": ["src/api/webhook.ts", "src/queue/webhook-consumer.ts", "src/domain/meta-recipient.ts", "src/whatsapp/client.ts"]
+      "invalidatedBy": ["src/api/webhook.ts", "src/queue/webhook-consumer.ts", "src/domain/meta-recipient.ts", "src/whatsapp/client.ts", "src/whatsapp/health.ts"]
     },
     "CAL": {
       "risk": "P2",

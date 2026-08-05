@@ -29,6 +29,10 @@ import {
 } from "lucide-react";
 import { api } from "../lib/api";
 import {
+  metaConnectionPresentation,
+  type MetaVerificationStatus,
+} from "../lib/meta-health";
+import {
   Button,
   Card,
   PageError,
@@ -47,16 +51,20 @@ type SettingsResponse = {
 };
 type HealthResponse = {
   databaseOk: boolean;
+  metaConfigured: boolean;
   metaLive: boolean;
   webhookConfigured: boolean;
   approvedTemplates: number;
   ai: { ready: boolean };
   readyForPilot: boolean;
   meta: {
+    verificationStatus: MetaVerificationStatus;
+    retryable: boolean;
+    code: number | null;
     phoneStatus: string | null;
     qualityRating: string | null;
     messagingLimit: string | number | null;
-    throughputLevel: string;
+    throughputLevel: string | null;
     throughputMps: number | null;
     effectiveWebhookCallbackUrl: string | null;
     error: string | null;
@@ -363,6 +371,29 @@ export default function SettingsPage() {
       {help && <p className="text-xs text-zinc-500">{help}</p>}
     </div>
   );
+  const metaConnection = metaConnectionPresentation({
+    metaConfigured: health.data?.metaConfigured ?? false,
+    metaLive: health.data?.metaLive ?? false,
+    meta: health.data?.meta ?? null,
+  });
+  const metaTone =
+    metaConnection.tone === "success"
+      ? {
+          border: "border-primary-800/60",
+          icon: "border-primary-800 bg-primary-950/30 text-primary-400",
+          text: "text-primary-400",
+        }
+      : metaConnection.tone === "warning"
+        ? {
+            border: "border-amber-800/60",
+            icon: "border-amber-800 bg-amber-950/30 text-amber-400",
+            text: "text-amber-300",
+          }
+        : {
+            border: "border-red-900/60",
+            icon: "border-red-900 bg-red-950/30 text-red-400",
+            text: "text-red-400",
+          };
   return (
     <div className="w-full min-w-0 max-w-[1120px] space-y-8 pb-20">
       <PageHeader
@@ -374,27 +405,21 @@ export default function SettingsPage() {
       <div className="!mt-8 grid min-w-0 items-start gap-8 xl:grid-cols-[minmax(0,768px)_320px]">
         <div className="min-w-0 space-y-8">
           <Card
-            className={`flex min-w-0 items-start gap-6 rounded-2xl p-6 ${health.data?.metaLive ? "border-primary-800/60" : "border-zinc-800"}`}
+            className={`flex min-w-0 items-start gap-6 rounded-2xl p-6 ${metaTone.border}`}
           >
             <span
-              className={`shrink-0 rounded-2xl border p-4 ${health.data?.metaLive ? "border-primary-800 bg-primary-950/30 text-primary-400" : "border-red-900 bg-red-950/30 text-red-400"}`}
+              className={`shrink-0 rounded-2xl border p-4 ${metaTone.icon}`}
             >
-              {health.data?.metaLive ? (
+              {metaConnection.tone === "success" ? (
                 <CheckCircle2 size={30} />
               ) : (
                 <AlertTriangle size={30} />
               )}
             </span>
             <div className="min-w-0 flex-1">
-              <h2 className="text-xl font-semibold">
-                {health.data?.metaLive ? "Conectado" : "Desconectado"}
-              </h2>
-              <p
-                className={`mt-3 break-words text-sm ${health.data?.metaLive ? "text-primary-400" : "text-red-400"}`}
-              >
-                {health.data?.metaLive
-                  ? "Conexão com Meta API validada."
-                  : "Conexão com Meta API perdida. Por favor re-autentique suas credenciais abaixo."}
+              <h2 className="text-xl font-semibold">{metaConnection.title}</h2>
+              <p className={`mt-3 break-words text-sm ${metaTone.text}`}>
+                {metaConnection.message}
               </p>
             </div>
           </Card>

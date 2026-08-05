@@ -404,7 +404,12 @@ describe('settings API', () => {
       databaseOk: boolean; webhookConfigured: boolean; webhookSecretsConfigured: boolean
       turnstileConfigured: boolean; turnstileEnabled: boolean
       metaConfigured: boolean; metaLive: boolean; readyForPilot: boolean
-      meta: { code: number; fbtraceId: string }
+      meta: {
+        code: number; fbtraceId: string
+        verificationStatus: string; retryable: boolean
+        tokenValid: boolean | null; tokenRequiredScopesPresent: boolean | null
+        appWebhookMissingFields: string[] | null
+      }
       knowledge: { total: number; ready: number; indexing: number; failed: number; searchConfigured: boolean }
       agents: { total: number; active: number; globalEnabled: boolean }
     }
@@ -416,9 +421,51 @@ describe('settings API', () => {
     expect(body.metaConfigured).toBe(true)
     expect(body.metaLive).toBe(false)
     expect(body.readyForPilot).toBe(false)
-    expect(body.meta).toMatchObject({ code: 190, fbtraceId: 'TRACE_HEALTH' })
+    expect(body.meta).toMatchObject({
+      code: 190,
+      fbtraceId: 'TRACE_HEALTH',
+      verificationStatus: 'credential_invalid',
+      retryable: false,
+      tokenValid: false,
+      tokenRequiredScopesPresent: null,
+      appWebhookMissingFields: null,
+    })
     expect(body.knowledge).toEqual({ total: 0, ready: 0, indexing: 0, failed: 0, searchConfigured: false })
     expect(body.agents).toEqual(expect.objectContaining({ total: 1, active: 1, globalEnabled: true }))
+  })
+  it('health trata limite temporário da Meta como desconhecido e mantém o piloto bloqueado', async () => {
+    await settingsDb(env.DB).set('whatsapp_phone_id', '11111')
+    await settingsDb(env.DB).set('whatsapp_waba_id', '22222')
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ error: {
+      code: 4,
+      message: '(#4) Application request limit reached',
+      fbtrace_id: 'TRACE_RATE_LIMIT',
+    } }), { status: 400 })))
+    const res = await SELF.fetch('https://x.com/api/settings/health', { headers: AUTH })
+    expect(res.status).toBe(200)
+    const body = await res.json() as {
+      metaLive: boolean; webhookConfigured: boolean; readyForPilot: boolean
+      meta: {
+        verificationStatus: string; retryable: boolean; code: number; httpStatus: number
+        tokenValid: boolean | null; tokenRequiredScopesPresent: boolean | null
+        tokenAppMatches: boolean | null; appWebhookRequiredFieldsPresent: boolean | null
+        appWebhookMissingFields: string[] | null
+      }
+    }
+    expect(body.metaLive).toBe(false)
+    expect(body.webhookConfigured).toBe(false)
+    expect(body.readyForPilot).toBe(false)
+    expect(body.meta).toMatchObject({
+      verificationStatus: 'unavailable',
+      retryable: true,
+      code: 4,
+      httpStatus: 400,
+      tokenValid: null,
+      tokenRequiredScopesPresent: null,
+      tokenAppMatches: null,
+      appWebhookRequiredFieldsPresent: null,
+      appWebhookMissingFields: null,
+    })
   })
 })
 

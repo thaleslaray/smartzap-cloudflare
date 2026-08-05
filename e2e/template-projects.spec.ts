@@ -1,7 +1,11 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
 
 async function login(page: Page) {
-  await page.goto("/login");
+  // O WebKit pode manter recursos não essenciais do shell em aberto depois de
+  // várias navegações sequenciais. O formulário já está utilizável quando o
+  // DOM termina de carregar; esperar o evento `load` tornava a matriz inteira
+  // dependente desses recursos e travava sempre no mesmo ponto da suíte.
+  await page.goto("/login", { waitUntil: "domcontentloaded" });
   if (!page.url().includes("/login")) return;
   await page.getByLabel("Senha mestra").fill(process.env.QA_MASTER_PASSWORD || "dev");
   await Promise.all([

@@ -27,6 +27,10 @@ const nonSmokeSpecs = readdirSync(resolve(root, "e2e"))
   .filter((file) => file.endsWith(".spec.ts") && file !== "smoke.spec.ts")
   .map((file) => `e2e/${file}`)
   .sort();
+const templateProjectsSpec = "e2e/template-projects.spec.ts";
+const webkitFeatureSpecs = nonSmokeSpecs.filter(
+  (file) => file !== templateProjectsSpec,
+);
 
 const matrix = {
   p0: [
@@ -91,7 +95,15 @@ const matrix = {
     // páginas instrumentadas pelo axe. Isolamos os mesmos grupos do P0 para
     // que a matriz continue completa sem compartilhar um único processo de
     // navegador por toda a suíte.
-    { label: "webkit-features", project: "webkit", files: nonSmokeSpecs },
+    // O processo do WebKit deixa de responder depois de cerca de 60 cenários
+    // sequenciais neste runtime. Manter Projetos/Fábrica em outro processo
+    // conserva a cobertura integral sem retry nem falso timeout no login.
+    { label: "webkit-features", project: "webkit", files: webkitFeatureSpecs },
+    {
+      label: "webkit-template-projects",
+      project: "webkit",
+      files: [templateProjectsSpec],
+    },
     {
       label: "webkit-core",
       project: "webkit",
