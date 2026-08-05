@@ -42,6 +42,12 @@ if (
     "o deploy precisa manter uma recuperação explícita e validar produção após publicar",
   );
 }
+const productionWrangler = read("wrangler.jsonc");
+if (!productionWrangler.includes('"directory": "dist/client"')) {
+  errors.push(
+    "o deploy de produção precisa apontar explicitamente para o build sanitizado em dist/client",
+  );
+}
 const monitorWorkflow = read(".github/workflows/qa-production-monitor.yml");
 if (
   !monitorWorkflow.includes("node --input-type=module - <<'NODE'") ||
