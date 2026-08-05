@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "kind": "smartzap-production-certification-spec",
+  "catalog": "jornada.md",
+  "release": {
+    "sourceCommit": "d4700fe06e58f3fe73f84e11c68336f6f7f4ea08",
+    "productionVersion": "b56677ab-51ad-4353-bba8-f7824890b854",
+    "productionUrl": "https://smartzap-cf.thales2581.workers.dev"
+  },
+  "evidence": {
+    "preflight": "qa/reports/AUTOQA_20260805T201615Z_3dcbb212/report.json",
+    "unit": "qa/reports/AUTOQA_20260805T201615Z_62cd120c/report.json",
+    "contract": "qa/reports/AUTOQA_20260805T201615Z_e3cae03f/report.json",
+    "e2e-matrix": "qa/reports/AUTOQA_20260805T201728Z_6ddc7781/report.json",
+    "visual": "qa/reports/AUTOQA_20260805T201728Z_878ccf9f/report.json",
+    "production-routes": "qa/reports/AUTOQA_20260805_production_d4700fe_routes/playwright-results.json",
+    "production-meta-ui": "qa/reports/AUTOQA_20260805_production_d4700fe_meta_ui_retest/playwright-results.json",
+    "production-health-1": "qa/reports/AUTOQA_20260805_production_d4700fe_health_1/remote-health.json",
+    "production-health-2": "qa/reports/AUTOQA_20260805_production_d4700fe_health_2/remote-health.json",
+    "production-health-3": "qa/reports/AUTOQA_20260805_production_d4700fe_health_3/remote-health.json",
+    "meta-canary": "qa/reports/AUTOQA_META_20260805T205931Z_d097cf3/meta-canary.json",
+    "ai-eval": "qa/reports/AUTOQA_AI_20260805165213_5a061319/ai-eval.json",
+    "ai-human-calibration": null,
+    "miniapps-stress": "qa/reports/AUTOQA_MINI_STRESS_1785948489435/miniapps-stress.json",
+    "projects-stress": "qa/reports/AUTOQA_PROJECT_STRESS_1785948665929/template-projects-stress.json",
+    "cleanup": "qa/reports/AUTOQA_20260805T180012Z_0a2c4b92/cleanup.json",
+    "rollback": "qa/reports/AUTOQA_20260805_staging_rollback_c37b2ae/rollback-drill.json",
+    "meta-bsuid": null,
+    "soak-14-days": null,
+    "manual-accessibility": null,
+    "backup-restore": null,
+    "security-isolation": null,
+    "release-risk": null
+  }
+}

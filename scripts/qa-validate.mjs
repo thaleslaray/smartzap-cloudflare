@@ -15,7 +15,7 @@ const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
 const catalog = readFileSync(catalogPath, "utf8");
 const rows = catalog
   .split(/\r?\n/)
-  .filter((line) => /^\| [A-Z]+-\d+ \|/.test(line))
+  .filter((line) => /^\| [A-Z0-9]+-\d+ \|/.test(line))
   .map((line) => {
     const cells = line.split("|").slice(1, -1).map((cell) => cell.trim());
     return { id: cells[0], area: cells[1], state: cells[4] };
