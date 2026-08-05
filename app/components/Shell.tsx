@@ -73,6 +73,7 @@ export default function Shell() {
   const isFullHeightContent = isInbox || isContacts;
   const openButton = useRef<HTMLButtonElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
+  const mobileMenu = useRef<HTMLElement>(null);
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem("smartzap_theme", theme);
@@ -106,22 +107,59 @@ export default function Shell() {
     const inertState = background.map((element) =>
       element.hasAttribute("inert"),
     );
+    const focusableSelector = [
+      'a[href]',
+      'button:not([disabled])',
+      'input:not([disabled])',
+      'textarea:not([disabled])',
+      'select:not([disabled])',
+      '[tabindex]:not([tabindex="-1"])',
+    ].join(",");
     document.body.style.overflow = "hidden";
     background.forEach((element) => element.setAttribute("inert", ""));
-    closeButton.current?.focus();
+    requestAnimationFrame(() => closeButton.current?.focus());
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        event.preventDefault();
         setMenuOpen(false);
-        requestAnimationFrame(() => openButton.current?.focus());
+        return;
+      }
+      if (event.key !== "Tab" || !mobileMenu.current) return;
+
+      const focusable = [
+        ...mobileMenu.current.querySelectorAll<HTMLElement>(focusableSelector),
+      ].filter((element) => element.getClientRects().length > 0);
+      if (!focusable.length) {
+        event.preventDefault();
+        mobileMenu.current.focus();
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      if (
+        event.shiftKey &&
+        (active === first || !mobileMenu.current.contains(active))
+      ) {
+        event.preventDefault();
+        last.focus();
+      } else if (
+        !event.shiftKey &&
+        (active === last || !mobileMenu.current.contains(active))
+      ) {
+        event.preventDefault();
+        first.focus();
       }
     };
-    window.addEventListener("keydown", onKeyDown);
+    document.addEventListener("keydown", onKeyDown);
     return () => {
       document.body.style.overflow = previousOverflow;
       background.forEach((element, index) => {
         if (!inertState[index]) element.removeAttribute("inert");
       });
-      window.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("keydown", onKeyDown);
+      requestAnimationFrame(() => openButton.current?.focus());
     };
   }, [menuOpen]);
 
@@ -246,10 +284,12 @@ export default function Shell() {
             onClick={() => setMenuOpen(false)}
           />
           <aside
+            ref={mobileMenu}
             id="mobile-navigation"
             role="dialog"
             aria-modal="true"
             aria-label="Menu principal"
+            tabIndex={-1}
             className="premium-sidebar absolute inset-y-0 left-0 flex w-64 flex-col border-r border-[var(--ds-border-subtle)] bg-[var(--ds-bg-elevated)] p-4 shadow-2xl"
           >
             <div className="flex items-center justify-between px-2.5 pb-5 pt-1.5">
@@ -261,10 +301,7 @@ export default function Shell() {
                 ref={closeButton}
                 type="button"
                 aria-label="Fechar menu"
-                onClick={() => {
-                  setMenuOpen(false);
-                  requestAnimationFrame(() => openButton.current?.focus());
-                }}
+                onClick={() => setMenuOpen(false)}
                 className={`rounded-full p-2 text-zinc-400 hover:bg-zinc-800 ${focusRing}`}
               >
                 <X aria-hidden="true" size={20} />

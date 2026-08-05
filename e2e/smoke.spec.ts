@@ -587,7 +587,13 @@ test("layout móvel, menu e modal permanecem acessíveis sem conteúdo cortado",
   await openMenu.click();
   const menu = page.getByRole("dialog", { name: "Menu principal" });
   await expect(menu).toBeVisible();
-  await expect(page.getByRole("button", { name: "Fechar menu" })).toBeFocused();
+  const closeMenu = page.getByRole("button", { name: "Fechar menu" });
+  const settingsLink = menu.getByRole("link", { name: "Configurações" });
+  await expect(closeMenu).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expect(settingsLink).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(closeMenu).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(menu).toBeHidden();
   await expect(openMenu).toBeFocused();
