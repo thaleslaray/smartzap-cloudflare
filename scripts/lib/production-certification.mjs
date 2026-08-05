@@ -39,8 +39,9 @@ export const CERTIFICATION_EVIDENCE_REQUIREMENTS = Object.freeze([
     "backupCreated", "hashVerified", "restoredInIsolation", "integrityVerified", "cleanupPassed",
   ] },
   { id: "security-isolation", validator: "attestation", checks: [
-    "crossTenantIsolation", "leastPrivilege", "expiredSessionRejected", "invalidWebhookRejected",
-    "replayIdempotency", "secretsAbsent", "rateLimit", "exportsAuthorized", "zeroKnownP0P1",
+    "singleTenantScopeDeclared", "leastPrivilege", "attendantScopeEnforced", "qaCredentialsIsolated",
+    "expiredSessionRejected", "invalidWebhookRejected", "replayIdempotency", "secretsAbsent",
+    "rateLimit", "exportsAuthorized", "zeroKnownP0P1",
   ] },
   { id: "release-risk", validator: "attestation", checks: [
     "scopeAccepted", "exclusionsAccepted", "zeroKnownP0P1", "evidenceReviewed",

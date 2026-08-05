@@ -28,8 +28,8 @@
     "meta-bsuid": null,
     "soak-14-days": null,
     "manual-accessibility": null,
-    "backup-restore": null,
-    "security-isolation": null,
+    "backup-restore": "qa/reports/AUTOQA_BACKUP_RESTORE_20260805/backup-restore-attestation.json",
+    "security-isolation": "qa/reports/AUTOQA_SECURITY_20260805/security-isolation-attestation.json",
     "release-risk": null
   }
 }
