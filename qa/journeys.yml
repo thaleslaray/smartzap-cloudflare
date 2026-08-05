@@ -218,9 +218,9 @@
     "QA": {
       "risk": "P0",
       "owners": ["quality-control"],
-      "tests": ["scripts/qa-validate.mjs", "tests/qa-monitor.test.ts", "tests-node/qa-staging-auth.node.test.ts"],
+      "tests": ["scripts/qa-validate.mjs", "tests/qa-monitor.test.ts", "tests-node/qa-staging-auth.node.test.ts", "tests-node/meta-canary-recipients.node.test.ts"],
       "evidence": ["report", "run-id", "gate", "cleanup", "soak-monitor"],
-      "invalidatedBy": ["qa", "scripts/qa-runner.mjs", "scripts/qa-ci-policy.mjs", "scripts/qa-meta-canary.mjs", "scripts/qa-meta-callback-switch.mjs", "scripts/qa-meta-app-callback-switch.mjs", "scripts/lib/qa-staging-auth.mjs", "src/qa-monitor.ts", "config/wrangler.monitor.jsonc", "playwright.config.ts", "vitest.config.ts", ".github/workflows"]
+      "invalidatedBy": ["qa", "scripts/qa-runner.mjs", "scripts/qa-ci-policy.mjs", "scripts/qa-meta-canary.mjs", "scripts/qa-meta-callback-switch.mjs", "scripts/qa-meta-app-callback-switch.mjs", "scripts/lib/qa-staging-auth.mjs", "scripts/lib/meta-canary-recipients.mjs", "src/qa-monitor.ts", "config/wrangler.monitor.jsonc", "playwright.config.ts", "vitest.config.ts", ".github/workflows"]
     },
     "WFL": {
       "risk": "P2",

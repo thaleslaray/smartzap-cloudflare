@@ -15,6 +15,10 @@ import {
   resolveMetaCanaryGuard,
 } from "./lib/meta-canary-guard.mjs";
 import { resolveQaStagingAuthHeaders } from "./lib/qa-staging-auth.mjs";
+import {
+  assertExistingMetaCanaryContact,
+  selectMetaCanaryRecipients,
+} from "./lib/meta-canary-recipients.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const baseUrl = (
@@ -193,6 +197,7 @@ if (
   recipients.some((phone) => !/^[1-9]\d{9,14}$/.test(phone))
 )
   throw new Error("A allowlist privada precisa conter quatro números E.164 distintos.");
+const selectedRecipients = selectMetaCanaryRecipients(recipients, sendCount);
 async function api(path, init = {}, accepted = [200]) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 45_000);
@@ -310,6 +315,7 @@ const report = {
   finishedAt: null,
   status: "running",
   authorizedRecipients: recipients.map(maskPhone),
+  selectedRecipients: selectedRecipients.map(maskPhone),
   sendCount,
   template: {
     name: templateName,
@@ -445,13 +451,10 @@ try {
   report.artifacts.tag = { id: tag.id, name: tagName, created: tagCreated };
   persist(report);
 
-  for (const [index, phone] of recipients.entries()) {
+  for (const [index, phone] of selectedRecipients.entries()) {
     let contact = await findContact(phone);
     let created = false;
-    if (contact && !String(contact.name || "").startsWith("AUTOQA"))
-      throw new Error(
-        `Stop-the-line: ${maskPhone(phone)} já pertence a um contato não AUTOQA.`,
-      );
+    assertExistingMetaCanaryContact(contact, maskPhone(phone));
     if (!contact) {
       contact = (
         await api(
@@ -468,10 +471,7 @@ try {
         )
       ).body;
       created = true;
-    } else if (contact.status !== "opt_in")
-      throw new Error(
-        `Stop-the-line: ${maskPhone(phone)} existe sem opt-in comprovado.`,
-      );
+    }
     const hadAutoQaTag = Array.isArray(contact.tags) &&
       contact.tags.some((currentTag) => currentTag.id === tag.id);
     const contactArtifact = {
