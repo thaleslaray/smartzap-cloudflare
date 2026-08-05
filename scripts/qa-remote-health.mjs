@@ -1,5 +1,6 @@
 import { chmodSync, mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { resolveQaRemoteReadHeaders } from "./lib/qa-remote-auth.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const baseUrl = String(process.env.QA_BASE_URL || "").replace(/\/+$/, "");
@@ -46,9 +47,7 @@ async function check(path, { authenticated = true, validate }) {
     const response = await fetch(`${baseUrl}${path}`, {
       signal: controller.signal,
       headers: authenticated
-        ? readOnlyKey
-          ? { "x-qa-readonly-key": readOnlyKey }
-          : { "x-api-key": apiKey }
+        ? resolveQaRemoteReadHeaders({ readOnlyKey, apiKey })
         : {},
     });
     const contentType = response.headers.get("content-type") || "";

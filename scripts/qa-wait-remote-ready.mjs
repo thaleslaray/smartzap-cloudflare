@@ -1,13 +1,16 @@
+import { resolveQaRemoteReadHeaders } from "./lib/qa-remote-auth.mjs";
+
 const baseUrl = process.env.QA_BASE_URL;
 const apiKey = process.env.QA_API_KEY;
+const readOnlyKey = process.env.QA_READONLY_API_KEY;
 
-if (!baseUrl || !apiKey) {
-  throw new Error("QA_BASE_URL e QA_API_KEY são obrigatórios");
+if (!baseUrl) {
+  throw new Error("QA_BASE_URL é obrigatória");
 }
 
 const headers = {
   "cache-control": "no-cache",
-  "x-api-key": apiKey,
+  ...resolveQaRemoteReadHeaders({ readOnlyKey, apiKey }),
 };
 
 function assetPathsFromHtml(html) {
