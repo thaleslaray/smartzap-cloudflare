@@ -22,6 +22,9 @@ async function assertHealthyLayout(page: Page, path: string, width: number) {
   await page.goto(`${url.pathname}${url.search}`, { waitUntil: "domcontentloaded" });
   await expect(page).not.toHaveURL(/\/login(?:\?|$)/);
   await expect(page.locator("main")).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText("Carregando…", { exact: true })).toHaveCount(0, {
+    timeout: 20_000,
+  });
   await expect(
     page.getByText(/Algo deu errado|A tela encontrou um erro/i),
   ).toHaveCount(0);
@@ -36,7 +39,7 @@ async function assertHealthyLayout(page: Page, path: string, width: number) {
 }
 
 test("Cloudflare remoto responde, autentica e renderiza rotas críticas sem mutação", async ({
-  page,
+  context,
   request,
 }) => {
   test.setTimeout(300_000);
@@ -49,7 +52,17 @@ test("Cloudflare remoto responde, autentica e renderiza rotas críticas sem muta
   expect(await auth.json()).toMatchObject({ authenticated: true });
 
   for (const width of [390, 1440]) {
-    await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
-    for (const path of routes) await assertHealthyLayout(page, path, width);
+    for (const path of routes) {
+      const routePage = await context.newPage();
+      await routePage.setViewportSize({
+        width,
+        height: width === 390 ? 844 : 900,
+      });
+      try {
+        await assertHealthyLayout(routePage, path, width);
+      } finally {
+        await routePage.close();
+      }
+    }
   }
 });
