@@ -61,5 +61,8 @@ test("manifesto e service worker públicos estão disponíveis", async ({ reques
   expect((await manifest.json()).name).toContain("SmartZap");
   const worker = await request.get("/sw.js");
   expect(worker.ok()).toBeTruthy();
-  expect(await worker.text()).toContain("smartzap-shell");
+  const source = await worker.text();
+  expect(source).toContain("smartzap-shell");
+  expect(source).toContain('event.request.mode !== "navigate"');
+  expect(source).not.toContain("cache.put(event.request");
 });
