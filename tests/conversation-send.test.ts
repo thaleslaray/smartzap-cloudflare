@@ -176,6 +176,44 @@ describe('envio manual de rascunho aprovado', () => {
     })
   })
 
+  it('envia por BSUID no caminho operacional quando a Meta omite o telefone', async () => {
+    const app = createApp()
+    const draft = await approvedDraft(Math.floor(Date.now() / 1000) - 86_401)
+    const bsuid = `BR.qa.${crypto.randomUUID().replaceAll('-', '')}`
+    await env.DB.prepare(
+      'UPDATE contacts SET phone=?2,user_id=?3,parent_user_id=NULL,username=?4 WHERE id=?1',
+    ).bind(draft.contact.id, `bsuid:${bsuid}`, bsuid, 'qa.username').run()
+    const name = `inbox_bsuid_${crypto.randomUUID().replaceAll('-', '').slice(0, 12)}`
+    await env.DB.prepare(
+      `INSERT INTO templates(name, language, meta_id, category, status, components, synced_at)
+       VALUES (?1, 'pt_BR', 'meta-inbox-bsuid', 'UTILITY', 'APPROVED', ?2, datetime('now'))`,
+    ).bind(name, JSON.stringify([{ type: 'BODY', text: 'Homologação BSUID concluída.' }])).run()
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      const payload = JSON.parse(String(init?.body))
+      expect(payload).toMatchObject({
+        recipient: bsuid,
+        type: 'template',
+        template: { name, language: { code: 'pt_BR' } },
+      })
+      expect(payload).not.toHaveProperty('to')
+      return new Response(JSON.stringify({ messages: [{ id: 'wamid.template.bsuid.1' }] }), { status: 200 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const requestKey = crypto.randomUUID()
+    const input = { requestKey, name, mapping: {} }
+    const first = await templateSendRequest(app, draft.conversationId, input)
+    expect(first.status).toBe(201)
+    expect(await first.json()).toMatchObject({
+      status: 'accepted',
+      message_id: 'wamid.template.bsuid.1',
+    })
+    expect((await templateSendRequest(app, draft.conversationId, input)).status).toBe(200)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(await env.DB.prepare(
+      "SELECT COUNT(*) AS n FROM conversation_messages WHERE id='wamid.template.bsuid.1' AND direction='outbound'",
+    ).first()).toEqual({ n: 1 })
+  })
+
   it('bloqueia template de autenticação antes de reservar ou chamar a Meta', async () => {
     const app = createApp()
     const draft = await approvedDraft(Math.floor(Date.now() / 1000) - 86_401)

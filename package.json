@@ -78,6 +78,7 @@
     "qa:meta:template-lifecycle": "node scripts/qa-template-lifecycle-canary.mjs",
     "qa:meta:template-components": "node scripts/qa-template-components-canary.mjs",
     "qa:meta:app-callback": "node scripts/qa-meta-app-callback-switch.mjs",
+    "qa:meta:bsuid": "node scripts/qa-meta-bsuid.mjs",
     "qa:meta:template-status": "node scripts/qa-template-status-observer.mjs",
     "qa:meta:template-projects": "node scripts/qa-template-projects-meta-canary.mjs",
     "qa:template-projects:stress": "node scripts/qa-template-projects-stress.mjs",

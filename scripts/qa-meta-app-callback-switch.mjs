@@ -10,6 +10,7 @@ const target = process.env.QA_META_CALLBACK_TARGET;
 const apiKey = process.env.QA_API_KEY;
 const authHeaders = resolveQaStagingAuthHeaders({
   mutationKey: process.env.QA_STAGING_MUTATION_API_KEY,
+  stagingApiKey: process.env.QA_STAGING_API_KEY,
   apiKey,
 });
 const expected = {

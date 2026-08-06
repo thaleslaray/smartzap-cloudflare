@@ -19,9 +19,18 @@ describe("credencial mutável isolada do staging", () => {
     });
   });
 
+  it("prefere a chave dedicada do staging ao fallback local", () => {
+    expect(
+      resolveQaStagingAuthHeaders({
+        stagingApiKey: "staging-secret",
+        apiKey: "production-secret",
+      }),
+    ).toEqual({ "x-api-key": "staging-secret" });
+  });
+
   it("falha fechada sem credencial", () => {
     expect(() => resolveQaStagingAuthHeaders()).toThrow(
-      /QA_STAGING_MUTATION_API_KEY ou QA_API_KEY/,
+      /QA_STAGING_MUTATION_API_KEY, QA_STAGING_API_KEY ou QA_API_KEY/,
     );
   });
 });
