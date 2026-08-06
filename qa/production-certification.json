@@ -25,7 +25,7 @@
     "projects-stress": "qa/reports/AUTOQA_PROJECT_STRESS_1785948665929/template-projects-stress.json",
     "cleanup": "qa/reports/AUTOQA_20260805T180012Z_0a2c4b92/cleanup.json",
     "rollback": "qa/reports/AUTOQA_20260805_staging_rollback_c37b2ae/rollback-drill.json",
-    "meta-bsuid": null,
+    "meta-bsuid": "qa/reports/AUTOQA_META_BSUID_20260806_AUTH/meta-bsuid-attestation.json",
     "soak-14-days": null,
     "manual-accessibility": null,
     "backup-restore": "qa/reports/AUTOQA_BACKUP_RESTORE_20260806_FINAL/backup-restore-attestation.json",

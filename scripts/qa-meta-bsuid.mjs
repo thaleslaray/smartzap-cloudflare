@@ -13,6 +13,7 @@ import {
   evaluateMetaBsuidHomologation,
   isOfficialUsernameOnlyCandidate,
   maskPhone,
+  selectBestMetaStatusEvent,
 } from "./lib/meta-bsuid-homologation.mjs";
 import {
   assertMetaCanaryWindow,
@@ -184,16 +185,17 @@ function relative(path) {
   return path.slice(root.length + 1);
 }
 
-function d1(sql) {
+function d1Target(target, sql) {
+  const production = target === "production";
   const result = spawnSync(
     "npx",
     [
       "wrangler",
       "d1",
       "execute",
-      "smartzap-staging",
+      production ? "smartzap" : "smartzap-staging",
       "--config",
-      "config/wrangler.staging.jsonc",
+      production ? "wrangler.jsonc" : "config/wrangler.staging.jsonc",
       "--remote",
       "--json",
       "--command",
@@ -208,8 +210,16 @@ function d1(sql) {
     },
   );
   if (result.status !== 0)
-    throw new Error(`D1 staging falhou: ${redact(result.stderr || result.stdout)}`);
+    throw new Error(`D1 ${target} falhou: ${redact(result.stderr || result.stdout)}`);
   return JSON.parse(result.stdout || "[]").flatMap((entry) => entry.results || []);
+}
+
+function d1(sql) {
+  return d1Target("staging", sql);
+}
+
+function d1Production(sql) {
+  return d1Target("production", sql);
 }
 
 async function api(path, init = {}, accepted = [200]) {
@@ -557,6 +567,27 @@ function findOfficialCandidate(state) {
   ) || null;
 }
 
+function loadObservedOfficialCandidate(state) {
+  const a = state.artifacts || {};
+  if (!a.officialContactId || !a.officialConversationId || !a.officialInboundMessageId)
+    throw new Error("O estado não possui a observação oficial completa para reconciliação.");
+  const candidate = d1(
+    `SELECT c.id,c.phone,c.user_id,c.parent_user_id,c.username,c.created_at,
+            v.id AS conversation_id,
+            m.id AS inbound_message_id
+       FROM contacts c
+       JOIN conversations v ON v.contact_id=c.id
+       JOIN conversation_messages m ON m.conversation_id=v.id
+      WHERE c.id=${sqlString(a.officialContactId)}
+        AND v.id=${sqlString(a.officialConversationId)}
+        AND m.id=${sqlString(a.officialInboundMessageId)}
+        AND m.direction='inbound' LIMIT 1`,
+  )[0] || null;
+  if (!candidate || !isOfficialUsernameOnlyCandidate(candidate, state.preparedAt))
+    throw new Error("A observação oficial não está mais íntegra para reconciliação.");
+  return candidate;
+}
+
 async function observeOfficialCandidate(state, statePath, waitSeconds) {
   const deadline = Date.now() + waitSeconds * 1_000;
   while (Date.now() < deadline) {
@@ -669,15 +700,15 @@ async function waitForOutboundStatus(state, waitSeconds) {
   const deadline = Date.now() + waitSeconds * 1_000;
   let row = null;
   while (Date.now() < deadline) {
-    row = d1(
-      `SELECT status,received_at FROM status_events
+    const query = `SELECT status,received_at FROM status_events
         WHERE message_id=${sqlString(state.artifacts.outboundMessageId)}
           AND event_kind='message_status'
-        ORDER BY CASE status
-          WHEN 'read' THEN 5 WHEN 'delivered' THEN 4 WHEN 'failed' THEN 3
-          WHEN 'sent' THEN 2 WHEN 'accepted' THEN 1 ELSE 0 END DESC,
-          received_at DESC LIMIT 1`,
-    )[0] || null;
+        ORDER BY received_at DESC`;
+    const events = [
+      ...d1(query).map((event) => ({ ...event, environment: "staging" })),
+      ...d1Production(query).map((event) => ({ ...event, environment: "production" })),
+    ];
+    row = selectBestMetaStatusEvent(events);
     if (["delivered", "read", "failed"].includes(row?.status)) return row;
     await sleep(5_000);
   }
@@ -692,11 +723,15 @@ function evidenceSnapshot(state, official, send, outboundStatus, operationalCont
        (SELECT COUNT(*) FROM conversation_messages WHERE id=${sqlString(official.inbound_message_id)} AND conversation_id=${sqlString(official.conversation_id)} AND direction='inbound') AS inbound_rows,
        (SELECT COUNT(*) FROM status_events WHERE message_id=${sqlString(official.inbound_message_id)} AND event_kind='inbound_message') AS inbound_event_rows`,
   )[0] || {};
-  const outboundRows = d1(
-    `SELECT
+  const outboundSql = `SELECT
        (SELECT COUNT(*) FROM pilot_send_ledger WHERE id=${sqlString(state.artifacts.pilotLedgerId)}) AS ledger_rows,
        (SELECT COUNT(*) FROM pilot_runs WHERE id=${sqlString(state.artifacts.pilotRunId)}) AS pilot_run_rows,
-       (SELECT COUNT(*) FROM status_events WHERE message_id=${sqlString(state.artifacts.outboundMessageId)} AND event_kind='message_status') AS status_rows`,
+       (SELECT COUNT(*) FROM status_events WHERE message_id=${sqlString(state.artifacts.outboundMessageId)} AND event_kind='message_status') AS status_rows`;
+  const outboundRows = d1(outboundSql)[0] || {};
+  const productionStatusRows = d1Production(
+    `SELECT COUNT(*) AS status_rows FROM status_events
+      WHERE message_id=${sqlString(state.artifacts.outboundMessageId)}
+        AND event_kind='message_status'`,
   )[0] || {};
   return {
     official: {
@@ -724,7 +759,10 @@ function evidenceSnapshot(state, official, send, outboundStatus, operationalCont
       accepted: send.accepted,
       messageId: send.messageId,
       status: outboundStatus?.status || "accepted",
-      statusEventRows: Number(outboundRows.status_rows || 0),
+      statusSource: outboundStatus?.environment || "none",
+      statusEventRows:
+        Number(outboundRows.status_rows || 0) +
+        Number(productionStatusRows.status_rows || 0),
       operationalContractPassed,
       ledgerRows: Number(outboundRows.ledger_rows || 0),
       pilotRunRows: Number(outboundRows.pilot_run_rows || 0),
@@ -776,6 +814,10 @@ async function cleanupArtifacts(state) {
       );
     }
     for (const statement of statements) d1(statement);
+    if (a.outboundMessageId)
+      d1Production(
+        `DELETE FROM status_events WHERE message_id=${sqlString(a.outboundMessageId)}`,
+      );
   } catch (error) {
     errors.push(redact(error.message));
   }
@@ -796,12 +838,21 @@ function cleanupSnapshot(state, callbackRestored) {
        (SELECT COUNT(*) FROM pilot_runs WHERE id=${sqlString(a.pilotRunId || "missing")} AND status='active') AS pilot_run_active_rows,
        (SELECT COUNT(*) FROM pilot_send_ledger WHERE id=${sqlString(a.pilotLedgerId || "missing")}) AS pilot_ledger_retained_rows`,
   )[0] || {};
+  const productionStatusRows = d1Production(
+    `SELECT COUNT(*) AS outbound_status_rows FROM status_events
+      WHERE message_id IN (${[
+        a.officialInboundMessageId || "missing-official",
+        a.outboundMessageId || "missing-outbound",
+      ].map(sqlString).join(",")})`,
+  )[0] || {};
   return {
     callbackRestored,
     officialContactRows: Number(row.official_contact_rows || 0),
     officialConversationRows: Number(row.official_conversation_rows || 0),
     officialInboundMessageRows: Number(row.official_inbound_rows || 0),
-    outboundStatusRows: Number(row.outbound_status_rows || 0),
+    outboundStatusRows:
+      Number(row.outbound_status_rows || 0) +
+      Number(productionStatusRows.outbound_status_rows || 0),
     pilotRunActiveRows: Number(row.pilot_run_active_rows || 0),
     pilotLedgerRetainedRows: Number(row.pilot_ledger_retained_rows || 0),
   };
@@ -962,7 +1013,96 @@ async function cleanupOnly() {
   if (issues.length) process.exitCode = 1;
 }
 
+async function finalizeObservedRun() {
+  const { state, statePath } = loadState({ allowExpired: true });
+  if (
+    !state.artifacts?.outboundMessageId ||
+    !state.outboundAcceptedAt ||
+    !state.artifacts?.pilotLedgerId ||
+    !state.artifacts?.pilotRunId
+  )
+    throw new Error("A rodada ainda não possui envio aceito para reconciliação.");
+  assertCertifiedRuntimeUnchanged();
+  const runOutputDir = executionOutputDir(statePath);
+  const official = loadObservedOfficialCandidate(state);
+  const send = {
+    recipientMode: "bsuid",
+    phoneFieldOmitted: true,
+    providerCallCount: 1,
+    accepted: true,
+    messageId: state.artifacts.outboundMessageId,
+  };
+  const outboundStatus = await waitForOutboundStatus(
+    state,
+    boundedSeconds("status-wait-seconds", 60, 1_800),
+  );
+  const snapshot = evidenceSnapshot(state, official, send, outboundStatus, true);
+  const runtimeIssues = [];
+  runtimeIssues.push(...(await cleanupArtifacts(state)));
+  let callbackRestored = false;
+  const callbackProductionDir = resolve(runOutputDir, "callback-production-finalize");
+  try {
+    switchCallback("production", callbackProductionDir);
+    callbackRestored = true;
+  } catch (error) {
+    runtimeIssues.push(redact(error.message));
+  }
+  const cleanup = cleanupSnapshot(state, callbackRestored);
+  const evaluation = evaluateMetaBsuidHomologation({
+    official: snapshot.official,
+    outbound: snapshot.outbound,
+    cleanup,
+  });
+  const issues = [...new Set([...runtimeIssues, ...evaluation.issues])];
+  const status = issues.length ? "failed" : "passed";
+  const performedAt = new Date().toISOString();
+  const detailsPath = resolve(runOutputDir, "meta-bsuid-details.json");
+  persist(detailsPath, {
+    schemaVersion: 1,
+    kind: "smartzap-meta-bsuid-homologation",
+    status,
+    runId: state.runId,
+    performedAt,
+    release: spec.release,
+    environment: state.environment,
+    authorizedRecipient: state.authorizedRecipient,
+    official: snapshot.official,
+    outbound: snapshot.outbound,
+    cleanup,
+    checks: evaluation.checks,
+    issues,
+  });
+  const artifactPaths = [
+    detailsPath,
+    resolve(runOutputDir, "contract/meta-bsuid-contract-gate.json"),
+    resolve(runOutputDir, "callback-staging/meta-app-callback-switch.json"),
+    resolve(callbackProductionDir, "meta-app-callback-switch.json"),
+  ];
+  const attestationPath = resolve(runOutputDir, "meta-bsuid-attestation.json");
+  persist(attestationPath, {
+    schemaVersion: 1,
+    kind: "smartzap-certification-attestation",
+    evidenceId: "meta-bsuid",
+    status,
+    release: spec.release,
+    performedBy: "Codex QA autônomo + operador autenticado no App Dashboard da Meta",
+    performedAt,
+    checks: evaluation.checks,
+    artifacts: artifactPaths
+      .filter((path) => existsSync(path))
+      .map((path) => ({ path: relative(path), sha256: sha256File(path) })),
+    issues,
+  });
+  state.status = status;
+  state.completedAt = performedAt;
+  state.reconciledStatusSource = snapshot.outbound.statusSource;
+  persist(statePath, state);
+  console.log(`META-01 reconciliada: ${status}. Atestado: ${attestationPath}`);
+  if (status !== "passed") process.exitCode = 1;
+}
+
 if (command === "prepare") prepare();
 else if (command === "run") await run();
 else if (command === "cleanup") await cleanupOnly();
-else throw new Error("Comando esperado: prepare, run ou cleanup.");
+else if (command === "finalize") await finalizeObservedRun();
+else throw new Error("Comando esperado: prepare, run, finalize ou cleanup.");

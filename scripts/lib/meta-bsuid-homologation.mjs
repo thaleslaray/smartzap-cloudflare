@@ -1,4 +1,11 @@
 const TERMINAL_SUCCESS = new Set(["delivered", "read"]);
+const STATUS_PRIORITY = new Map([
+  ["read", 5],
+  ["delivered", 4],
+  ["failed", 3],
+  ["sent", 2],
+  ["accepted", 1],
+]);
 
 function truthy(value) {
   return value === true || value === 1;
@@ -65,6 +72,20 @@ export function evaluateMetaBsuidHomologation(input) {
     checks,
     issues,
   };
+}
+
+export function selectBestMetaStatusEvent(events) {
+  return [...(Array.isArray(events) ? events : [])]
+    .filter((event) => String(event?.status ?? "").trim())
+    .sort((left, right) => {
+      const priority =
+        (STATUS_PRIORITY.get(String(right.status).toLowerCase()) ?? 0) -
+        (STATUS_PRIORITY.get(String(left.status).toLowerCase()) ?? 0);
+      if (priority) return priority;
+      return String(right.received_at ?? "").localeCompare(
+        String(left.received_at ?? ""),
+      );
+    })[0] ?? null;
 }
 
 export function isOfficialUsernameOnlyCandidate(contact, preparedAt) {

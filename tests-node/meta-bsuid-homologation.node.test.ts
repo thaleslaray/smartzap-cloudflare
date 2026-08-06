@@ -8,6 +8,7 @@ const {
   evaluateMetaBsuidHomologation,
   isOfficialUsernameOnlyCandidate,
   maskPhone,
+  selectBestMetaStatusEvent,
 } = metaBsuid;
 
 function passingInput() {
@@ -130,5 +131,15 @@ describe("homologação Meta BSUID", () => {
       template: { name: "hello_world", language: { code: "en_US" } },
     });
     expect(payload).not.toHaveProperty("to");
+  });
+
+  it("reconcilia o melhor status mesmo quando veio de outro ambiente", () => {
+    expect(
+      selectBestMetaStatusEvent([
+        { status: "sent", received_at: "2026-08-06 11:45:33", environment: "staging" },
+        { status: "read", received_at: "2026-08-06 11:45:40", environment: "production" },
+        { status: "delivered", received_at: "2026-08-06 11:45:36", environment: "production" },
+      ]),
+    ).toMatchObject({ status: "read", environment: "production" });
   });
 });
