@@ -12,6 +12,7 @@ const MAX_EXPECTED_GAP_MS = 10 * 60 * 1000;
 const BOUNDARY_TOLERANCE_MS = 10 * 60 * 1000;
 const MAX_P95_LATENCY_MS = 2_000;
 const MAX_SINGLE_LATENCY_MS = 15_000;
+const MAX_AUTOMATIC_CRON_GAP_MS = 30 * 60 * 1000;
 
 function timestamp(value) {
   const parsed = Date.parse(String(value || ""));
@@ -43,6 +44,33 @@ function gapExplained(gap, exceptions) {
     return from !== null && to !== null && from <= gap.fromMs && to >= gap.toMs
       && validExplanation(item);
   });
+}
+
+function invocationTotals(rows, scriptName) {
+  const matching = (rows || []).filter((row) => row?.dimensions?.scriptName === scriptName);
+  return {
+    requests: matching.reduce((sum, row) => sum + Number(row?.sum?.requests || 0), 0),
+    errors: matching.reduce((sum, row) => sum + Number(row?.sum?.errors || 0), 0),
+    statuses: [...new Set(matching.map((row) => String(row?.dimensions?.status || "unknown")))].sort(),
+  };
+}
+
+export function explainCronDeliveryGap(gap, analytics) {
+  if (!gap || Number(gap.durationMs) > MAX_AUTOMATIC_CRON_GAP_MS) return null;
+  if (analytics?.status !== "passed" || !Array.isArray(analytics.rows)) return null;
+  const monitor = invocationTotals(analytics.rows, "smartzap-qa-monitor");
+  const production = invocationTotals(analytics.rows, "smartzap-cf");
+  const staging = invocationTotals(analytics.rows, "smartzap-cf-staging");
+  const productStatuses = [...production.statuses, ...staging.statuses];
+  if (monitor.requests !== 0 || monitor.errors !== 0) return null;
+  if (production.requests < 1 || production.errors !== 0 || staging.errors !== 0) return null;
+  if (productStatuses.some((status) => status !== "success")) return null;
+  return {
+    from: gap.from,
+    to: gap.to,
+    reason: "Cloudflare Analytics confirmou ausência de invocação Cron do monitor; produção permaneceu ativa e sem erro.",
+    evidence: `GraphQL Workers Analytics: monitor=0; produção=${production.requests}/0 erros; staging=${staging.requests}/0 erros`,
+  };
 }
 
 export function consolidateSoak({

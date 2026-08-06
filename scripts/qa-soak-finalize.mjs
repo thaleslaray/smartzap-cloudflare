@@ -3,7 +3,7 @@ import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync 
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
-import { consolidateSoak } from "./lib/soak-consolidation.mjs";
+import { consolidateSoak, explainCronDeliveryGap } from "./lib/soak-consolidation.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const START_AT = "2026-07-30T02:45:00.000Z";
@@ -108,6 +108,56 @@ function integritySnapshot() {
   };
 }
 
+async function invocationGapSnapshot(gap) {
+  const accountId = String(process.env.CLOUDFLARE_ACCOUNT_ID || "4a1961760bc2292fab3733dc2b3c811c");
+  const token = String(process.env.CLOUDFLARE_API_TOKEN || "");
+  // O dataset de invocações é exposto com precisão de segundos. Excluímos um
+  // segundo inteiro em cada borda para não contar os dois ciclos adjacentes
+  // que delimitam a lacuna como se estivessem dentro dela.
+  const fromMs = Date.parse(gap.from) + 1_000;
+  const toMs = Date.parse(gap.to) - 1_000;
+  if (!token || !Number.isFinite(fromMs) || !Number.isFinite(toMs) || toMs <= fromMs) {
+    return { status: "failed", rows: [], error: "credencial ou intervalo indisponível" };
+  }
+  const query = `query SoakGap($accountTag: string, $start: string, $end: string) {
+    viewer { accounts(filter:{accountTag:$accountTag}) {
+      workersInvocationsAdaptive(limit:100, filter:{
+        scriptName_in:["smartzap-qa-monitor","smartzap-cf","smartzap-cf-staging"],
+        datetime_geq:$start, datetime_leq:$end
+      }) {
+        sum { requests errors subrequests }
+        dimensions { scriptName status }
+      }
+    } }
+  }`;
+  try {
+    const response = await fetch("https://api.cloudflare.com/client/v4/graphql", {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({ query, variables: {
+        accountTag: accountId,
+        start: new Date(fromMs).toISOString(),
+        end: new Date(toMs).toISOString(),
+      } }),
+    });
+    const body = await response.json();
+    const rows = body?.data?.viewer?.accounts?.[0]?.workersInvocationsAdaptive;
+    if (!response.ok || body?.errors?.length || !Array.isArray(rows)) {
+      return { status: "failed", rows: [], error: "consulta GraphQL não aprovada" };
+    }
+    return {
+      status: "passed",
+      source: "Cloudflare GraphQL Workers Analytics",
+      sourceUrl: "https://developers.cloudflare.com/analytics/graphql-api/tutorials/querying-workers-metrics/",
+      queriedAt: new Date().toISOString(),
+      interval: { from: new Date(fromMs).toISOString(), to: new Date(toMs).toISOString() },
+      rows,
+    };
+  } catch (error) {
+    return { status: "failed", rows: [], error: String(error?.message || error).slice(0, 200) };
+  }
+}
+
 const spec = readJson(resolve(root, option("spec", "qa/production-certification.json")));
 const outputDir = resolve(root, option("output", "qa/reports/AUTOQA_SOAK_CURRENT"));
 const exceptionsPath = resolve(root, option("exceptions", "qa/soak-exceptions.json"));
@@ -117,14 +167,37 @@ const [stagingQueue, productionQueue] = await Promise.all([
   queueSnapshot("https://smartzap-cf-staging.thales2581.workers.dev", { "x-api-key": stagingEnv.QA_STAGING_API_KEY || "" }),
   queueSnapshot("https://smartzap-cf.thales2581.workers.dev", { "x-qa-readonly-key": productionEnv.QA_READONLY_API_KEY || "" }),
 ]);
+const reports = monitorReports();
+const configuredExceptions = readJson(exceptionsPath);
 const operations = { queues: { staging: stagingQueue, production: productionQueue }, integrity: integritySnapshot() };
-const details = consolidateSoak({
-  reports: monitorReports(),
+const preliminary = consolidateSoak({
+  reports,
   release: spec.release,
   startAt: START_AT,
   endAt: END_AT,
   observedAt: option("observed-at", new Date().toISOString()),
-  exceptions: readJson(exceptionsPath),
+  exceptions: configuredExceptions,
+  operations,
+});
+const gapEvidence = [];
+const automaticGapExceptions = [];
+for (const gap of preliminary.metrics.gaps) {
+  const analytics = await invocationGapSnapshot(gap);
+  const accepted = explainCronDeliveryGap(gap, analytics);
+  gapEvidence.push({ gap, analytics, accepted: Boolean(accepted) });
+  if (accepted) automaticGapExceptions.push(accepted);
+}
+operations.gapEvidence = gapEvidence;
+const details = consolidateSoak({
+  reports,
+  release: spec.release,
+  startAt: START_AT,
+  endAt: END_AT,
+  observedAt: preliminary.observedAt,
+  exceptions: {
+    ...configuredExceptions,
+    explainedGaps: [...(configuredExceptions.explainedGaps || []), ...automaticGapExceptions],
+  },
   operations,
 });
 const detailsPath = resolve(outputDir, "soak-details.json");

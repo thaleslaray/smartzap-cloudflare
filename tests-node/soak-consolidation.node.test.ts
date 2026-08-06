@@ -63,4 +63,24 @@ describe("consolidação do soak", () => {
     expect(result.checks.queuesReviewed).toBe(false);
     expect(result.checks.duplicatesReviewed).toBe(false);
   });
+
+  it("explica uma lacuna curta somente quando a Cloudflare prova ausência do Cron e produção saudável", () => {
+    const gap = { from: startAt, to: "2026-07-30T03:14:42.000Z", durationMs: 1_782_000 };
+    const evidence = soak.explainCronDeliveryGap(gap, { status: "passed", rows: [
+      { dimensions: { scriptName: "smartzap-cf", status: "success" }, sum: { requests: 46, errors: 0 } },
+    ] });
+    expect(evidence).toMatchObject({ from: gap.from, to: gap.to });
+  });
+
+  it("não explica lacuna longa, execução do monitor ou erro do produto", () => {
+    const base = { from: startAt, to: "2026-07-30T03:15:00.000Z", durationMs: 1_800_001 };
+    expect(soak.explainCronDeliveryGap(base, { status: "passed", rows: [] })).toBeNull();
+    expect(soak.explainCronDeliveryGap({ ...base, durationMs: 1000 }, { status: "passed", rows: [
+      { dimensions: { scriptName: "smartzap-qa-monitor", status: "success" }, sum: { requests: 1, errors: 0 } },
+      { dimensions: { scriptName: "smartzap-cf", status: "success" }, sum: { requests: 1, errors: 0 } },
+    ] })).toBeNull();
+    expect(soak.explainCronDeliveryGap({ ...base, durationMs: 1000 }, { status: "passed", rows: [
+      { dimensions: { scriptName: "smartzap-cf", status: "failure" }, sum: { requests: 1, errors: 1 } },
+    ] })).toBeNull();
+  });
 });
