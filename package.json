@@ -68,6 +68,8 @@
     "qa:ai:human:verify": "node scripts/qa-ai-human-calibration.mjs verify",
     "qa:a11y:manual:prepare": "node scripts/qa-manual-accessibility.mjs prepare",
     "qa:a11y:manual:verify": "node scripts/qa-manual-accessibility.mjs verify",
+    "qa:risk:prepare": "node scripts/qa-release-risk.mjs prepare",
+    "qa:risk:verify": "node scripts/qa-release-risk.mjs verify",
     "qa:soak:finalize": "node scripts/qa-soak-finalize.mjs",
     "qa:security:isolation": "node scripts/qa-security-isolation.mjs",
     "qa:backup:restore": "node scripts/qa-backup-restore.mjs",
