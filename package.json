@@ -66,6 +66,8 @@
     "qa:ai": "node scripts/qa-runner.mjs ai",
     "qa:ai:human:prepare": "node scripts/qa-ai-human-calibration.mjs prepare",
     "qa:ai:human:verify": "node scripts/qa-ai-human-calibration.mjs verify",
+    "qa:a11y:manual:prepare": "node scripts/qa-manual-accessibility.mjs prepare",
+    "qa:a11y:manual:verify": "node scripts/qa-manual-accessibility.mjs verify",
     "qa:security:isolation": "node scripts/qa-security-isolation.mjs",
     "qa:backup:restore": "node scripts/qa-backup-restore.mjs",
     "qa:certification:prepare": "node scripts/qa-production-certification.mjs prepare",
