@@ -84,11 +84,16 @@ WHERE campaign_id IN (
   '30000000-0000-4000-8000-000000000003'
 );
 
-INSERT OR REPLACE INTO contacts (id, phone, name, status, wa_id)
+INSERT INTO contacts (id, phone, name, status, wa_id)
 VALUES (
   '11111111-1111-4111-8111-111111111111', '+5511999999999',
   'Contato Piloto E2E', 'opt_in', '5511999999999'
-);
+)
+ON CONFLICT(id) DO UPDATE SET
+  phone=excluded.phone,
+  name=excluded.name,
+  status=excluded.status,
+  wa_id=excluded.wa_id;
 
 -- O cenário de campanha precisa de um destinatário elegível real: além do
 -- status opt-in, a audiência exige uma evidência de consentimento ativa.
@@ -104,11 +109,16 @@ INSERT OR REPLACE INTO consent_events (
 
 -- O contato corrigido pertence a outro cenário. Mantê-lo separado evita que
 -- a alteração de nome desse teste contamine a conversa fixa da Inbox.
-INSERT OR REPLACE INTO contacts (id, phone, name, status, wa_id)
+INSERT INTO contacts (id, phone, name, status, wa_id)
 VALUES (
   '55555555-5555-4555-8555-555555555555', '+5511888888888',
   'Contato para Correção E2E', 'unknown', '5511888888888'
-);
+)
+ON CONFLICT(id) DO UPDATE SET
+  phone=excluded.phone,
+  name=excluded.name,
+  status=excluded.status,
+  wa_id=excluded.wa_id;
 
 INSERT OR REPLACE INTO campaigns (
   id, name, template_name, status, workflow_id, total, sent, delivered, read, failed
@@ -146,13 +156,20 @@ VALUES
   ('e2e-pricing-confirmed', '77777777-7777-4777-8777-777777777777', 'actual_from_meta',
    0.3300, 'BRL', '[]', '[]', 'meta_pricing_analytics', '2026-07-01');
 
-INSERT OR REPLACE INTO conversations (
+INSERT INTO conversations (
   id, contact_id, wa_id, last_message_at, last_message_preview, unread_count, ai_enabled
 ) VALUES (
   '22222222-2222-4222-8222-222222222222',
   '11111111-1111-4111-8111-111111111111', '5511999999999', unixepoch(),
   'Quero saber mais', 0, 1
-);
+)
+ON CONFLICT(id) DO UPDATE SET
+  contact_id=excluded.contact_id,
+  wa_id=excluded.wa_id,
+  last_message_at=excluded.last_message_at,
+  last_message_preview=excluded.last_message_preview,
+  unread_count=excluded.unread_count,
+  ai_enabled=excluded.ai_enabled;
 
 INSERT OR REPLACE INTO conversation_messages (
   id, conversation_id, contact_id, direction, message_type, text_body,
@@ -173,3 +190,53 @@ INSERT OR REPLACE INTO ai_drafts (
   'Olá! Posso explicar. Qual é a sua principal dúvida?',
   '@cf/meta/llama-3.2-3b-instruct', 'draft-v2', datetime('now')
 );
+
+INSERT INTO conversation_attributions (
+  id, conversation_id, waba_id, phone_number_id, source_message_id,
+  attribution_kind, ctwa_clid, source_id, source_type, source_url, occurred_at
+) VALUES (
+  '88888888-8888-4888-8888-888888888888',
+  '22222222-2222-4222-8222-222222222222', '22222', '11111',
+  'wamid.e2e.inbound', 'ctwa', 'e2e-ctwa-click-id-private',
+  '120000000001', 'ad', 'https://facebook.com/ads/e2e', unixepoch()
+)
+ON CONFLICT(id) DO UPDATE SET
+  conversation_id=excluded.conversation_id,
+  waba_id=excluded.waba_id,
+  phone_number_id=excluded.phone_number_id,
+  source_message_id=excluded.source_message_id,
+  attribution_kind=excluded.attribution_kind,
+  ctwa_clid=excluded.ctwa_clid,
+  source_id=excluded.source_id,
+  source_type=excluded.source_type,
+  source_url=excluded.source_url,
+  occurred_at=excluded.occurred_at;
+
+INSERT INTO conversion_events (
+  id, event_id, request_key, dedupe_key, conversation_id, attribution_id,
+  event_name, event_time, source, business_object_type, business_object_id,
+  created_by
+) VALUES (
+  '99999999-9999-4999-8999-999999999999',
+  'sz_e2e_lead_event_0000000000000000000000000000000000000000',
+  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+  'e2e_dedupe_lead_000000000000000000000000000000000000000000',
+  '22222222-2222-4222-8222-222222222222',
+  '88888888-8888-4888-8888-888888888888',
+  'LeadSubmitted', unixepoch(), 'manual', 'lead', 'lead-e2e-001', 'e2e'
+)
+ON CONFLICT(id) DO UPDATE SET
+  event_id=excluded.event_id,
+  request_key=excluded.request_key,
+  dedupe_key=excluded.dedupe_key,
+  conversation_id=excluded.conversation_id,
+  attribution_id=excluded.attribution_id,
+  event_name=excluded.event_name,
+  event_time=excluded.event_time,
+  source=excluded.source,
+  business_object_type=excluded.business_object_type,
+  business_object_id=excluded.business_object_id,
+  created_by=excluded.created_by;
+
+INSERT OR REPLACE INTO conversion_outbox (event_id, dataset_id, status)
+VALUES ('99999999-9999-4999-8999-999999999999', '555555555555555', 'pending');

@@ -18,7 +18,7 @@
   }],
   "vars": {
     "ENVIRONMENT": "staging",
-    "META_GRAPH_VERSION": "v25.0",
+    "META_GRAPH_VERSION": "v26.0",
     "META_APP_ID": "344941004274813",
     "META_EXPECTED_PHONE_ID": "177462062115446",
     "META_EXPECTED_WABA_ID": "159711717233997",
@@ -37,6 +37,7 @@
     "INBOX_SEND_ENABLED": "false",
     "INBOX_AUTOMATION_ENABLED": "false",
     "AUTOMATION_QUEUE_NAME": "inbox-automation-staging",
+    "CAPI_QUEUE_NAME": "meta-conversions-staging",
     "PILOT_GUARDS_ENABLED": "true",
     "PILOT_SEND_ENABLED": "true",
     "PILOT_MAX_REAL_SENDS": "3",
@@ -69,7 +70,9 @@
   "queues": {
     "producers": [
       { "binding": "WEBHOOK_QUEUE", "queue": "meta-webhooks-staging" },
-      { "binding": "AUTOMATION_QUEUE", "queue": "inbox-automation-staging" }
+      { "binding": "AUTOMATION_QUEUE", "queue": "inbox-automation-staging" },
+      { "binding": "CAPI_QUEUE", "queue": "meta-conversions-staging" },
+      { "binding": "CAPI_DLQ", "queue": "meta-conversions-staging-dlq" }
     ],
     "consumers": [
       {
@@ -85,6 +88,12 @@
         "max_batch_timeout": 2,
         "max_retries": 3,
         "dead_letter_queue": "inbox-automation-staging-dlq"
+      },
+      {
+        "queue": "meta-conversions-staging",
+        "max_batch_size": 10,
+        "max_batch_timeout": 2,
+        "max_retries": 5
       }
     ]
   },

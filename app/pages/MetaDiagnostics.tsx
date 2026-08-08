@@ -1,4 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -21,6 +22,13 @@ import {
   PageLoading,
   btnSecondary,
 } from "../components/ui";
+import {
+  useConversionDiagnostics,
+  useConversionCanaryCandidates,
+  useCreateConversionDataset,
+  useRunConversionCanary,
+  useSetConversionsEnabled,
+} from "../hooks/useConversions";
 type Health = {
   databaseOk: boolean;
   metaConfigured: boolean;
@@ -53,6 +61,9 @@ type Health = {
 };
 type Status = "pass" | "warn" | "fail" | "info";
 export default function MetaDiagnostics() {
+  const [accessRequirementsConfirmed, setAccessRequirementsConfirmed] = useState(false);
+  const [operatingMode, setOperatingMode] = useState<"direct" | "partner">("direct");
+  const [canaryCandidate, setCanaryCandidate] = useState("");
   const query = useQuery({
     queryKey: ["settings-health"],
     queryFn: () => api<Health>("/api/settings/health"),
@@ -65,6 +76,33 @@ export default function MetaDiagnostics() {
       ),
     onSuccess: () => query.refetch(),
   });
+  const capi = useConversionDiagnostics();
+  const createDataset = useCreateConversionDataset();
+  useEffect(() => {
+    const storedMode = capi.data?.permissions.operatingMode;
+    if (storedMode) setOperatingMode(storedMode);
+  }, [capi.data?.permissions.operatingMode]);
+  const operatingRequirementConfirmed = operatingMode === "direct"
+    ? capi.data?.permissions.operatingMode === "direct" &&
+      capi.data.permissions.ownBusinessDataConfirmed
+    : capi.data?.permissions.operatingMode === "partner" &&
+      capi.data.permissions.manageEventsAdvancedAccessConfirmed;
+  const administrativeRequirementsReady = Boolean(
+    (capi.data?.permissions.marketingAccessConfirmed || accessRequirementsConfirmed) &&
+    (operatingRequirementConfirmed || accessRequirementsConfirmed),
+  );
+  const canaryPrerequisites = Boolean(
+    capi.data?.permissions.whatsappBusinessManagement === true &&
+    capi.data?.permissions.whatsappBusinessManageEvents === true &&
+    capi.data?.dataset.status === "found" &&
+    capi.data?.dataset.verified === true &&
+    administrativeRequirementsReady,
+  );
+  const canaryCandidates = useConversionCanaryCandidates(
+    canaryPrerequisites && !Boolean(capi.data?.canary.accepted),
+  );
+  const runCanary = useRunConversionCanary();
+  const setConversionsEnabled = useSetConversionsEnabled();
   if (query.isLoading)
     return <PageLoading label="Executando diagnóstico Meta…" />;
   if (query.error) return <PageError message={query.error.message} />;
@@ -238,6 +276,212 @@ export default function MetaDiagnostics() {
           </Card>
         ))}
       </div>
+      <Card className="p-5 sm:p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-[0.14em] text-primary-400">
+              Click-to-WhatsApp
+            </p>
+            <h2 className="mt-1 text-xl font-semibold">Conversões de anúncios</h2>
+            <p className="mt-1 max-w-2xl text-sm text-zinc-500">
+              Envie Lead enviado, Lead qualificado e Compra para a Meta usando a origem real da conversa. O SmartZap não envia texto, mídia, telefone ou e-mail.
+            </p>
+          </div>
+          {capi.data && (
+            <span className={`w-fit rounded-full px-3 py-1 text-xs font-medium ${
+              capi.data.enabled
+                ? "bg-primary-500/15 text-primary-300"
+                : "bg-zinc-800 text-zinc-400"
+            }`}>
+              {capi.data.enabled ? "Ativo" : "Desativado"}
+            </span>
+          )}
+        </div>
+
+        {capi.isLoading ? (
+          <p className="mt-5 text-sm text-zinc-500">Verificando permissões e Dataset…</p>
+        ) : capi.error ? (
+          <p role="alert" className="mt-5 text-sm text-red-400">{capi.error.message}</p>
+        ) : capi.data ? (
+          <div className="mt-5 space-y-3">
+            <ConversionStep
+              number="1"
+              title="Permissões do aplicativo"
+              done={capi.data.permissions.whatsappBusinessManagement === true &&
+                capi.data.permissions.whatsappBusinessManageEvents === true}
+              detail={capi.data.permissions.whatsappBusinessManagement === true &&
+                capi.data.permissions.whatsappBusinessManageEvents === true
+                ? "O token contém os dois escopos técnicos necessários."
+                : "O token precisa de whatsapp_business_management e whatsapp_business_manage_events."}
+            />
+            <ConversionStep
+              number="2"
+              title="Dataset da conta do WhatsApp"
+              done={capi.data.dataset.status === "found" && capi.data.dataset.verified === true}
+              detail={capi.data.dataset.status === "found"
+                ? capi.data.dataset.verified
+                  ? "Dataset encontrado e vinculado à WABA configurada."
+                  : "Dataset encontrado; confirme a ativação para finalizar a verificação."
+                : capi.data.dataset.status === "missing"
+                  ? "Nenhum Dataset foi encontrado para esta WABA."
+                  : capi.data.dataset.error || "A Meta não confirmou o Dataset agora."}
+              action={capi.data.dataset.status === "missing" || !capi.data.dataset.verified ? (
+                <button
+                  type="button"
+                  className={btnSecondary}
+                  disabled={createDataset.isPending || capi.data.permissions.whatsappBusinessManageEvents !== true}
+                  onClick={() => createDataset.mutate()}
+                >
+                  {createDataset.isPending
+                    ? "Verificando…"
+                    : capi.data.dataset.status === "found"
+                      ? "Verificar Dataset encontrado"
+                      : "Criar Dataset nesta WABA"}
+                </button>
+              ) : undefined}
+            />
+            <ConversionStep
+              number="3"
+              title="Modelo de operação e acesso Meta"
+              done={administrativeRequirementsReady}
+              detail={operatingMode === "direct"
+                ? "Para a própria WABA, a Meta dispensa Advanced Access e App Review. Confirme a propriedade e o Marketing API Access Tier."
+                : "Para operar WABAs de clientes, é obrigatório ter Advanced Access para whatsapp_business_manage_events."}
+              action={(
+                <div className="min-w-0 space-y-3 sm:min-w-[360px]">
+                  <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Modelo de operação da integração">
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={operatingMode === "direct"}
+                      className={`rounded-lg border px-3 py-2 text-left text-xs ${operatingMode === "direct" ? "border-primary-500 bg-primary-500/10 text-primary-200" : "border-zinc-700 text-zinc-400"}`}
+                      onClick={() => {
+                        setOperatingMode("direct");
+                        setAccessRequirementsConfirmed(false);
+                      }}
+                    >
+                      Somente nossa WABA
+                    </button>
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={operatingMode === "partner"}
+                      className={`rounded-lg border px-3 py-2 text-left text-xs ${operatingMode === "partner" ? "border-primary-500 bg-primary-500/10 text-primary-200" : "border-zinc-700 text-zinc-400"}`}
+                      onClick={() => {
+                        setOperatingMode("partner");
+                        setAccessRequirementsConfirmed(false);
+                      }}
+                    >
+                      WABAs de clientes
+                    </button>
+                  </div>
+                  {!administrativeRequirementsReady && (
+                    <label className="flex cursor-pointer items-start gap-2 text-xs text-zinc-300">
+                      <input
+                        type="checkbox"
+                        checked={accessRequirementsConfirmed}
+                        onChange={(event) => setAccessRequirementsConfirmed(event.target.checked)}
+                        className="mt-0.5 accent-emerald-500"
+                      />
+                      {operatingMode === "direct"
+                        ? "Confirmo que acessamos somente dados da própria empresa e que o Marketing API Access Tier está em Full access."
+                        : "Confirmo Full access na Marketing API e Advanced Access para whatsapp_business_manage_events."}
+                    </label>
+                  )}
+                </div>
+              )}
+            />
+            <ConversionStep
+              number="4"
+              title="Evento controlado real"
+              done={capi.data.canary.accepted}
+              detail={capi.data.canary.accepted
+                ? "A Meta aceitou o evento controlado com events_received=1 para este Dataset e WABA."
+                : capi.data.canary.status
+                  ? `Situação atual: ${capi.data.canary.status}${capi.data.canary.error ? ` — ${capi.data.canary.error}` : ""}.`
+                  : "Selecione uma conversa CTWA autorizada dos últimos sete dias. O teste registrará um LeadSubmitted real; não é simulação."}
+              action={!capi.data.canary.accepted && canaryPrerequisites ? (
+                <div className="flex min-w-0 flex-col gap-2 sm:min-w-[300px]">
+                  <select
+                    aria-label="Conversa CTWA para o evento controlado"
+                    className="min-h-10 rounded-lg border border-zinc-700 bg-zinc-950 px-3 text-xs text-zinc-200"
+                    value={canaryCandidate}
+                    onChange={(event) => setCanaryCandidate(event.target.value)}
+                    disabled={canaryCandidates.isLoading || runCanary.isPending}
+                  >
+                    <option value="">Selecione uma origem autorizada</option>
+                    {(canaryCandidates.data?.items ?? []).map((candidate) => (
+                      <option key={candidate.id} value={`${candidate.conversation_id}:${candidate.id}`}>
+                        {new Date(candidate.occurred_at * 1000).toLocaleString("pt-BR")} · clique {candidate.click_id_masked}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className={btnSecondary}
+                    disabled={!canaryCandidate || runCanary.isPending}
+                    onClick={() => {
+                      const [conversationId, attributionId] = canaryCandidate.split(":");
+                      if (conversationId && attributionId)
+                        runCanary.mutate({
+                          conversationId,
+                          attributionId,
+                          operatingMode,
+                          ...(operatingMode === "direct"
+                            ? { ownBusinessDataConfirmed: true as const }
+                            : { manageEventsAdvancedAccessConfirmed: true as const }),
+                        });
+                    }}
+                  >
+                    {runCanary.isPending ? "Enviando…" : "Enviar evento controlado"}
+                  </button>
+                  {!canaryCandidates.isLoading && !canaryCandidates.error &&
+                    (canaryCandidates.data?.items.length ?? 0) === 0 && (
+                    <p className="text-xs text-amber-400">Nenhuma conversa CTWA atribuível foi capturada nos últimos sete dias.</p>
+                  )}
+                </div>
+              ) : undefined}
+            />
+            <div className="flex flex-col gap-3 border-t border-zinc-800 pt-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-zinc-500">{capi.data.message}</p>
+              <button
+                type="button"
+                className={capi.data.enabled ? btnSecondary : "legacy-primary-action inline-flex min-h-11 items-center justify-center rounded-lg border px-4 text-sm font-semibold"}
+                disabled={setConversionsEnabled.isPending || (
+                  !capi.data.enabled && (
+                    capi.data.permissions.whatsappBusinessManagement !== true ||
+                    capi.data.permissions.whatsappBusinessManageEvents !== true ||
+                    capi.data.dataset.status !== "found" ||
+                    capi.data.dataset.verified !== true ||
+                    !capi.data.canary.accepted ||
+                    !administrativeRequirementsReady
+                  )
+                )}
+                onClick={() => setConversionsEnabled.mutate(capi.data!.enabled
+                  ? { enabled: false }
+                  : {
+                    enabled: true,
+                    operatingMode,
+                    ...(operatingMode === "direct"
+                      ? { ownBusinessDataConfirmed: true as const }
+                      : { manageEventsAdvancedAccessConfirmed: true as const }),
+                  })}
+              >
+                {setConversionsEnabled.isPending
+                  ? "Salvando…"
+                  : capi.data.enabled
+                    ? "Desativar conversões"
+                    : "Ativar conversões"}
+              </button>
+            </div>
+            {(createDataset.error || canaryCandidates.error || runCanary.error || setConversionsEnabled.error) && (
+              <p role="alert" className="text-sm text-red-400">
+                {(createDataset.error ?? canaryCandidates.error ?? runCanary.error ?? setConversionsEnabled.error)?.message}
+              </p>
+            )}
+          </div>
+        ) : null}
+      </Card>
       {configureWebhook.error && (
         <p role="alert" className="text-sm text-red-400">
           {configureWebhook.error.message}
@@ -257,6 +501,37 @@ export default function MetaDiagnostics() {
         <ExternalLink size={15} />
         Abrir Meta for Developers
       </a>
+    </div>
+  );
+}
+
+function ConversionStep({
+  number,
+  title,
+  detail,
+  done,
+  action,
+}: {
+  number: string;
+  title: string;
+  detail: string;
+  done: boolean;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-3 rounded-xl border border-zinc-800 bg-zinc-950/35 p-4 sm:flex-row sm:items-center">
+      <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-sm ${
+        done
+          ? "border-primary-500/40 bg-primary-500/10 text-primary-300"
+          : "border-zinc-700 text-zinc-500"
+      }`}>
+        {done ? <CheckCircle2 size={16} /> : number}
+      </span>
+      <div className="min-w-0 flex-1">
+        <h3 className="text-sm font-medium">{title}</h3>
+        <p className="mt-0.5 text-xs leading-relaxed text-zinc-500">{detail}</p>
+      </div>
+      {action && <div className="sm:max-w-sm">{action}</div>}
     </div>
   );
 }

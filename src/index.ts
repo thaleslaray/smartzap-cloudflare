@@ -12,6 +12,12 @@ import {
   handleAutomationBatch,
   type AutomationQueueEvent,
 } from "./ai/automation";
+import {
+  handleConversionQueueMessage,
+  logConversionQueueFailure,
+  sweepConversionOutbox,
+  type ConversionQueueEvent,
+} from "./queue/conversion-consumer";
 
 const app = createApp();
 
@@ -95,9 +101,45 @@ export function isAutomationQueue(
   return queueName === (env.AUTOMATION_QUEUE_NAME?.trim() || "inbox-automation");
 }
 
+export function isConversionQueue(
+  env: Pick<Env, "CAPI_QUEUE_NAME">,
+  queueName: string,
+): boolean {
+  return queueName === (env.CAPI_QUEUE_NAME?.trim() || "meta-conversions");
+}
+
+export async function processConversionMessages(
+  messages: readonly QueueMessageLike<ConversionQueueEvent>[],
+  env: Env,
+  handler: typeof handleConversionQueueMessage = handleConversionQueueMessage,
+): Promise<void> {
+  for (const message of messages) {
+    try {
+      const result = await handler(message.body, env, message.attempts);
+      if (result.action === "retry")
+        message.retry({ delaySeconds: result.delaySeconds });
+      else message.ack();
+    } catch (error) {
+      logConversionQueueFailure(error, message.attempts);
+      const delaySeconds = Math.min(
+        3600,
+        10 * 2 ** Math.max(0, message.attempts - 1),
+      );
+      message.retry({ delaySeconds });
+    }
+  }
+}
+
 export default {
   fetch: app.fetch,
   async queue(batch, env) {
+    if (isConversionQueue(env, batch.queue)) {
+      await processConversionMessages(
+        batch.messages as unknown as QueueMessageLike<ConversionQueueEvent>[],
+        env,
+      );
+      return;
+    }
     if (isAutomationQueue(env, batch.queue)) {
       await processAutomationMessages(
         batch.messages as unknown as QueueMessageLike<AutomationQueueEvent>[],
@@ -111,6 +153,23 @@ export default {
     await ensureStatusEventReconciliationSchema(env.DB);
     const statusReconciliation = await reconcilePendingStatusEvents(env.DB);
     const fixed = await reconcileCampaignCounters(env.DB);
+    try {
+      const conversions = await sweepConversionOutbox(env);
+      if (conversions.queued)
+        console.log(JSON.stringify({
+          level: "info",
+          msg: "outbox de conversões reenfileirada",
+          ...conversions,
+        }));
+    } catch (error) {
+      console.error(JSON.stringify({
+        level: "warn",
+        msg: "outbox de conversões não reenfileirada",
+        error: redactOperationalDetail(
+          error instanceof Error ? error.message : error,
+        ),
+      }));
+    }
     const cleaned = await cleanupExpiredData(
       env.DB,
       Boolean(env.WHATSAPP_TOKEN),

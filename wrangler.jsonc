@@ -35,7 +35,8 @@
     "FLOW_DATA_API_VERSION": "3.0",
     "INBOX_SEND_ENABLED": "true",
     "INBOX_AUTOMATION_ENABLED": "true",
-    "AUTOMATION_QUEUE_NAME": "inbox-automation"
+    "AUTOMATION_QUEUE_NAME": "inbox-automation",
+    "CAPI_QUEUE_NAME": "meta-conversions"
   },
   // O deploy falha antes de publicar uma versão incapaz de autenticar/enviar/receber.
   // Turnstile é opcional e controlado explicitamente por TURNSTILE_ENABLED.
@@ -50,11 +51,14 @@
   "queues": {
     "producers": [
       { "binding": "WEBHOOK_QUEUE", "queue": "meta-webhooks" },
-      { "binding": "AUTOMATION_QUEUE", "queue": "inbox-automation" }
+      { "binding": "AUTOMATION_QUEUE", "queue": "inbox-automation" },
+      { "binding": "CAPI_QUEUE", "queue": "meta-conversions" },
+      { "binding": "CAPI_DLQ", "queue": "meta-conversions-dlq" }
     ],
     "consumers": [
       { "queue": "meta-webhooks", "max_batch_size": 50, "max_batch_timeout": 2, "max_retries": 5, "dead_letter_queue": "meta-webhooks-dlq" },
-      { "queue": "inbox-automation", "max_batch_size": 10, "max_batch_timeout": 2, "max_retries": 3, "dead_letter_queue": "inbox-automation-dlq" }
+      { "queue": "inbox-automation", "max_batch_size": 10, "max_batch_timeout": 2, "max_retries": 3, "dead_letter_queue": "inbox-automation-dlq" },
+      { "queue": "meta-conversions", "max_batch_size": 10, "max_batch_timeout": 2, "max_retries": 5 }
     ]
   },
   "workflows": [{ "binding": "CAMPAIGN_WF", "name": "campaign-send", "class_name": "CampaignSendWorkflow" }],

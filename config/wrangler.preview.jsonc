@@ -34,6 +34,7 @@
     "INBOX_SEND_ENABLED": "false",
     "INBOX_AUTOMATION_ENABLED": "false",
     "AUTOMATION_QUEUE_NAME": "inbox-automation-preview",
+    "CAPI_QUEUE_NAME": "meta-conversions-preview",
     "PILOT_GUARDS_ENABLED": "true",
     "PILOT_SEND_ENABLED": "false",
     "PILOT_MAX_REAL_SENDS": "1",
@@ -62,7 +63,9 @@
   "queues": {
     "producers": [
       { "binding": "WEBHOOK_QUEUE", "queue": "meta-webhooks-preview" },
-      { "binding": "AUTOMATION_QUEUE", "queue": "inbox-automation-preview" }
+      { "binding": "AUTOMATION_QUEUE", "queue": "inbox-automation-preview" },
+      { "binding": "CAPI_QUEUE", "queue": "meta-conversions-preview" },
+      { "binding": "CAPI_DLQ", "queue": "meta-conversions-preview-dlq" }
     ],
     "consumers": [
       {
@@ -78,6 +81,12 @@
         "max_batch_timeout": 2,
         "max_retries": 3,
         "dead_letter_queue": "inbox-automation-preview-dlq"
+      },
+      {
+        "queue": "meta-conversions-preview",
+        "max_batch_size": 10,
+        "max_batch_timeout": 2,
+        "max_retries": 5
       }
     ]
   },

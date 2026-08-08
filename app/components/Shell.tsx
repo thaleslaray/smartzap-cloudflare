@@ -41,6 +41,7 @@ const pageTitle = (pathname: string) => {
   if (pathname.startsWith("/campaigns/")) return "Detalhes da campanha";
   if (pathname.startsWith("/campaigns")) return "Campanhas";
   if (pathname.startsWith("/inbox")) return "Inbox";
+  if (pathname.startsWith("/analytics/conversions")) return "Conversões de anúncios";
   if (pathname.startsWith("/templates")) return "Templates";
   if (pathname.startsWith("/forms")) return "App";
   if (pathname.startsWith("/contacts")) return "Contatos";

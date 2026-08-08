@@ -28,6 +28,7 @@ import { redactOperationalDetail } from "../domain/redaction";
 import { flowEndpointRoutes } from "./flow-endpoint";
 import { googleCalendarPublicRoutes, googleCalendarRoutes } from "./google-calendar";
 import { pricingRoutes } from "./pricing";
+import { conversionsRoutes } from "./conversions";
 
 export function createApp() {
   const app = new Hono<{ Bindings: Env }>();
@@ -66,6 +67,7 @@ export function createApp() {
   app.route("/api/realtime", realtimeRoutes);
   app.route("/api/campaigns", campaignsRoutes);
   app.route("/api/pricing", pricingRoutes);
+  app.route("/api/conversions", conversionsRoutes);
   app.route("/api/dashboard", dashboardRoutes);
   app.route("/api/conversations", conversationsRoutes);
   app.route("/api/attendants", attendantsRoutes);

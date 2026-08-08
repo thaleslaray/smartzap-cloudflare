@@ -28,6 +28,13 @@ export const authenticatedOperationalRoutes = [
   "/settings/performance",
   "/settings/ai",
   "/settings/ai/agents",
+  "/analytics/conversions",
+] as const;
+
+/** Rotas públicas estáticas que não podem exigir sessão. */
+export const publicStaticRoutes = [
+  "/privacy",
+  "/data-deletion",
 ] as const;
 
 /** Rotas dinâmicas que existem no seed determinístico do Playwright. */

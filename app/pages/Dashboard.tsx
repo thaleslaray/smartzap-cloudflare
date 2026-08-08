@@ -77,6 +77,12 @@ export default function Dashboard() {
         </div>
         <div className="flex items-center gap-3">
           <Link
+            to="/analytics/conversions"
+            className="inline-flex h-11 items-center justify-center rounded-lg border border-zinc-800 px-4 text-sm font-medium text-zinc-300 hover:border-zinc-600 hover:text-white"
+          >
+            Conversões
+          </Link>
+          <Link
             to="/campaigns/new"
             aria-label="Criar nova campanha rápida"
             className="legacy-primary-action inline-flex h-11 items-center justify-center rounded-lg border px-4 text-sm font-semibold"

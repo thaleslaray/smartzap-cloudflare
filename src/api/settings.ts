@@ -85,17 +85,23 @@ const sum = (values: Array<number | null | undefined>) =>
 
 /** Métricas que o Worker obtém de bindings, sem depender de token externo. */
 async function bindingUsage(env: Env) {
-  const [webhookQueue, automationQueue] = await Promise.all([
+  const [webhookQueue, automationQueue, conversionQueue, conversionDlq] = await Promise.all([
     env.WEBHOOK_QUEUE.metrics(),
     env.AUTOMATION_QUEUE.metrics(),
+    env.CAPI_QUEUE.metrics(),
+    env.CAPI_DLQ.metrics(),
   ]);
   return {
     queues: {
-      backlog: webhookQueue.backlogCount + automationQueue.backlogCount,
-      backlogBytes: webhookQueue.backlogBytes + automationQueue.backlogBytes,
+      backlog: webhookQueue.backlogCount + automationQueue.backlogCount +
+        conversionQueue.backlogCount + conversionDlq.backlogCount,
+      backlogBytes: webhookQueue.backlogBytes + automationQueue.backlogBytes +
+        conversionQueue.backlogBytes + conversionDlq.backlogBytes,
       items: [
         { name: "meta-webhooks", backlog: webhookQueue.backlogCount },
         { name: "inbox-automation", backlog: automationQueue.backlogCount },
+        { name: "meta-conversions", backlog: conversionQueue.backlogCount },
+        { name: "meta-conversions-dlq", backlog: conversionDlq.backlogCount },
       ],
     },
   };

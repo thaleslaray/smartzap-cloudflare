@@ -24,12 +24,14 @@ const Attendants = lazy(() => import("./pages/Attendants"));
 const AttendantPortal = lazy(() => import("./pages/AttendantPortal"));
 const MetaDiagnostics = lazy(() => import("./pages/MetaDiagnostics"));
 const Performance = lazy(() => import("./pages/Performance"));
+const ConversionsAnalytics = lazy(() => import("./pages/ConversionsAnalytics"));
 const Inbox = lazy(() => import("./pages/Inbox"));
 const Knowledge = lazy(() => import("./pages/Knowledge"));
 const Segments = lazy(() => import("./pages/Segments"));
 const Forms = lazy(() => import("./pages/Forms"));
 const FlowBuilderHome = lazy(() => import("./pages/FlowBuilderHome"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const Legal = lazy(() => import("./pages/Legal"));
 
 const loading = <div className="flex min-h-[40vh] items-center justify-center text-sm text-[var(--ds-text-muted)]">Carregando…</div>;
 
@@ -75,6 +77,7 @@ function AuthedApp() {
         <Route path="settings/attendants" element={<Attendants />} />
         <Route path="settings/meta-diagnostics" element={<MetaDiagnostics />} />
         <Route path="settings/performance" element={<Performance />} />
+        <Route path="analytics/conversions" element={<ConversionsAnalytics />} />
         <Route path="settings/ai" element={<AICenter />} />
         <Route path="settings/ai/agents" element={<AIAgents />} />
         <Route path="workflows/*" element={<NotFound />} />
@@ -90,6 +93,8 @@ export default function App() {
       <BrowserRouter>
         <Suspense fallback={loading}><Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/privacy" element={<Legal />} />
+          <Route path="/data-deletion" element={<Legal />} />
           <Route path="/f/:slug" element={<PublicForm />} />
           <Route path="/atendimento" element={<AttendantPortal />} />
           <Route

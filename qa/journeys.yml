@@ -26,6 +26,13 @@
       "evidence": ["api", "ui", "security"],
       "invalidatedBy": ["src/api/auth.ts", "src/middleware/auth.ts", "app/pages/Login.tsx"]
     },
+    "LEG": {
+      "risk": "P0",
+      "owners": ["privacy"],
+      "tests": ["e2e/legal-public.spec.ts"],
+      "evidence": ["public-ui", "responsive", "accessibility", "no-auth"],
+      "invalidatedBy": ["app/App.tsx", "app/pages/Legal.tsx", "e2e/legal-public.spec.ts"]
+    },
     "DASH": {
       "risk": "P1",
       "owners": ["dashboard"],
@@ -137,6 +144,20 @@
       "tests": ["tests/webhook.test.ts", "tests/whatsapp.test.ts", "tests/automation.test.ts"],
       "evidence": ["meta-canary", "multi-turn", "inbox", "cleanup"],
       "invalidatedBy": ["src/api/webhook.ts", "src/queue/webhook-consumer.ts", "src/ai/automation.ts", "src/whatsapp/client.ts"]
+    },
+    "CTWA": {
+      "risk": "P0",
+      "owners": ["meta-attribution"],
+      "tests": ["tests/webhook.test.ts", "tests/conversions.test.ts", "e2e/conversions-ctwa.spec.ts"],
+      "evidence": ["signed-webhook", "idempotency", "privacy", "ui", "provider-real", "cleanup"],
+      "invalidatedBy": ["src/api/webhook.ts", "src/queue/webhook-consumer.ts", "src/db/conversions.ts", "src/domain/conversions.ts", "app/pages/Inbox.tsx", "e2e/conversions-ctwa.spec.ts"]
+    },
+    "CAPI": {
+      "risk": "P0",
+      "owners": ["meta-conversions"],
+      "tests": ["tests/conversions.test.ts", "tests/whatsapp-conversions.test.ts", "tests/infrastructure-usage.test.ts", "e2e/conversions-ctwa.spec.ts"],
+      "evidence": ["api", "ui", "outbox", "queue", "provider-real", "rollback", "cleanup"],
+      "invalidatedBy": ["src/api/conversions.ts", "src/db/conversions.ts", "src/domain/conversions.ts", "src/queue/conversion-consumer.ts", "src/whatsapp/conversions.ts", "app/hooks/useConversions.ts", "app/pages/ConversionsAnalytics.tsx", "app/pages/MetaDiagnostics.tsx", "migrations/0046_ctwa_conversions.sql", "migrations/0047_conversion_corrections.sql", "wrangler.jsonc", "config"]
     },
     "MINI": {
       "risk": "P1",

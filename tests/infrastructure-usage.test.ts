@@ -29,6 +29,8 @@ describe("uso real da infraestrutura", () => {
     expect(body.queues.items.map((item) => item.name)).toEqual([
       "meta-webhooks",
       "inbox-automation",
+      "meta-conversions",
+      "meta-conversions-dlq",
     ]);
     expect(body.queues.backlog).toBeGreaterThanOrEqual(0);
     expect(body.queues.backlogBytes).toBeGreaterThanOrEqual(0);

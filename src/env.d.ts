@@ -7,6 +7,8 @@ interface Env {
   MEDIA: R2Bucket;
   WEBHOOK_QUEUE: Queue<import("./api/webhook").MetaWebhookEvent>;
   AUTOMATION_QUEUE: Queue<import("./ai/automation").AutomationQueueEvent>;
+  CAPI_QUEUE: Queue<import("./queue/conversion-consumer").ConversionQueueEvent>;
+  CAPI_DLQ: Queue<import("./queue/conversion-consumer").ConversionDeadLetterEvent>;
   CAMPAIGN_WF: Workflow;
   REALTIME: DurableObjectNamespace<import("./do/RealtimeHub").RealtimeHub>;
   THROTTLE: DurableObjectNamespace<import("./do/PhoneThrottle").PhoneThrottle>;
@@ -31,6 +33,7 @@ interface Env {
   INBOX_SEND_ENABLED?: string;
   INBOX_AUTOMATION_ENABLED?: string;
   AUTOMATION_QUEUE_NAME?: string;
+  CAPI_QUEUE_NAME?: string;
   TURNSTILE_ENABLED: string;
   AI_ENABLED: string;
   AI_MODEL: string;

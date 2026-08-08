@@ -378,6 +378,61 @@ describe('POST /webhook (fail-closed)', () => {
     }
   })
 
+  it('extrai a origem CTWA mínima sem copiar texto, mídia ou query do anúncio', async () => {
+    const from = uniqueInboundPhone().replace('+', '')
+    const messageId = `wamid.ctwa.${crypto.randomUUID()}`
+    const payload = inboundPayload(messageId, from, 'Quero saber mais')
+    const message = payload.entry[0].changes[0].value.messages[0] as Record<string, unknown>
+    message.referral = {
+      ctwa_clid: `clid-${crypto.randomUUID()}`,
+      source_id: '120000000000001',
+      source_type: 'ad',
+      source_url: 'https://www.facebook.com/ads/example?customer=secret#campaign',
+      headline: 'Texto do anúncio que não deve ser persistido',
+      body: 'Conteúdo promocional que não deve ser persistido',
+      image_url: 'https://cdn.example/private-image.jpg',
+    }
+    const queued = await enqueueOfficialWebhook(payload)
+    expect(queued).toMatchObject({
+      kind: 'inbound_message',
+      message: {
+        id: messageId,
+        referral: {
+          sourceId: '120000000000001',
+          sourceType: 'ad',
+          sourceUrl: 'https://www.facebook.com/ads/example',
+        },
+      },
+    })
+    expect(JSON.stringify(queued)).not.toContain('Texto do anúncio')
+    expect(JSON.stringify(queued)).not.toContain('private-image')
+    expect(JSON.stringify(queued)).not.toContain('customer=secret')
+
+    await handleWebhookBatch([queued], env)
+    await handleWebhookBatch([queued], env)
+    const row = await env.DB.prepare(
+      `SELECT a.attribution_kind,a.source_id,a.source_type,a.source_url,
+              LENGTH(a.ctwa_clid) AS click_length
+       FROM conversation_attributions a WHERE a.source_message_id=?1`,
+    ).bind(messageId).first<{
+      attribution_kind: string
+      source_id: string
+      source_type: string
+      source_url: string
+      click_length: number
+    }>()
+    expect(row).toMatchObject({
+      attribution_kind: 'ctwa',
+      source_id: '120000000000001',
+      source_type: 'ad',
+      source_url: 'https://www.facebook.com/ads/example',
+    })
+    expect(row?.click_length).toBeGreaterThan(10)
+    expect((await env.DB.prepare(
+      'SELECT COUNT(*) AS n FROM conversation_attributions WHERE source_message_id=?1',
+    ).bind(messageId).first<{ n: number }>())?.n).toBe(1)
+  })
+
   it('extrai nfm_reply oficial e preserva somente a resposta JSON da MiniApp', async () => {
     const from = uniqueInboundPhone().replace('+', '')
     const payload = inboundPayload(`wamid.${crypto.randomUUID()}`, from)

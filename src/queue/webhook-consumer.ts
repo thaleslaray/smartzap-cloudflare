@@ -8,6 +8,7 @@ import { broadcastToHub } from "../api/realtime";
 import type { MetaWebhookEvent } from "../api/webhook";
 import { sanitizeMetaDetail } from "../whatsapp/client";
 import { conversationsDb } from "../db/conversations";
+import { conversionsDb } from "../db/conversions";
 import { normalizePhone } from "../domain/phone";
 import { countryFromE164 } from "../domain/pricing";
 import { conversationSendsDb } from "../db/conversation-sends";
@@ -629,6 +630,19 @@ export async function handleWebhookBatch(
         timestamp: Number(event.message.timestamp),
       });
       changedConversations.add(ingested.conversationId);
+      if (event.message.referral) {
+        await conversionsDb(env.DB).upsertAttribution({
+          conversationId: ingested.conversationId,
+          wabaId: event.wabaId,
+          phoneNumberId: event.phoneNumberId,
+          sourceMessageId: event.message.id,
+          ctwaClid: event.message.referral.ctwaClid,
+          sourceId: event.message.referral.sourceId,
+          sourceType: event.message.referral.sourceType,
+          sourceUrl: event.message.referral.sourceUrl,
+          occurredAt: Number(event.message.timestamp),
+        });
+      }
       await persistFlowSubmission(env, event.message, contact.id);
       // A mídia é retomável independentemente da deduplicação da mensagem: se
       // o download/R2 falhar, a Queue repete o evento, ingestInbound não duplica
@@ -845,6 +859,7 @@ export async function handleWebhookBatch(
         ["conversations", "detail", conversationId],
         ["conversations", "messages", conversationId],
         ["conversations", "ai", conversationId],
+        ["conversions", "conversation", conversationId],
       ],
     });
   }

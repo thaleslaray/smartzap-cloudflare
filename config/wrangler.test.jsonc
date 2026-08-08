@@ -38,6 +38,7 @@
     "INBOX_SEND_ENABLED": "true",
     "INBOX_AUTOMATION_ENABLED": "false",
     "AUTOMATION_QUEUE_NAME": "inbox-automation-test",
+    "CAPI_QUEUE_NAME": "meta-conversions-test",
     "PILOT_SEND_ENABLED": "false",
     "PILOT_RECIPIENT_E164": "+5511999999999",
     "PILOT_RECIPIENT_ALLOWLIST": "+5511999999999,+5521999999999,+5531999999999,+5541999999999",
@@ -59,9 +60,11 @@
   "queues": {
     "producers": [
       { "binding": "WEBHOOK_QUEUE", "queue": "meta-webhooks-test" },
-      { "binding": "AUTOMATION_QUEUE", "queue": "inbox-automation" }
+      { "binding": "AUTOMATION_QUEUE", "queue": "inbox-automation" },
+      { "binding": "CAPI_QUEUE", "queue": "meta-conversions-test" },
+      { "binding": "CAPI_DLQ", "queue": "meta-conversions-test-dlq" }
     ],
-    "consumers": [{ "queue": "meta-webhooks-test", "max_batch_size": 50 }, { "queue": "inbox-automation", "max_batch_size": 10 }]
+    "consumers": [{ "queue": "meta-webhooks-test", "max_batch_size": 50 }, { "queue": "inbox-automation", "max_batch_size": 10 }, { "queue": "meta-conversions-test", "max_batch_size": 10 }]
   },
   "workflows": [{
     "binding": "CAMPAIGN_WF",

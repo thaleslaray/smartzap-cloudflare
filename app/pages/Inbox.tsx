@@ -17,6 +17,7 @@ import {
   SlidersHorizontal,
   Sparkles,
   Tags,
+  Target,
   Users,
   X,
 } from "lucide-react";
@@ -59,6 +60,12 @@ import {
 import { StatusBadge } from "../components/StatusBadge";
 import { api } from "../lib/api";
 import { TemplatePreviewCard } from "../components/TemplatePreviewCard";
+import {
+  useCancelConversationConversion,
+  useConversationConversions,
+  useCreateConversationConversion,
+  type ConversationConversion,
+} from "../hooks/useConversions";
 
 const PAGE_SIZE = 50;
 type Attendant = {
@@ -129,6 +136,27 @@ function remainingTime(seconds: number | null | undefined) {
   const hours = Math.floor(minutes / 60);
   const rest = minutes % 60;
   return rest ? `${hours}h ${rest}min` : `${hours}h`;
+}
+
+function conversionValue(raw: string): number | undefined {
+  const normalized = raw.trim().replace(/\./g, "").replace(",", ".");
+  if (!normalized) return undefined;
+  const value = Number(normalized);
+  return Number.isFinite(value) && value >= 0 ? value : undefined;
+}
+
+function conversionStatusLabel(status: string) {
+  const labels: Record<string, string> = {
+    pending: "Na fila",
+    sending: "Enviando",
+    accepted: "Aceita pela Meta",
+    unknown: "Confirmação pendente",
+    temporary_failed: "Nova tentativa",
+    permanent_failed: "Falhou",
+    dead_letter: "Revisão necessária",
+    cancelled: "Cancelada",
+  };
+  return labels[status] ?? status;
 }
 
 type InboxTemplateVariable = { key: string; label: string };
@@ -309,6 +337,19 @@ export default function Inbox() {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
   const [headerActionsOpen, setHeaderActionsOpen] = useState(false);
+  const [conversionOpen, setConversionOpen] = useState(false);
+  const [conversionForm, setConversionForm] = useState({
+    eventName: "LeadSubmitted" as "LeadSubmitted" | "QualifiedLead" | "Purchase",
+    businessObjectId: "",
+    value: "",
+    currency: "BRL",
+    correctionOf: undefined as string | undefined,
+  });
+  const [conversionAction, setConversionAction] = useState<{
+    mode: "cancel" | "correct";
+    event: ConversationConversion;
+    reason: string;
+  } | null>(null);
   const [toolbarPopover, setToolbarPopover] = useState<
     "attendants" | "settings" | "filters" | null
   >(null);
@@ -359,6 +400,9 @@ export default function Inbox() {
   const addNote = useAddConversationNote(id);
   const quickReplies = useQuickReplies();
   const createQuickReply = useCreateQuickReply();
+  const conversions = useConversationConversions(id);
+  const createConversion = useCreateConversationConversion(id);
+  const cancelConversion = useCancelConversationConversion(id);
   const total = conversations.data?.total ?? 0;
   const totalUnread = (conversations.data?.items ?? []).reduce(
     (sum, item) => sum + item.unread_count,
@@ -387,6 +431,9 @@ export default function Inbox() {
     const source = templateMapping[variable.key];
     return Boolean(source && (source.source !== "fixed" || source.value.trim()));
   });
+  const activeAttribution = conversions.data?.attributions.find(
+    (item) => item.attribution_kind === "ctwa" && item.has_click_id,
+  );
 
   useEffect(() => {
     if ((conversation.data?.unread_count ?? 0) === 0) {
@@ -947,6 +994,11 @@ export default function Inbox() {
                         className={`shrink-0 ${conversation.data.priority === "urgent" ? "text-red-400" : conversation.data.priority === "high" ? "text-amber-400" : "text-[var(--ds-text-secondary)]"}`}
                       />
                     )}
+                  {activeAttribution && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-1.5 py-0.5 text-[9px] font-medium text-blue-300">
+                      <Target size={9} aria-hidden="true" /> Anúncio
+                    </span>
+                  )}
                 </div>
                 <span className="text-[10px] text-[var(--ds-text-muted)]">
                   {conversationIdentity(conversation.data)}
@@ -1044,6 +1096,18 @@ export default function Inbox() {
                 }}
               >
                 Abrir contexto e detalhes
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="w-full rounded-lg px-2 py-2 text-left text-xs text-[var(--ds-text-primary)] hover:bg-[var(--ds-bg-hover)] disabled:opacity-40"
+                disabled={!activeAttribution}
+                onClick={() => {
+                  setConversionOpen(true);
+                  setHeaderActionsOpen(false);
+                }}
+              >
+                Registrar conversão
               </button>
               <button
                 type="button"
@@ -1352,6 +1416,75 @@ export default function Inbox() {
             </div>
           </div>
           <div className="space-y-5 p-4 text-xs">
+            <section>
+              <div className="mb-2 flex items-center gap-2 text-zinc-400">
+                <Target size={14} aria-hidden="true" />
+                <span className="font-semibold uppercase tracking-wide">
+                  Origem e conversões
+                </span>
+              </div>
+              {conversions.isLoading ? (
+                <p className="text-zinc-500">Verificando origem…</p>
+              ) : conversions.error ? (
+                <p role="alert" className="text-status-failed">{conversions.error.message}</p>
+              ) : activeAttribution ? (
+                <div className="space-y-2">
+                  <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-3">
+                    <p className="font-medium text-blue-300">Veio de anúncio Click-to-WhatsApp</p>
+                    <p className="mt-1 text-[10px] text-zinc-500">
+                      Clique {activeAttribution.click_id_masked} · {new Date(activeAttribution.occurred_at * 1000).toLocaleString("pt-BR")}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className={`${btnSecondary} w-full px-3 py-2 text-xs`}
+                    onClick={() => setConversionOpen(true)}
+                  >
+                    Registrar conversão
+                  </button>
+                  {(conversions.data?.events ?? []).slice(0, 5).map((event) => {
+                    const editable = ["pending", "temporary_failed", "permanent_failed", "dead_letter"].includes(event.delivery_status) && event.lifecycle_status !== "cancelled";
+                    return (
+                    <div key={event.id} className="rounded-lg border border-zinc-800 px-3 py-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="min-w-0 truncate text-zinc-300">
+                        {event.event_name === "LeadSubmitted"
+                          ? "Lead enviado"
+                          : event.event_name === "QualifiedLead"
+                            ? "Lead qualificado"
+                            : "Compra"}
+                        </span>
+                        <span className={`shrink-0 text-[10px] ${
+                        event.delivery_status === "accepted"
+                          ? "text-primary-400"
+                          : ["permanent_failed", "dead_letter"].includes(event.delivery_status)
+                            ? "text-status-failed"
+                            : "text-amber-400"
+                      }`}>
+                        {conversionStatusLabel(event.delivery_status)}
+                        </span>
+                      </div>
+                      {event.lifecycle_note && (
+                        <p className="mt-1 text-[10px] text-zinc-600">{event.lifecycle_note}</p>
+                      )}
+                      {editable && (
+                        <div className="mt-2 flex gap-3 border-t border-zinc-800 pt-2 text-[10px]">
+                          <button type="button" className="text-zinc-400 hover:text-white" onClick={() => setConversionAction({ mode: "correct", event, reason: "Correção solicitada pelo operador" })}>Corrigir</button>
+                          <button type="button" className="text-red-400 hover:text-red-300" onClick={() => setConversionAction({ mode: "cancel", event, reason: "" })}>Cancelar registro</button>
+                        </div>
+                      )}
+                      {event.delivery_status === "accepted" && (
+                        <p className="mt-1 text-[10px] text-zinc-600">Aceite confirmado; o fato não pode mais ser removido.</p>
+                      )}
+                    </div>
+                  );})}
+                </div>
+              ) : (
+                <p className="rounded-lg border border-dashed border-zinc-700 px-3 py-2 text-zinc-500">
+                  Esta conversa não possui uma origem CTWA atribuível. Conversões não podem ser enviadas à Meta.
+                </p>
+              )}
+            </section>
             <section>
               <div className="mb-2 flex items-center gap-2 text-zinc-400">
                 <Tags size={14} aria-hidden="true" />
@@ -1999,6 +2132,188 @@ export default function Inbox() {
               }}
             >
               Confirmar e enviar template
+            </Button>
+          </div>
+        </Modal>
+      )}
+      {conversionAction && (
+        <Modal
+          titleId="ajustar-conversao-titulo"
+          onClose={() => !cancelConversion.isPending && setConversionAction(null)}
+          closeDisabled={cancelConversion.isPending}
+          panelClassName="max-w-md"
+        >
+          <h2 id="ajustar-conversao-titulo" className="text-lg font-bold">
+            {conversionAction.mode === "correct" ? "Corrigir conversão" : "Cancelar conversão"}
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-zinc-400">
+            {conversionAction.mode === "correct"
+              ? "O registro atual será cancelado antes do envio e um novo formulário será aberto. O fato original continuará na trilha de auditoria."
+              : "O registro será preservado na auditoria, mas não será enviado à Meta."}
+          </p>
+          <label className="mt-5 block text-xs font-medium text-zinc-400">
+            Motivo
+            <textarea
+              value={conversionAction.reason}
+              onChange={(event) => setConversionAction((current) => current ? { ...current, reason: event.target.value } : current)}
+              className={`${inputClass} mt-1 min-h-24 resize-y`}
+              maxLength={500}
+              placeholder="Explique por que este registro precisa ser ajustado"
+            />
+          </label>
+          {cancelConversion.error && (
+            <p role="alert" className="mt-4 text-sm text-status-failed">{cancelConversion.error.message}</p>
+          )}
+          <div className="mt-6 flex justify-end gap-2">
+            <button type="button" className={btnSecondary} disabled={cancelConversion.isPending} onClick={() => setConversionAction(null)}>Voltar</button>
+            <Button
+              loading={cancelConversion.isPending}
+              disabled={conversionAction.reason.trim().length < 3}
+              onClick={() => {
+                const action = conversionAction;
+                cancelConversion.mutate({ eventId: action.event.id, reason: action.reason.trim() }, {
+                  onSuccess: () => {
+                    setConversionAction(null);
+                    if (action.mode === "correct") {
+                      setConversionForm({
+                        eventName: action.event.event_name,
+                        businessObjectId: action.event.business_object_id,
+                        value: action.event.value_minor === null ? "" : String(action.event.value_minor / 100).replace(".", ","),
+                        currency: action.event.currency ?? "BRL",
+                        correctionOf: action.event.id,
+                      });
+                      setConversionOpen(true);
+                    }
+                  },
+                });
+              }}
+            >
+              {conversionAction.mode === "correct" ? "Cancelar e corrigir" : "Confirmar cancelamento"}
+            </Button>
+          </div>
+        </Modal>
+      )}
+      {conversionOpen && activeAttribution && (
+        <Modal
+          titleId="registrar-conversao-titulo"
+          onClose={() => !createConversion.isPending && setConversionOpen(false)}
+          closeDisabled={createConversion.isPending}
+          panelClassName="max-w-md"
+        >
+          <h2 id="registrar-conversao-titulo" className="text-lg font-bold">
+            {conversionForm.correctionOf ? "Registrar correção na Meta" : "Registrar conversão na Meta"}
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-zinc-400">
+            Registre apenas um fato comercial real. O SmartZap usa o clique do anúncio desta conversa e não envia o conteúdo do atendimento.
+          </p>
+          <div className="mt-5 space-y-4">
+            <label className="block text-xs font-medium text-zinc-400">
+              Evento
+              <select
+                value={conversionForm.eventName}
+                onChange={(event) => setConversionForm((current) => ({
+                  ...current,
+                  eventName: event.target.value as typeof current.eventName,
+                  value: event.target.value === "Purchase" ? current.value : "",
+                }))}
+                className={`${inputClass} mt-1`}
+              >
+                <option value="LeadSubmitted">Lead enviado</option>
+                <option value="QualifiedLead">Lead qualificado</option>
+                <option value="Purchase">Compra</option>
+              </select>
+            </label>
+            <label className="block text-xs font-medium text-zinc-400">
+              Identificador no seu negócio
+              <input
+                value={conversionForm.businessObjectId}
+                onChange={(event) => setConversionForm((current) => ({
+                  ...current,
+                  businessObjectId: event.target.value,
+                }))}
+                placeholder={conversionForm.eventName === "Purchase" ? "Ex.: pedido-1042" : "Ex.: lead-CRM-842"}
+                className={`${inputClass} mt-1`}
+              />
+              <span className="mt-1 block text-[10px] font-normal text-zinc-600">
+                Impede que o mesmo fato seja enviado duas vezes.
+              </span>
+            </label>
+            {conversionForm.eventName === "Purchase" && (
+              <div className="grid grid-cols-[minmax(0,1fr)_110px] gap-3">
+                <label className="block text-xs font-medium text-zinc-400">
+                  Valor
+                  <input
+                    inputMode="decimal"
+                    value={conversionForm.value}
+                    onChange={(event) => setConversionForm((current) => ({ ...current, value: event.target.value }))}
+                    placeholder="0,00"
+                    className={`${inputClass} mt-1`}
+                  />
+                </label>
+                <label className="block text-xs font-medium text-zinc-400">
+                  Moeda
+                  <input
+                    value={conversionForm.currency}
+                    maxLength={3}
+                    onChange={(event) => setConversionForm((current) => ({ ...current, currency: event.target.value.toUpperCase() }))}
+                    className={`${inputClass} mt-1 uppercase`}
+                  />
+                </label>
+              </div>
+            )}
+          </div>
+          {createConversion.error && (
+            <p role="alert" className="mt-4 text-sm text-status-failed">
+              {createConversion.error.message}
+            </p>
+          )}
+          <div className="mt-6 flex justify-end gap-2">
+            <button
+              type="button"
+              className={btnSecondary}
+              disabled={createConversion.isPending}
+              onClick={() => setConversionOpen(false)}
+            >
+              Cancelar
+            </button>
+            <Button
+              loading={createConversion.isPending}
+              disabled={!conversionForm.businessObjectId.trim() || (
+                conversionForm.eventName === "Purchase" && (
+                  conversionValue(conversionForm.value) === undefined || !/^[A-Z]{3}$/.test(conversionForm.currency)
+                )
+              )}
+              onClick={() => createConversion.mutate({
+                requestKey: crypto.randomUUID(),
+                attributionId: activeAttribution.id,
+                eventName: conversionForm.eventName,
+                businessObjectType: conversionForm.eventName === "Purchase"
+                  ? "order"
+                  : conversionForm.eventName === "QualifiedLead"
+                    ? "opportunity"
+                    : "lead",
+                businessObjectId: conversionForm.businessObjectId.trim(),
+                ...(conversionForm.correctionOf ? { correctionOf: conversionForm.correctionOf } : {}),
+                ...(conversionForm.eventName === "Purchase"
+                  ? {
+                      value: conversionValue(conversionForm.value)!,
+                      currency: conversionForm.currency,
+                    }
+                  : {}),
+              }, {
+                onSuccess: () => {
+                  setConversionOpen(false);
+                  setConversionForm({
+                    eventName: "LeadSubmitted",
+                    businessObjectId: "",
+                    value: "",
+                    currency: "BRL",
+                    correctionOf: undefined,
+                  });
+                },
+              })}
+            >
+              Confirmar registro
             </Button>
           </div>
         </Modal>

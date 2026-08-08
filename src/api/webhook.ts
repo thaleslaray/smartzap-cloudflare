@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { verifyMetaSignature } from '../whatsapp/webhook-verify'
 import { timingSafeEqualStr } from '../middleware/auth'
 import { readBodyBytes } from './body'
+import { minimizeReferralUrl } from '../domain/conversions'
 
 const MAX_ENVELOPE_ENTRIES = 100
 const MAX_CHANGES_PER_ENTRY = 100
@@ -126,6 +127,17 @@ const InboundMessageSchema = z.object({
   (value) => Boolean(value.from || value.from_user_id),
   "mensagem sem identidade Meta",
 )
+const ReferralSchema = z.object({
+  ctwa_clid: z.string().min(1).max(2048).optional(),
+  source_id: z.string().min(1).max(512).optional(),
+  source_type: z.string().min(1).max(64).optional(),
+  source_url: z.string().min(1).max(4096).optional(),
+}).passthrough().refine(
+  (value) => Boolean(
+    value.ctwa_clid || value.source_id || value.source_type || value.source_url
+  ),
+  "origem CTWA vazia",
+)
 const ContactProfileSchema = z.object({
   wa_id: z.string().regex(/^\d{5,32}$/).optional(),
   user_id: z.string().min(1).max(128).optional(),
@@ -152,6 +164,13 @@ export type MetaInboundMessage = {
   profileName?: string
   textBody?: string
   content?: Record<string, unknown>
+  /** Metadados mínimos de atribuição; nunca inclui texto nem mídia do anúncio. */
+  referral?: {
+    ctwaClid?: string
+    sourceId?: string
+    sourceType?: string
+    sourceUrl?: string
+  }
 }
 
 function boundedString(value: unknown, max: number): string | undefined {
@@ -167,6 +186,25 @@ function extractInboundMessage(
   const type = parsed.data.type.toLowerCase()
   let textBody: string | undefined
   const content: Record<string, unknown> = {}
+  let referral: MetaInboundMessage['referral']
+
+  if (item.referral !== undefined) {
+    const parsedReferral = ReferralSchema.safeParse(item.referral)
+    if (!parsedReferral.success) return null
+    const sourceUrl = minimizeReferralUrl(parsedReferral.data.source_url)
+    referral = {
+      ...(parsedReferral.data.ctwa_clid
+        ? { ctwaClid: parsedReferral.data.ctwa_clid }
+        : {}),
+      ...(parsedReferral.data.source_id
+        ? { sourceId: parsedReferral.data.source_id }
+        : {}),
+      ...(parsedReferral.data.source_type
+        ? { sourceType: parsedReferral.data.source_type }
+        : {}),
+      ...(sourceUrl ? { sourceUrl } : {}),
+    }
+  }
 
   if (type === 'text') {
     const text = item.text && typeof item.text === 'object'
@@ -269,6 +307,7 @@ function extractInboundMessage(
           ...(profileName ? { profileName } : {}),
           ...(textBody ? { textBody } : {}),
           ...(Object.keys(content).length ? { content } : {}),
+          ...(referral ? { referral } : {}),
         }
       }
     }
@@ -285,6 +324,7 @@ function extractInboundMessage(
     ...(profileName ? { profileName } : {}),
     ...(textBody ? { textBody } : {}),
     ...(Object.keys(content).length ? { content } : {}),
+    ...(referral ? { referral } : {}),
   }
 }
 

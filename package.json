@@ -95,12 +95,11 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@openai/codex-security": "0.1.5",
     "@xyflow/react": "^12.11.2",
     "hono": "4.13.0",
     "libphonenumber-js": "^1.13.8",
     "papaparse": "^5.5.4",
-    "pdfjs-dist": "^6.1.200",
+    "pdfjs-dist": "^6.2.108",
     "postgres": "^3.4.9",
     "zod": "^4.4.3"
   },
