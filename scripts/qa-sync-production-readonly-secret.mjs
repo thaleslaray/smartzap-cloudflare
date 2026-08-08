@@ -14,7 +14,10 @@ if (!process.argv.includes("--rotate"))
   );
 
 const root = resolve(import.meta.dirname, "..");
-const privatePath = resolve(root, ".dev.vars.qa.production.local");
+const staging = process.argv.includes("--staging");
+const target = staging ? "staging" : "production";
+const config = staging ? "config/wrangler.staging.jsonc" : "wrangler.jsonc";
+const privatePath = resolve(root, `.dev.vars.qa.${target}.local`);
 const pendingPath = `${privatePath}.next`;
 const key = randomBytes(32).toString("base64url");
 
@@ -29,7 +32,7 @@ const child = spawn(
     "put",
     "QA_READONLY_API_KEY",
     "--config",
-    "wrangler.jsonc",
+    config,
   ],
   {
     cwd: root,
@@ -52,5 +55,5 @@ if (exitCode !== 0) {
 renameSync(pendingPath, privatePath);
 chmodSync(privatePath, 0o600);
 console.log(
-  "Credencial QA somente-leitura sincronizada em produção e guardada no arquivo privado; valor não exibido.",
+  `Credencial QA somente-leitura sincronizada em ${target} e guardada no arquivo privado; valor não exibido.`,
 );

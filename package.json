@@ -87,6 +87,7 @@
     "qa:cleanup": "node scripts/qa-runner.mjs cleanup",
     "qa:remote:health": "node scripts/qa-remote-health.mjs",
     "qa:production:rotate-readonly-key": "node scripts/qa-sync-production-readonly-secret.mjs --rotate",
+    "qa:staging:rotate-readonly-key": "node scripts/qa-sync-production-readonly-secret.mjs --rotate --staging",
     "qa:rollback:staging": "node scripts/qa-rollback-drill.mjs",
     "qa:all": "node scripts/qa-runner.mjs all",
     "qa:release": "node scripts/qa-runner.mjs release"
