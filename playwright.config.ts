@@ -46,7 +46,11 @@ export default defineConfig({
           ? { 'x-qa-readonly-key': process.env.QA_READONLY_API_KEY }
           : { 'x-api-key': process.env.QA_API_KEY! }
         : undefined,
-    trace: 'retain-on-failure',
+    // Traces incluem cabeçalhos HTTP. Nos smokes remotos a autenticação técnica
+    // é enviada em todas as requisições, portanto persistir o trace gravaria a
+    // credencial read-only no artefato de falha. Screenshots, vídeo e relatórios
+    // continuam disponíveis; traces ficam restritos ao runtime local isolado.
+    trace: remoteBaseURL ? 'off' : 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
   },

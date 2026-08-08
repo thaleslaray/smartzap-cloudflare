@@ -14,4 +14,5 @@ blob-report
 qa/.state/
 qa/.ledger/
 qa/reports/
+qa/backups/
 ds.zip
