@@ -1,13 +1,16 @@
 import { expect, test } from "@playwright/test";
 
 const remoteBaseUrl = process.env.QA_REMOTE_BASE_URL;
+const isStaging = Boolean(
+  remoteBaseUrl && new URL(remoteBaseUrl).hostname.includes("-staging."),
+);
 
 test.skip(
   !remoteBaseUrl || (!process.env.QA_READONLY_API_KEY && !process.env.QA_API_KEY),
   "Diagnóstico remoto exige Worker conhecido e credencial técnica de leitura.",
 );
 
-test("produção apresenta o estado real da Meta sem erro falso", async ({
+test("ambiente remoto apresenta o estado real da Meta sem erro falso", async ({
   page,
   request,
 }) => {
@@ -23,24 +26,41 @@ test("produção apresenta o estado real da Meta sem erro falso", async ({
   });
   if (health.meta.verificationStatus === "complete") {
     expect(health).toMatchObject({
-      metaLive: true,
       webhookConfigured: true,
       meta: {
         tokenValid: true,
         tokenAppMatches: true,
         tokenRequiredScopesPresent: true,
         phoneBelongsToWaba: true,
-        effectiveWebhookCallbackMatches: true,
         appWebhookMessagesSubscribed: true,
         appWebhookRequiredFieldsPresent: true,
       },
     });
-    await expect(page.getByRole("heading", { name: "Conectado" })).toBeVisible();
     await expect(page.getByText("Token válido na Graph API.")).toBeVisible();
-    await expect(page.getByText("Callback efetivo corresponde ao Worker.")).toBeVisible();
     await expect(page.getByText("Eventos messages assinados.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Atualizar assinaturas" })).toBeVisible();
     await expect(page.getByText("Verificação indisponível", { exact: true })).toHaveCount(0);
+    if (isStaging) {
+      // A Meta aceita um único callback efetivo por número/WABA. Em homologação
+      // read-only ele deve continuar apontando para produção, sem que o staging
+      // alegue conexão plena ou credencial inválida.
+      expect(health).toMatchObject({
+        metaLive: false,
+        meta: { effectiveWebhookCallbackMatches: false },
+      });
+      await expect(
+        page.getByRole("heading", { name: "Configuração requer atenção" }),
+      ).toBeVisible();
+      await expect(page.getByText("Callback ausente ou divergente.")).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Conectado" })).toHaveCount(0);
+    } else {
+      expect(health).toMatchObject({
+        metaLive: true,
+        meta: { effectiveWebhookCallbackMatches: true },
+      });
+      await expect(page.getByRole("heading", { name: "Conectado" })).toBeVisible();
+      await expect(page.getByText("Callback efetivo corresponde ao Worker.")).toBeVisible();
+    }
   } else {
     expect(health).toMatchObject({
       metaLive: false,
