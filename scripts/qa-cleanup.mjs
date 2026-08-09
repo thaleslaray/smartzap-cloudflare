@@ -10,6 +10,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { resolve } from "node:path";
+import { resolveQaStagingAuthHeaders } from "./lib/qa-staging-auth.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const reportDir = resolve(
@@ -152,7 +153,15 @@ mkdirSync(stateRoot, { recursive: true });
 
 if (stagingMode) {
   const runtime = readEnv(resolve(root, ".dev.vars"));
-  const apiKey = process.env.QA_API_KEY || runtime.SMARTZAP_API_KEY;
+  const qaRuntime = readEnv(resolve(root, ".dev.vars.qa.local"));
+  const authHeaders = resolveQaStagingAuthHeaders({
+    mutationKey:
+      process.env.QA_STAGING_MUTATION_API_KEY ||
+      qaRuntime.QA_STAGING_MUTATION_API_KEY,
+    stagingApiKey:
+      process.env.QA_STAGING_API_KEY || qaRuntime.QA_STAGING_API_KEY,
+    apiKey: process.env.QA_API_KEY || runtime.SMARTZAP_API_KEY,
+  });
   const baseUrl = (
     process.env.QA_BASE_URL ||
     "https://smartzap-cf-staging.thales2581.workers.dev"
@@ -161,13 +170,11 @@ if (stagingMode) {
     new URL(baseUrl).hostname !== "smartzap-cf-staging.thales2581.workers.dev"
   )
     throw new Error("Cleanup mutante só pode apontar para o staging.");
-  if (!apiKey) throw new Error("QA_API_KEY ausente.");
-
   async function api(path, init = {}, accepted = [200]) {
     const response = await fetch(`${baseUrl}${path}`, {
       ...init,
       headers: {
-        "x-api-key": apiKey,
+        ...authHeaders,
         ...(init.body ? { "content-type": "application/json" } : {}),
         ...init.headers,
       },
