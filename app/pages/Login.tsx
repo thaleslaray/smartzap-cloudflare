@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useLogin } from '../hooks/useAuth'
 import { Logo, Card, btnPrimary, inputClass } from '../components/ui'
 import { Turnstile } from '../components/Turnstile'
-import { api } from '../lib/api'
+import { ApiError, api } from '../lib/api'
 
 export default function Login() {
   const [password, setPassword] = useState('')
@@ -24,6 +24,9 @@ export default function Login() {
   const required = config.data?.turnstileRequired ?? true
   const siteKey = config.data?.turnstileSiteKey ?? null
   const turnstileMisconfigured = required && !siteKey && !config.isLoading
+  const loginError = login.error instanceof ApiError && login.error.status === 401
+    ? 'Senha incorreta. Use a senha administrativa criada no início da instalação.'
+    : login.error?.message
   return (
     <div
       className="legacy-app flex min-h-screen items-center justify-center bg-zinc-950 text-zinc-100"
@@ -54,7 +57,7 @@ export default function Login() {
               className={`${inputClass} mb-3.5`}
             />
 
-            {login.error && <p role="alert" className="mb-3.5 text-xs text-status-failed">{login.error.message}</p>}
+            {loginError && <p role="alert" className="mb-3.5 text-xs text-status-failed">{loginError}</p>}
             {config.error && <p role="alert" className="mb-3.5 text-xs text-status-failed">Não foi possível carregar a proteção anti-bot.</p>}
             {turnstileMisconfigured && (
               <p className="mb-3.5 text-xs text-status-failed">Turnstile obrigatório, mas a chave pública não foi configurada.</p>

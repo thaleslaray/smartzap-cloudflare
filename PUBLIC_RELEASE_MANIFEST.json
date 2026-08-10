@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "generatedAt": "2026-08-10T03:46:11.216Z",
+  "generatedAt": "2026-08-10T04:08:02.311Z",
   "sourceCommit": "f6440d2d5be11b0c343d2c0a3b827b1f47ebc666",
   "sourceWorktreeDirty": true,
   "publicRepository": "https://github.com/thaleslaray/smartzap-cloudflare",
-  "snapshotHash": "1ac05b6495ed9910cba57203075111d72b8eee63d89109b566ed1049934eb273",
+  "snapshotHash": "a24e7cd5b67f1083a124da7e4532b9411e0a40107dae7c13d0b9501bc7cbfaf7",
   "files": [
     {
       "path": ".dev.vars.example",
@@ -204,7 +204,7 @@
     },
     {
       "path": "app/pages/Login.tsx",
-      "sha256": "682e30f91ea51c662cbca6a5dfa429851820ffe2a3bb4be665bda122856d4669"
+      "sha256": "0c2cf0cd853805fca0a959daeb62ee70dfc663a570755b79d022baeda9770230"
     },
     {
       "path": "app/pages/MetaDiagnostics.tsx",
@@ -232,7 +232,7 @@
     },
     {
       "path": "app/pages/Setup.tsx",
-      "sha256": "c8517da1aa19c8f2b77f1b041ccb57b5fc896dfa26ce3d2dbb8805367181e64d"
+      "sha256": "df7910dd823e3accd35ea22ade22259d60c8d2d45c363dde3fc1f09805bdc895"
     },
     {
       "path": "app/pages/Submissions.tsx",
@@ -440,7 +440,7 @@
     },
     {
       "path": "e2e/installer-setup.spec.ts",
-      "sha256": "deb45ed652de90257b93a4b559f428db8583e828be77a7f8f09583acd5241aa8"
+      "sha256": "999b20f0be180c7eaa3a5ac31e2dbb42bccf92c48d251e7afcf3d61ca1610348"
     },
     {
       "path": "e2e/legal-public.spec.ts",
