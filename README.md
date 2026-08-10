@@ -2,7 +2,11 @@
 
 WhatsApp oficial para campanhas, Inbox, contatos e templates, executado inteiramente na conta Cloudflare de quem instala.
 
-## Instalação simples
+## Candidata técnica — distribuição ainda bloqueada
+
+O instalador está em homologação. A tag candidata pode ser usada somente nos
+ensaios controlados registrados em `Auditoria.md`; ainda não divulgue este
+repositório como instalação simples ou pronta para produção.
 
 1. Abra **`/install`** na demonstração oficial do SmartZap.
 2. Crie e confirme sua `MASTER_PASSWORD`; o navegador gera automaticamente a `SMARTZAP_VAULT_KEY`.
@@ -12,9 +16,8 @@ WhatsApp oficial para campanhas, Inbox, contatos e templates, executado inteiram
 6. Ao final do deploy, abra `https://SEU-WORKER.workers.dev/setup`.
 7. Cadastre a Meta, configure o webhook, sincronize os templates e conclua a mensagem real de homologação.
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https%3A%2F%2Fgithub.com%2Fthaleslaray%2Fsmartzap-cloudflare)
-
-> Esta é uma candidata pública. Consulte a release mais recente para ver a matriz de instalações físicas já homologada.
+> O botão público será inserido aqui somente depois de três instalações físicas
+> aprovadas, cleanup sem resíduo e liberação de `INST-01` a `INST-07`.
 
 ## O que a Cloudflare provisiona
 
