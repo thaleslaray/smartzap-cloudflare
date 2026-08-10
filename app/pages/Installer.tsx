@@ -12,6 +12,37 @@ function randomBase64Url(byteLength: number): string {
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
+function randomHex(byteLength: number): string {
+  return Array.from(crypto.getRandomValues(new Uint8Array(byteLength)), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function installationNames() {
+  const prefix = `smartzap-${randomHex(4)}`;
+  return {
+    project: prefix,
+    database: `${prefix}-db`,
+    media: `${prefix}-media`,
+    webhookQueue: `${prefix}-meta-webhooks`,
+    automationQueue: `${prefix}-inbox-automation`,
+    conversionQueue: `${prefix}-meta-conversions`,
+    conversionDlq: `${prefix}-meta-conversions-dlq`,
+    webhookDlq: `${prefix}-meta-webhooks-dlq`,
+    automationDlq: `${prefix}-inbox-automation-dlq`,
+  };
+}
+
+const installationNameLabels: Record<keyof ReturnType<typeof installationNames>, string> = {
+  project: "Projeto / Worker",
+  database: "Banco D1",
+  media: "Bucket R2",
+  webhookQueue: "Fila de webhooks",
+  automationQueue: "Fila de automações",
+  conversionQueue: "Fila de conversões",
+  conversionDlq: "DLQ de conversões",
+  webhookDlq: "DLQ de webhooks",
+  automationDlq: "DLQ de automações",
+};
+
 const passwordRules = [
   { label: "12 caracteres ou mais", test: (value: string) => value.length >= 12 },
   { label: "uma letra maiúscula", test: (value: string) => /[A-Z]/.test(value) },
@@ -43,21 +74,27 @@ function generateStrongPassword(): string {
 }
 
 export default function Installer() {
-  const [credentials, setCredentials] = useState<{ vault: string; password: string } | null>(null);
+  const [credentials, setCredentials] = useState<{
+    vault: string;
+    password: string;
+    names: ReturnType<typeof installationNames>;
+  } | null>(null);
   const [password, setPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [recoverySaved, setRecoverySaved] = useState(false);
+  const [isolationConfirmed, setIsolationConfirmed] = useState(false);
 
   const passwordIsStrong = password.length <= 128 && passwordRules.every((rule) => rule.test(password));
   const passwordsMatch = password.length > 0 && password === passwordConfirmation;
 
   const prepare = () => {
     if (!passwordIsStrong || !passwordsMatch) return;
-    setCredentials({ vault: randomBase64Url(32), password });
+    setCredentials({ vault: randomBase64Url(32), password, names: installationNames() });
     setCopied(null);
     setRecoverySaved(false);
+    setIsolationConfirmed(false);
   };
   const suggestPassword = () => {
     const suggested = generateStrongPassword();
@@ -69,11 +106,23 @@ export default function Installer() {
     setCredentials(null);
     setCopied(null);
     setRecoverySaved(false);
+    setIsolationConfirmed(false);
   };
-  const copy = async (name: "vault" | "password", value: string) => {
+  const copy = async (name: string, value: string) => {
     await navigator.clipboard.writeText(value);
     setCopied(name);
   };
+  const namesAsText = credentials ? [
+    `Projeto / Worker=${credentials.names.project}`,
+    `D1=${credentials.names.database}`,
+    `R2=${credentials.names.media}`,
+    `Queue WEBHOOK=${credentials.names.webhookQueue}`,
+    `Queue AUTOMATION=${credentials.names.automationQueue}`,
+    `Queue CAPI=${credentials.names.conversionQueue}`,
+    `DLQ CAPI=${credentials.names.conversionDlq}`,
+    `DLQ WEBHOOK=${credentials.names.webhookDlq}`,
+    `DLQ AUTOMATION=${credentials.names.automationDlq}`,
+  ].join("\n") : "";
   const download = () => {
     if (!credentials) return;
     const content = [
@@ -82,6 +131,9 @@ export default function Installer() {
       "",
       `SMARTZAP_VAULT_KEY=${credentials.vault}`,
       `MASTER_PASSWORD=${credentials.password}`,
+      "",
+      "NOMES EXCLUSIVOS PARA O DEPLOY CLOUDFLARE",
+      namesAsText,
       "",
       `Gerado em ${new Date().toISOString()}`,
     ].join("\n");
@@ -198,22 +250,49 @@ export default function Installer() {
               </Card>
             ))}
 
+            <Card className="p-5 sm:p-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--ds-text-muted)]">Nomes exclusivos da instalação</p>
+                  <p className="mt-2 text-sm leading-6 text-[var(--ds-text-secondary)]">
+                    Na Cloudflare, substitua o nome do projeto e de cada recurso pelos valores abaixo. Não aceite um recurso existente ou pré-selecionado.
+                  </p>
+                  <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
+                    {(Object.entries(credentials.names) as Array<[keyof typeof credentials.names, string]>).map(([name, value]) => (
+                      <div key={name} className="min-w-0 rounded-xl border border-white/10 bg-black/20 p-3">
+                        <dt className="text-xs uppercase tracking-[0.1em] text-[var(--ds-text-muted)]">{installationNameLabels[name]}</dt>
+                        <dd><code className="mt-1 block overflow-x-auto text-[#d9ffe7]">{value}</code></dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+                <button type="button" onClick={() => copy("names", namesAsText)} className={`min-h-11 rounded-xl border border-white/10 px-4 text-sm ${focusRing}`}>
+                  {copied === "names" ? <Check className="mr-2 inline" size={16} /> : <Copy className="mr-2 inline" size={16} />}
+                  {copied === "names" ? "Nomes copiados" : "Copiar nomes"}
+                </button>
+              </div>
+              <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-xl border border-amber-400/20 bg-amber-400/5 p-4 text-sm leading-6 text-amber-100/90">
+                <input type="checkbox" checked={isolationConfirmed} onChange={(event) => setIsolationConfirmed(event.target.checked)} className="mt-1 size-4" />
+                <span>Vou usar estes nomes e conferir que D1, R2 e filas aparecem como <strong>novos</strong> antes de publicar.</span>
+              </label>
+            </Card>
+
             <div className="grid gap-3 sm:grid-cols-3">
               <Button type="button" variant="secondary" onClick={download}><Download size={17} /> Baixar recuperação</Button>
               <Button type="button" variant="secondary" onClick={changePassword}><RefreshCw size={17} /> Alterar senha</Button>
-              {recoverySaved ? (
+              {recoverySaved && isolationConfirmed ? (
                 <a href={DEPLOY_URL} className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border bg-[#f1fff6] px-4 text-sm font-semibold text-[#0b1711] ${focusRing}`}>
                   <Cloud size={17} /> Deploy to Cloudflare
                 </a>
               ) : (
                 <button type="button" disabled className="inline-flex min-h-11 cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-white/10 px-4 text-sm font-semibold text-zinc-600">
-                  <Cloud size={17} /> Salve a recuperação
+                  <Cloud size={17} /> {recoverySaved ? "Confirme os nomes" : "Salve a recuperação"}
                 </button>
               )}
             </div>
 
             <p className="rounded-2xl border border-amber-400/20 bg-amber-400/5 p-4 text-sm leading-6 text-amber-100/80">
-              Baixe o arquivo antes de continuar. Na Cloudflare, cole os dois valores nos campos com os mesmos nomes. Depois do deploy, abra <strong>/setup</strong>.
+              Baixe o arquivo antes de continuar. Na Cloudflare, cole os dois segredos e use somente os nomes exclusivos acima. O deploy também bloqueia um D1 já utilizado por outra instalação. Depois, abra <strong>/setup</strong>.
             </p>
           </div>
         )}

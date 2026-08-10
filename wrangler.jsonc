@@ -30,30 +30,28 @@
     "AI_MAX_DRAFTS_PER_DAY": "200",
     "FLOW_DATA_API_VERSION": "3.0",
     "INBOX_SEND_ENABLED": "true",
-    "INBOX_AUTOMATION_ENABLED": "false",
-    "AUTOMATION_QUEUE_NAME": "inbox-automation",
-    "CAPI_QUEUE_NAME": "meta-conversions"
+    "INBOX_AUTOMATION_ENABLED": "false"
   },
   // O instalador solicita somente os dois segredos que não podem viver no D1.
   // Meta, IA, calendário e demais integrações são cadastrados depois em /setup.
   "secrets": { "required": [
     "MASTER_PASSWORD", "SMARTZAP_VAULT_KEY"
   ] },
-  "d1_databases": [{ "binding": "DB", "database_name": "smartzap", "migrations_dir": "migrations" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "smartzap-db", "migrations_dir": "migrations" }],
   "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "smartzap-media" }],
   "queues": {
     "producers": [
-      { "binding": "WEBHOOK_QUEUE", "queue": "meta-webhooks" },
-      { "binding": "AUTOMATION_QUEUE", "queue": "inbox-automation" },
-      { "binding": "CAPI_QUEUE", "queue": "meta-conversions" },
-      { "binding": "CAPI_DLQ", "queue": "meta-conversions-dlq" },
-      { "binding": "WEBHOOK_DLQ", "queue": "meta-webhooks-dlq" },
-      { "binding": "AUTOMATION_DLQ", "queue": "inbox-automation-dlq" }
+      { "binding": "WEBHOOK_QUEUE", "queue": "smartzap-meta-webhooks" },
+      { "binding": "AUTOMATION_QUEUE", "queue": "smartzap-inbox-automation" },
+      { "binding": "CAPI_QUEUE", "queue": "smartzap-meta-conversions" },
+      { "binding": "CAPI_DLQ", "queue": "smartzap-meta-conversions-dlq" },
+      { "binding": "WEBHOOK_DLQ", "queue": "smartzap-meta-webhooks-dlq" },
+      { "binding": "AUTOMATION_DLQ", "queue": "smartzap-inbox-automation-dlq" }
     ],
     "consumers": [
-      { "queue": "meta-webhooks", "max_batch_size": 50, "max_batch_timeout": 2, "max_retries": 5, "dead_letter_queue": "meta-webhooks-dlq" },
-      { "queue": "inbox-automation", "max_batch_size": 10, "max_batch_timeout": 2, "max_retries": 3, "dead_letter_queue": "inbox-automation-dlq" },
-      { "queue": "meta-conversions", "max_batch_size": 10, "max_batch_timeout": 2, "max_retries": 5 }
+      { "queue": "smartzap-meta-webhooks", "max_batch_size": 50, "max_batch_timeout": 2, "max_retries": 5, "dead_letter_queue": "smartzap-meta-webhooks-dlq" },
+      { "queue": "smartzap-inbox-automation", "max_batch_size": 10, "max_batch_timeout": 2, "max_retries": 3, "dead_letter_queue": "smartzap-inbox-automation-dlq" },
+      { "queue": "smartzap-meta-conversions", "max_batch_size": 10, "max_batch_timeout": 2, "max_retries": 5 }
     ]
   },
   "workflows": [

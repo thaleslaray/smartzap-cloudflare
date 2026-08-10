@@ -101,14 +101,18 @@ export function isAutomationQueue(
   env: Pick<Env, "AUTOMATION_QUEUE_NAME">,
   queueName: string,
 ): boolean {
-  return queueName === (env.AUTOMATION_QUEUE_NAME?.trim() || "inbox-automation");
+  const configuredName = env.AUTOMATION_QUEUE_NAME?.trim();
+  if (configuredName) return queueName === configuredName;
+  return queueName === "inbox-automation" || queueName.endsWith("-inbox-automation");
 }
 
 export function isConversionQueue(
   env: Pick<Env, "CAPI_QUEUE_NAME">,
   queueName: string,
 ): boolean {
-  return queueName === (env.CAPI_QUEUE_NAME?.trim() || "meta-conversions");
+  const configuredName = env.CAPI_QUEUE_NAME?.trim();
+  if (configuredName) return queueName === configuredName;
+  return queueName === "meta-conversions" || queueName.endsWith("-meta-conversions");
 }
 
 export async function processConversionMessages(

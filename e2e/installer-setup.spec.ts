@@ -46,6 +46,11 @@ test("instalador gera segredos localmente sem persistência ou overflow", async 
   expect(password).toBe(chosenPassword);
   expect(vault).not.toBe(password);
 
+  const resourceNames = await page.locator("dl code").allTextContents();
+  expect(resourceNames).toHaveLength(9);
+  expect(new Set(resourceNames).size).toBe(9);
+  for (const name of resourceNames) expect(name).toMatch(/^smartzap-[a-f0-9]{8}(?:-[a-z-]+)?$/);
+
   const browserStorage = await page.evaluate(() => JSON.stringify({
     local: { ...localStorage },
     session: { ...sessionStorage },
@@ -66,10 +71,19 @@ test("instalador gera segredos localmente sem persistência ou overflow", async 
   const accessibility = await new AxeBuilder({ page }).include("main").analyze();
   expect(accessibility.violations).toEqual([]);
   await expect(page.getByRole("button", { name: "Salve a recuperação" })).toBeDisabled();
-  await Promise.all([
+  const [download] = await Promise.all([
     page.waitForEvent("download"),
     page.getByRole("button", { name: "Baixar recuperação" }).click(),
   ]);
+  const stream = await download.createReadStream();
+  let recovery = "";
+  for await (const chunk of stream) recovery += chunk.toString();
+  expect(recovery).toContain(`SMARTZAP_VAULT_KEY=${vault}`);
+  expect(recovery).toContain(`MASTER_PASSWORD=${password}`);
+  for (const name of resourceNames) expect(recovery).toContain(name);
+
+  await expect(page.getByRole("button", { name: "Confirme os nomes" })).toBeDisabled();
+  await page.getByLabel(/Vou usar estes nomes/).check();
   await expect(page.getByRole("link", { name: "Deploy to Cloudflare" })).toHaveAttribute(
     "href",
     /deploy\.workers\.cloudflare\.com\/\?url=/,

@@ -417,6 +417,8 @@ describe("consumo individual da Queue de automação", () => {
       "inbox-automation",
     )).toBe(false);
     expect(isAutomationQueue({}, "inbox-automation")).toBe(true);
+    expect(isAutomationQueue({}, "smartzap-a1b2c3d4-inbox-automation")).toBe(true);
+    expect(isAutomationQueue({}, "outra-fila-inbox")).toBe(false);
   });
 
   it("faz retry somente do evento que falhou e confirma os demais", async () => {

@@ -6,10 +6,11 @@ WhatsApp oficial para campanhas, Inbox, contatos e templates, executado inteiram
 
 1. Abra **`/install`** na demonstração oficial do SmartZap.
 2. Crie e confirme sua `MASTER_PASSWORD`; o navegador gera automaticamente a `SMARTZAP_VAULT_KEY`.
-3. Baixe o arquivo de recuperação e guarde-o em um cofre de senhas.
-4. Clique em **Deploy to Cloudflare** e cole os dois valores quando solicitado.
-5. Ao final do deploy, abra `https://SEU-WORKER.workers.dev/setup`.
-6. Cadastre a Meta, configure o webhook, sincronize os templates e conclua a mensagem real de homologação.
+3. Baixe o arquivo de recuperação e guarde-o em um cofre de senhas. Ele também contém nomes exclusivos para o Worker, D1, R2, filas e DLQs.
+4. Clique em **Deploy to Cloudflare**, cole os dois valores e substitua cada nome pelo correspondente do arquivo.
+5. Confirme no painel que todos os recursos aparecem como **novos**. Nunca aceite D1, R2 ou fila existente ou pré-selecionada.
+6. Ao final do deploy, abra `https://SEU-WORKER.workers.dev/setup`.
+7. Cadastre a Meta, configure o webhook, sincronize os templates e conclua a mensagem real de homologação.
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https%3A%2F%2Fgithub.com%2Fthaleslaray%2Fsmartzap-cloudflare)
 
@@ -26,10 +27,11 @@ WhatsApp oficial para campanhas, Inbox, contatos e templates, executado inteiram
 - Cron operacional e rate limit de login;
 - Workers AI e AI Search, instalados mas desligados até ativação explícita.
 
-O comando de deploy usa o binding `DB`, nunca um ID de conta:
+O comando de deploy usa o binding `DB`, nunca um ID de conta. Antes de qualquer migração, o guardião fail-closed reserva um D1 vazio para o nome do Worker. Um banco com dados, sem marcador ou pertencente a outro Worker interrompe o deploy sem alterá-lo:
 
 ```sh
 npm run build
+npm run deploy:guard
 npm run db:migrate:remote
 wrangler deploy
 ```

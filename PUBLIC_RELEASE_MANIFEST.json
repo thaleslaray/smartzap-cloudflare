@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "generatedAt": "2026-08-10T01:18:44.544Z",
+  "generatedAt": "2026-08-10T03:00:51.533Z",
   "sourceCommit": "f6440d2d5be11b0c343d2c0a3b827b1f47ebc666",
   "sourceWorktreeDirty": true,
   "publicRepository": "https://github.com/thaleslaray/smartzap-cloudflare",
-  "snapshotHash": "2baea0ca4e90f850572f654ba6208f91ca3a79ad62e60ab693209897f605e96e",
+  "snapshotHash": "9b3600e654914648d77e8a66fbb5dfc3c249f791641bab6062fcd470d4d794c2",
   "files": [
     {
       "path": ".dev.vars.example",
@@ -192,7 +192,7 @@
     },
     {
       "path": "app/pages/Installer.tsx",
-      "sha256": "f53dbec6ebc0021797c1ffa525b623acb807133f96f8e865cd53acda1be9040a"
+      "sha256": "75429bb38cdb2fda7b1eb6573db3f3eb5dd925f66bd7db9751c429dccd45e581"
     },
     {
       "path": "app/pages/Knowledge.tsx",
@@ -440,7 +440,7 @@
     },
     {
       "path": "e2e/installer-setup.spec.ts",
-      "sha256": "130df72e6656276067b83508ddb665d62c0172ae5a2260a7354fb216352e93e0"
+      "sha256": "deb45ed652de90257b93a4b559f428db8583e828be77a7f8f09583acd5241aa8"
     },
     {
       "path": "e2e/legal-public.spec.ts",
@@ -716,7 +716,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "4bd43bfd60e1aacf50343d1f6a2c356b7356e620f8003843e6d18d2ee71c2ef7"
+      "sha256": "6b3ca6371c279236eee5567c44f85432f095d461f6a711f1a348e2e7d27dbddf"
     },
     {
       "path": "playwright.config.ts",
@@ -748,7 +748,11 @@
     },
     {
       "path": "README.md",
-      "sha256": "039f093baa85a29ba2bd6a95aea92456652a50b5061a91b4a2b26f4186b744c4"
+      "sha256": "81b3706d739811ea8e8398bf456c818fde85c728ea4307f7d0bbdd90c0257bcb"
+    },
+    {
+      "path": "scripts/deploy-safe.mjs",
+      "sha256": "c63fd721b1eb068d3cba1f484da9751f26778f961e514aad6506413cb283ceb2"
     },
     {
       "path": "scripts/e2e-seed.sql",
@@ -757,6 +761,14 @@
     {
       "path": "scripts/lib/ai-human-calibration.mjs",
       "sha256": "bdc93017911851f7c3f2342699615bd3d6c5e7fc9bbb8009f2bf0247c5383292"
+    },
+    {
+      "path": "scripts/lib/deploy-safety.d.mts",
+      "sha256": "733fae244f7c7a6e126aac14324a712966d9807e8d3dc5bb679e2b23e77fa607"
+    },
+    {
+      "path": "scripts/lib/deploy-safety.mjs",
+      "sha256": "08e155996d1cc57ac8a50fee143cd495410af93133727ffbe71dc7ea08211d21"
     },
     {
       "path": "scripts/lib/manual-accessibility.mjs",
@@ -1136,7 +1148,7 @@
     },
     {
       "path": "src/index.ts",
-      "sha256": "adc2b900dee9d64088b7928f7dfb9272c6f6bc9076419f6f858583f9474d90fd"
+      "sha256": "611cf3e66feaf016fdc89c88de54c66de5eeb17475065b5b58e01f1b5179fcd6"
     },
     {
       "path": "src/integrations/google-calendar.ts",
@@ -1243,6 +1255,10 @@
       "sha256": "9befd2863c43a94f16402c5083e59983421a2280091a3073a2012b09454b8227"
     },
     {
+      "path": "tests-node/deploy-safety.node.test.ts",
+      "sha256": "495df5ddbfb459ce9667c424fdf3a54ed82bf400a412b92d39cd32d1b9c104b2"
+    },
+    {
       "path": "tests-node/knowledge-pdf.node.test.ts",
       "sha256": "43a3989c1824a61838428398e21525afbdf0f5cff053b8da8922d0a7304544d3"
     },
@@ -1320,7 +1336,7 @@
     },
     {
       "path": "tests/automation.test.ts",
-      "sha256": "d118f849fb266fd6e25e3cd456605199cf8ca73eadfda1cc4ae0cd7891fa7a27"
+      "sha256": "9e435fbe415536adc20644be2f03f4e57457c2719a09704ed2ade2fc3efb37df"
     },
     {
       "path": "tests/campaign-status.test.ts",
@@ -1352,7 +1368,7 @@
     },
     {
       "path": "tests/conversions.test.ts",
-      "sha256": "bd2818b821f10411890877cbc90cffd00f9993f6489cc1927ecef5152b4d6882"
+      "sha256": "f39c9fce138e483fdf7767d1377e68c53db770f9019e19c69d16bf81dba6280e"
     },
     {
       "path": "tests/db.test.ts",
@@ -1600,7 +1616,7 @@
     },
     {
       "path": "wrangler.jsonc",
-      "sha256": "a0d8cdf411d8246f7f640e376e2550a4df278d1463872476dcd30be8eaa3b2bf"
+      "sha256": "948ccb43af78bed7c11017e54dd9a4ca71184f2fb214e4808b008cbbdaf27228"
     }
   ]
 }
