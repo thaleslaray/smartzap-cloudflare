@@ -1,0 +1,21 @@
+{
+  "version": "7.3",
+  "screens": [
+    {
+      "id": "SCREEN_A",
+      "title": "Teste",
+      "terminal": true,
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          { "type": "TextBody", "text": "Teste de validação" },
+          {
+            "type": "Footer",
+            "label": "Concluir",
+            "on-click-action": { "name": "complete", "payload": {} }
+          }
+        ]
+      }
+    }
+  ]
+}

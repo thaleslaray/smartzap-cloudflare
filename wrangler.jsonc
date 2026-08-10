@@ -1,0 +1,70 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "smartzap",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-09",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "dist/client",
+    "not_found_handling": "single-page-application",
+    // Garante que a API e o webhook nunca sejam respondidos pelo fallback da SPA
+    "run_worker_first": ["/api/*", "/webhook"]
+  },
+  "observability": { "enabled": true },
+  "dev": { "inspector_port": 9230 },
+  "ai": { "binding": "AI", "remote": true },
+  // O plugin Vite atual ainda exige um nome padrão; o Deploy to Cloudflare
+  // permite personalizá-lo e o módulo permanece desligado até o usuário ativar IA.
+  "ai_search_namespaces": [{ "binding": "AI_SEARCH", "namespace": "smartzap" }],
+  // Em dev/test o .dev.vars sobrescreve com ENVIRONMENT=development
+  "vars": {
+    "ENVIRONMENT": "production",
+    "SETUP_REQUIRED": "true",
+    "META_GRAPH_VERSION": "v25.0",
+    "TURNSTILE_ENABLED": "false",
+    "AI_ENABLED": "false",
+    "AI_MODEL": "@cf/openai/gpt-oss-20b",
+    "AI_GATEWAY_ID": "smartzap",
+    "AI_PROVIDER_TIMEOUT_MS": "30000",
+    "AI_MAX_DRAFTS_PER_CONVERSATION_HOUR": "20",
+    "AI_MAX_DRAFTS_PER_DAY": "200",
+    "FLOW_DATA_API_VERSION": "3.0",
+    "INBOX_SEND_ENABLED": "true",
+    "INBOX_AUTOMATION_ENABLED": "false",
+    "AUTOMATION_QUEUE_NAME": "inbox-automation",
+    "CAPI_QUEUE_NAME": "meta-conversions"
+  },
+  // O instalador solicita somente os dois segredos que não podem viver no D1.
+  // Meta, IA, calendário e demais integrações são cadastrados depois em /setup.
+  "secrets": { "required": [
+    "MASTER_PASSWORD", "SMARTZAP_VAULT_KEY"
+  ] },
+  "d1_databases": [{ "binding": "DB", "database_name": "smartzap", "migrations_dir": "migrations" }],
+  "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "smartzap-media" }],
+  "queues": {
+    "producers": [
+      { "binding": "WEBHOOK_QUEUE", "queue": "meta-webhooks" },
+      { "binding": "AUTOMATION_QUEUE", "queue": "inbox-automation" },
+      { "binding": "CAPI_QUEUE", "queue": "meta-conversions" },
+      { "binding": "CAPI_DLQ", "queue": "meta-conversions-dlq" },
+      { "binding": "WEBHOOK_DLQ", "queue": "meta-webhooks-dlq" },
+      { "binding": "AUTOMATION_DLQ", "queue": "inbox-automation-dlq" }
+    ],
+    "consumers": [
+      { "queue": "meta-webhooks", "max_batch_size": 50, "max_batch_timeout": 2, "max_retries": 5, "dead_letter_queue": "meta-webhooks-dlq" },
+      { "queue": "inbox-automation", "max_batch_size": 10, "max_batch_timeout": 2, "max_retries": 3, "dead_letter_queue": "inbox-automation-dlq" },
+      { "queue": "meta-conversions", "max_batch_size": 10, "max_batch_timeout": 2, "max_retries": 5 }
+    ]
+  },
+  "workflows": [
+    { "binding": "CAMPAIGN_WF", "name": "campaign-send", "class_name": "CampaignSendWorkflow" },
+    { "binding": "SETUP_WF", "name": "smartzap-setup-health", "class_name": "SetupHealthWorkflow" }
+  ],
+  "durable_objects": { "bindings": [
+    { "name": "REALTIME", "class_name": "RealtimeHub" },
+    { "name": "THROTTLE", "class_name": "PhoneThrottle" }
+  ]},
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["RealtimeHub", "PhoneThrottle"] }],
+  "ratelimits": [{ "name": "LOGIN_LIMITER", "namespace_id": "1001", "simple": { "limit": 5, "period": 60 } }],
+  "triggers": { "crons": ["*/15 * * * *"] }
+}

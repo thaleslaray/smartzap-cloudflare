@@ -1,0 +1,12 @@
+ENVIRONMENT=development
+META_GRAPH_VERSION=v25.0
+TURNSTILE_ENABLED=false
+AI_ENABLED=false
+AI_MODEL=@cf/openai/gpt-oss-20b
+AI_GATEWAY_ID=smartzap
+AI_PROVIDER_TIMEOUT_MS=20000
+AI_MAX_DRAFTS_PER_CONVERSATION_HOUR=20
+AI_MAX_DRAFTS_PER_DAY=200
+# Gere estes dois valores em /install. Não use os exemplos abaixo em produção.
+MASTER_PASSWORD=
+SMARTZAP_VAULT_KEY=

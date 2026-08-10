@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<!-- @template name="Campanha — detalhe" description="Progresso ao vivo, custo real acumulado e tabela de destinatários com erros da Meta" -->
+<helmet>
+  <script src="./ds-base.js"></script>
+  <style>
+    @keyframes sz-listras { from { background-position: 0 0; } to { background-position: 16px 0; } }
+    @keyframes sz-pulso { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+    @keyframes sz-toast { from { transform: translateY(8px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  </style>
+</helmet>
+
+<div data-screen-label="Campanha — detalhe" style="display:flex; min-height:100vh; background:var(--surface-page); color:var(--text-primary); font-family:var(--font-family)">
+
+  <aside style="width:224px; flex-shrink:0; background:var(--surface-raised); border-right:1px solid #1f1f23; display:flex; flex-direction:column; padding:16px 12px; gap:2px">
+    <div style="display:flex; align-items:center; gap:10px; padding:6px 10px 20px 10px">
+      <div style="width:30px; height:30px; border-radius:8px; background:var(--color-primary-500); display:flex; align-items:center; justify-content:center; color:#022c22; font-weight:800; font-size:15px">S</div>
+      <div style="display:flex; flex-direction:column; line-height:1.2">
+        <span style="font-weight:700; font-size:15px; letter-spacing:-0.01em">SmartZap</span>
+        <span style="font-size:10px; color:var(--text-muted); letter-spacing:0.1em; text-transform:uppercase">Cloudflare</span>
+      </div>
+    </div>
+    <a href="../dashboard/Dashboard.dc.html" style="display:flex; align-items:center; padding:8px 10px; border-radius:8px; font-size:14px; color:var(--text-secondary); text-decoration:none" style-hover="background:#1f1f23; color:var(--text-primary)">Dashboard</a>
+    <a href="../campanhas/Campanhas.dc.html" style="display:flex; align-items:center; padding:8px 10px; border-radius:8px; font-size:14px; font-weight:600; color:var(--color-primary-400); background:rgba(16,185,129,0.10); text-decoration:none">Campanhas</a>
+    <a href="../contatos/Contatos.dc.html" style="display:flex; align-items:center; padding:8px 10px; border-radius:8px; font-size:14px; color:var(--text-secondary); text-decoration:none" style-hover="background:#1f1f23; color:var(--text-primary)">Contatos</a>
+    <a href="../templates-meta/TemplatesMeta.dc.html" style="display:flex; align-items:center; padding:8px 10px; border-radius:8px; font-size:14px; color:var(--text-secondary); text-decoration:none" style-hover="background:#1f1f23; color:var(--text-primary)">Templates</a>
+    <a href="../settings/Settings.dc.html" style="display:flex; align-items:center; padding:8px 10px; border-radius:8px; font-size:14px; color:var(--text-secondary); text-decoration:none" style-hover="background:#1f1f23; color:var(--text-primary)">Configurações</a>
+    <div style="margin-top:auto; display:flex; align-items:center; gap:8px; padding:10px; border-top:1px solid #1f1f23">
+      <span style="width:7px; height:7px; border-radius:50%; background:var(--color-primary-400)"></span>
+      <span style="font-size:12px; color:var(--text-secondary)">Meta conectada</span>
+    </div>
+  </aside>
+
+  <main style="flex:1; padding:32px 40px; max-width:1240px">
+    <a href="../campanhas/Campanhas.dc.html" style="font-size:13px; color:var(--text-muted); text-decoration:none" style-hover="color:var(--text-secondary)">← Campanhas</a>
+
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; margin:8px 0 24px 0">
+      <div style="display:flex; align-items:center; gap:12px">
+        <h1 style="margin:0; font-size:22px; font-weight:700; letter-spacing:-0.01em">Black Friday — VIPs</h1>
+        <sc-if value="{{ ehSending }}" hint-placeholder-val="{{ true }}"><span style="display:inline-flex; align-items:center; gap:6px; padding:3px 12px; border-radius:999px; font-size:12px; font-weight:500; color:#34d399; background:rgba(52,211,153,0.12); border:1px solid rgba(52,211,153,0.25)"><span style="width:6px; height:6px; border-radius:50%; background:currentColor; animation:sz-pulso 1.2s ease-in-out infinite"></span>Enviando</span></sc-if>
+        <sc-if value="{{ ehPaused }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex; align-items:center; gap:6px; padding:3px 12px; border-radius:999px; font-size:12px; font-weight:500; color:#fbbf24; background:rgba(251,191,36,0.12); border:1px solid rgba(251,191,36,0.25)"><span style="width:6px; height:6px; border-radius:50%; background:currentColor"></span>Pausada</span></sc-if>
+        <sc-if value="{{ ehCancelled }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex; align-items:center; gap:6px; padding:3px 12px; border-radius:999px; font-size:12px; font-weight:500; color:#71717a; background:rgba(113,113,122,0.10); border:1px solid rgba(113,113,122,0.22)"><span style="width:6px; height:6px; border-radius:50%; background:currentColor"></span>Cancelada</span></sc-if>
+      </div>
+      <div style="display:flex; gap:8px">
+        <sc-if value="{{ ehSending }}" hint-placeholder-val="{{ true }}">
+          <button onClick="{{ pausar }}" style="padding:8px 16px; border-radius:8px; border:1px solid #3f3f46; background:transparent; color:var(--text-primary); font-size:13px; font-weight:500; cursor:pointer; font-family:var(--font-family)" style-hover="border-color:#52525b; background:#1f1f23">Pausar</button>
+        </sc-if>
+        <sc-if value="{{ ehPaused }}" hint-placeholder-val="{{ false }}">
+          <button onClick="{{ retomar }}" style="padding:8px 16px; border-radius:8px; border:none; background:var(--color-primary-500); color:#022c22; font-size:13px; font-weight:600; cursor:pointer; font-family:var(--font-family)" style-hover="background:var(--color-primary-600); color:#ecfdf5">Retomar</button>
+        </sc-if>
+        <sc-if value="{{ podeCancelar }}" hint-placeholder-val="{{ true }}">
+          <button onClick="{{ abrirCancelar }}" style="padding:8px 16px; border-radius:8px; border:1px solid rgba(248,113,113,0.4); background:transparent; color:var(--status-failed); font-size:13px; font-weight:500; cursor:pointer; font-family:var(--font-family)" style-hover="background:rgba(248,113,113,0.08)">Cancelar</button>
+        </sc-if>
+      </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns:2fr 1fr; gap:16px; margin-bottom:24px">
+      <div style="background:var(--surface-raised); border:1px solid #27272a; border-radius:var(--radius); padding:20px">
+        <div style="display:flex; align-items:baseline; justify-content:space-between; margin-bottom:12px">
+          <p style="margin:0; font-size:13px; color:var(--text-secondary)">Progresso ao vivo</p>
+          <p style="margin:0; font-size:20px; font-weight:700; letter-spacing:-0.02em">{{ pctFmt }}</p>
+        </div>
+        <div style="height:8px; border-radius:999px; background:#27272a; overflow:hidden; margin-bottom:18px">
+          <sc-if value="{{ ehSending }}" hint-placeholder-val="{{ true }}">
+            <div style="height:8px; border-radius:999px; background:var(--color-primary-500); background-image:linear-gradient(90deg, rgba(255,255,255,0.18) 0 8px, transparent 8px 16px); background-size:16px 8px; animation:sz-listras 0.8s linear infinite; transition:width 0.6s ease; width:{{ pct }}"></div>
+          </sc-if>
+          <sc-if value="{{ naoSending }}" hint-placeholder-val="{{ false }}">
+            <div style="height:8px; border-radius:999px; background:var(--color-primary-700); width:{{ pct }}"></div>
+          </sc-if>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:12px">
+          <div>
+            <p style="margin:0; font-size:12px; color:var(--text-muted)">Enviadas</p>
+            <p style="margin:4px 0 0 0; font-size:20px; font-weight:700; color:var(--text-primary)">{{ envFmt }}</p>
+            <p style="margin:2px 0 0 0; font-size:11px; color:var(--text-muted)">de {{ totalFmt }}</p>
+          </div>
+          <div>
+            <p style="margin:0; font-size:12px; color:var(--text-muted)">Entregues</p>
+            <p style="margin:4px 0 0 0; font-size:20px; font-weight:700; color:var(--status-delivered)">{{ entFmt }}</p>
+            <p style="margin:2px 0 0 0; font-size:11px; color:var(--text-muted)">{{ pctEnt }}</p>
+          </div>
+          <div>
+            <p style="margin:0; font-size:12px; color:var(--text-muted)">Lidas</p>
+            <p style="margin:4px 0 0 0; font-size:20px; font-weight:700; color:var(--status-read)">{{ lidasFmt }}</p>
+            <p style="margin:2px 0 0 0; font-size:11px; color:var(--text-muted)">{{ pctLidas }}</p>
+          </div>
+          <div>
+            <p style="margin:0; font-size:12px; color:var(--text-muted)">Falhas</p>
+            <p style="margin:4px 0 0 0; font-size:20px; font-weight:700; color:var(--status-failed)">{{ falhasFmt }}</p>
+            <p style="margin:2px 0 0 0; font-size:11px; color:var(--text-muted)">{{ pctFalhas }}</p>
+          </div>
+        </div>
+      </div>
+
+      <div style="background:rgba(16,185,129,0.06); border:1px solid rgba(16,185,129,0.25); border-radius:var(--radius); padding:20px; display:flex; flex-direction:column; justify-content:space-between">
+        <p style="margin:0; font-size:12px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:var(--color-primary-400)">Custo real acumulado</p>
+        <p style="margin:12px 0 0 0; font-size:30px; font-weight:700; letter-spacing:-0.02em; color:var(--color-primary-300)">{{ custoFmt }}</p>
+        <p style="margin:8px 0 0 0; font-size:12px; color:var(--text-secondary)">{{ entFmt }} entregues × {{ tarifaFmt }} (marketing, BRL)</p>
+      </div>
+    </div>
+
+    <div style="background:var(--surface-raised); border:1px solid #27272a; border-radius:var(--radius); overflow:hidden">
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:16px 20px">
+        <h2 style="margin:0; font-size:15px; font-weight:600">Destinatários</h2>
+        <span style="font-size:12px; color:var(--text-muted)">2.000 no total · mostrando 8</span>
+      </div>
+      <div style="display:grid; grid-template-columns:minmax(150px,1fr) 170px 120px 90px minmax(220px,1.3fr); gap:16px; padding:10px 20px; border-top:1px solid #1f1f23; border-bottom:1px solid #1f1f23; font-size:11px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:var(--text-muted)">
+        <span>Contato</span><span>Telefone</span><span>Status</span><span>Horário</span><span>Erro</span>
+      </div>
+
+      <sc-for list="{{ destinatarios }}" as="r" hint-placeholder-count="8">
+        <div style="display:grid; grid-template-columns:minmax(150px,1fr) 170px 120px 90px minmax(220px,1.3fr); gap:16px; align-items:center; padding:11px 20px; border-bottom:1px solid #1f1f23" style-hover="background:#1c1c1f">
+          <p style="margin:0; font-size:13px; font-weight:500">{{ r.nome }}</p>
+          <p style="margin:0; font-size:12px; color:var(--text-secondary); font-family:ui-monospace, monospace">{{ r.tel }}</p>
+          <span style="display:flex">
+            <sc-if value="{{ r.e.pending }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex; align-items:center; gap:6px; padding:1px 9px; border-radius:999px; font-size:11px; font-weight:500; color:#a1a1aa; background:rgba(161,161,170,0.12); border:1px solid rgba(161,161,170,0.25)"><span style="width:5px; height:5px; border-radius:50%; background:currentColor"></span>Pendente</span></sc-if>
+            <sc-if value="{{ r.e.sent }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex; align-items:center; gap:6px; padding:1px 9px; border-radius:999px; font-size:11px; font-weight:500; color:#60a5fa; background:rgba(96,165,250,0.12); border:1px solid rgba(96,165,250,0.25)"><span style="width:5px; height:5px; border-radius:50%; background:currentColor"></span>Enviada</span></sc-if>
+            <sc-if value="{{ r.e.delivered }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex; align-items:center; gap:6px; padding:1px 9px; border-radius:999px; font-size:11px; font-weight:500; color:#34d399; background:rgba(52,211,153,0.12); border:1px solid rgba(52,211,153,0.25)"><span style="width:5px; height:5px; border-radius:50%; background:currentColor"></span>Entregue</span></sc-if>
+            <sc-if value="{{ r.e.read }}" hint-placeholder-val="{{ true }}"><span style="display:inline-flex; align-items:center; gap:6px; padding:1px 9px; border-radius:999px; font-size:11px; font-weight:500; color:#10b981; background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.25)"><span style="width:5px; height:5px; border-radius:50%; background:currentColor"></span>Lida</span></sc-if>
+            <sc-if value="{{ r.e.failed }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex; align-items:center; gap:6px; padding:1px 9px; border-radius:999px; font-size:11px; font-weight:500; color:#f87171; background:rgba(248,113,113,0.12); border:1px solid rgba(248,113,113,0.25)"><span style="width:5px; height:5px; border-radius:50%; background:currentColor"></span>Falhou</span></sc-if>
+            <sc-if value="{{ r.e.skipped }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex; align-items:center; gap:6px; padding:1px 9px; border-radius:999px; font-size:11px; font-weight:500; color:#fbbf24; background:rgba(251,191,36,0.12); border:1px solid rgba(251,191,36,0.25)"><span style="width:5px; height:5px; border-radius:50%; background:currentColor"></span>Pulada</span></sc-if>
+          </span>
+          <p style="margin:0; font-size:12px; color:var(--text-muted); font-family:ui-monospace, monospace">{{ r.hora }}</p>
+          <span style="display:flex">
+            <sc-if value="{{ r.temErro }}" hint-placeholder-val="{{ false }}">
+              <span title="{{ r.erroTitulo }}" style="display:inline-flex; align-items:center; gap:8px; cursor:help">
+                <span style="padding:1px 7px; border-radius:6px; font-size:11px; font-weight:600; font-family:ui-monospace, monospace; color:#f87171; background:rgba(248,113,113,0.10); border:1px solid rgba(248,113,113,0.3)">{{ r.erroCodigo }}</span>
+                <span style="font-size:12px; color:var(--text-secondary); border-bottom:1px dotted #52525b">{{ r.erroTexto }}</span>
+              </span>
+            </sc-if>
+            <sc-if value="{{ r.semErro }}" hint-placeholder-val="{{ true }}"><span style="font-size:12px; color:var(--text-muted)">—</span></sc-if>
+          </span>
+        </div>
+      </sc-for>
+
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 20px">
+        <span style="font-size:12px; color:var(--text-muted)">Página 1 de 250</span>
+        <div style="display:flex; gap:6px">
+          <button style="padding:6px 12px; border-radius:8px; border:1px solid #3f3f46; background:transparent; color:var(--text-muted); font-size:12px; font-family:var(--font-family); cursor:default">Anterior</button>
+          <button style="padding:6px 12px; border-radius:8px; border:1px solid #3f3f46; background:transparent; color:var(--text-secondary); font-size:12px; font-family:var(--font-family); cursor:pointer" style-hover="border-color:#52525b; color:var(--text-primary)">Próxima</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <sc-if value="{{ modalAberto }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed; inset:0; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:50">
+      <div style="width:420px; background:var(--surface-overlay); border:1px solid #3f3f46; border-radius:var(--radius); padding:24px">
+        <h3 style="margin:0; font-size:16px; font-weight:600">Cancelar campanha?</h3>
+        <p style="margin:10px 0 20px 0; font-size:13px; line-height:1.5; color:var(--text-secondary)">O envio será interrompido imediatamente. Mensagens já enviadas não podem ser desfeitas e o custo acumulado permanece. Esta ação é irreversível.</p>
+        <div style="display:flex; justify-content:flex-end; gap:8px">
+          <button onClick="{{ fecharCancelar }}" style="padding:8px 16px; border-radius:8px; border:1px solid #3f3f46; background:transparent; color:var(--text-primary); font-size:13px; font-weight:500; cursor:pointer; font-family:var(--font-family)" style-hover="background:#3f3f46">Manter campanha</button>
+          <button onClick="{{ confirmarCancelar }}" style="padding:8px 16px; border-radius:8px; border:none; background:#dc2626; color:#fef2f2; font-size:13px; font-weight:600; cursor:pointer; font-family:var(--font-family)" style-hover="background:#b91c1c">Cancelar campanha</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ temToast }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed; bottom:24px; right:24px; z-index:60; display:flex; align-items:center; gap:10px; padding:12px 16px; background:var(--surface-overlay); border:1px solid #3f3f46; border-radius:var(--radius); animation:sz-toast 0.2s ease-out">
+      <span style="width:7px; height:7px; border-radius:50%; background:var(--color-primary-400)"></span>
+      <span style="font-size:13px; color:var(--text-primary)">{{ toast }}</span>
+    </div>
+  </sc-if>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;simularAoVivo&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Demo&quot;}, &quot;tarifa&quot;: {&quot;editor&quot;: &quot;float&quot;, &quot;default&quot;: 0.3217, &quot;tsType&quot;: &quot;number&quot;, &quot;min&quot;: 0, &quot;step&quot;: 0.0001, &quot;unit&quot;: &quot;R$&quot;, &quot;section&quot;: &quot;Custo&quot;}}">
+class Component extends DCLogic {
+  state = {
+    status: 'sending',
+    env: 1240, ent: 1198, lidas: 812, falhas: 12,
+    total: 2000,
+    modal: false,
+    toast: '',
+  };
+
+  componentDidMount() {
+    if (this.props.simularAoVivo ?? true) {
+      this._tick = setInterval(() => {
+        this.setState(s => {
+          if (s.status !== 'sending' || s.env >= s.total) return null;
+          const env = Math.min(s.total, s.env + 3 + Math.floor(Math.random() * 6));
+          const ent = Math.min(env, s.ent + 3 + Math.floor(Math.random() * 5));
+          const lidas = Math.min(ent, s.lidas + Math.floor(Math.random() * 4));
+          const falhas = s.falhas + (Math.random() < 0.06 ? 1 : 0);
+          return { env, ent, lidas, falhas };
+        });
+      }, 1200);
+    }
+  }
+
+  componentWillUnmount() {
+    clearInterval(this._tick);
+    clearTimeout(this._toastTimer);
+  }
+
+  mostrarToast(msg) {
+    clearTimeout(this._toastTimer);
+    this.setState({ toast: msg });
+    this._toastTimer = setTimeout(() => this.setState({ toast: '' }), 2500);
+  }
+
+  destinatariosDef = [
+    { nome: 'Maria Souza', tel: '+55 11 91234-5678', st: 'read', hora: '14:31:04' },
+    { nome: 'João Pereira', tel: '+55 21 99876-1122', st: 'read', hora: '14:31:06' },
+    { nome: 'Ana Beatriz Lima', tel: '+55 31 98811-4433', st: 'delivered', hora: '14:31:09' },
+    { nome: 'Carlos Eduardo', tel: '+55 41 99123-8899', st: 'failed', hora: '14:31:12', codigo: '131056', texto: 'Limite de mensagens para este par atingido', titulo: 'Erro 131056 da Meta: muitas mensagens enviadas para este mesmo destinatário em pouco tempo. Aguarde antes de reenviar.' },
+    { nome: 'Fernanda Alves', tel: '+55 11 98765-2211', st: 'delivered', hora: '14:31:15' },
+    { nome: 'Ricardo Santos', tel: '+55 51 99432-7788', st: 'skipped', hora: '14:31:15' },
+    { nome: 'Paula Rodrigues', tel: '+55 62 99311-5566', st: 'failed', hora: '14:31:18', codigo: '131026', texto: 'Número não pode receber esta mensagem', titulo: 'Erro 131026 da Meta: o destinatário não pode receber a mensagem — número sem WhatsApp ou que bloqueou o remetente.' },
+    { nome: 'Bruno Carvalho', tel: '+55 85 98122-3344', st: 'sent', hora: '14:31:21' },
+  ];
+
+  renderVals() {
+    const s = this.state;
+    const tarifa = Number(this.props.tarifa ?? 0.3217);
+    const num = (v) => v.toLocaleString('pt-BR');
+    const pctOf = (v) => (s.env > 0 ? (v / s.env * 100).toFixed(1).replace('.', ',') + '% das enviadas' : '—');
+    const pctNum = s.total > 0 ? s.env / s.total * 100 : 0;
+
+    const destinatarios = this.destinatariosDef.map(r => ({
+      nome: r.nome, tel: r.tel, hora: r.hora,
+      e: { [r.st]: true },
+      temErro: !!r.codigo,
+      semErro: !r.codigo,
+      erroCodigo: r.codigo || '',
+      erroTexto: r.texto || '',
+      erroTitulo: r.titulo || '',
+    }));
+
+    return {
+      ehSending: s.status === 'sending',
+      naoSending: s.status !== 'sending',
+      ehPaused: s.status === 'paused',
+      ehCancelled: s.status === 'cancelled',
+      podeCancelar: s.status === 'sending' || s.status === 'paused',
+      pct: pctNum.toFixed(1) + '%',
+      pctFmt: pctNum.toFixed(1).replace('.', ',') + '%',
+      envFmt: num(s.env), totalFmt: num(s.total),
+      entFmt: num(s.ent), lidasFmt: num(s.lidas), falhasFmt: num(s.falhas),
+      pctEnt: pctOf(s.ent), pctLidas: pctOf(s.lidas), pctFalhas: pctOf(s.falhas),
+      custoFmt: (s.ent * tarifa).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+      tarifaFmt: 'R$ ' + tarifa.toFixed(4).replace('.', ','),
+      destinatarios,
+      pausar: () => { this.setState({ status: 'paused' }); this.mostrarToast('Campanha pausada'); },
+      retomar: () => { this.setState({ status: 'sending' }); this.mostrarToast('Envio retomado'); },
+      abrirCancelar: () => this.setState({ modal: true }),
+      fecharCancelar: () => this.setState({ modal: false }),
+      confirmarCancelar: () => { this.setState({ status: 'cancelled', modal: false }); this.mostrarToast('Campanha cancelada'); },
+      modalAberto: s.modal,
+      toast: s.toast,
+      temToast: !!s.toast,
+    };
+  }
+}
+
+</script>
+</body>
+</html>

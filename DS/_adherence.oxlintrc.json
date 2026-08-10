@@ -1,0 +1,97 @@
+{
+  "plugins": [
+    "react",
+    "import"
+  ],
+  "rules": {
+    "react/forbid-elements": [
+      "warn",
+      {
+        "forbid": []
+      }
+    ],
+    "no-restricted-imports": [
+      "warn",
+      {
+        "patterns": []
+      }
+    ],
+    "no-restricted-syntax": [
+      "warn",
+      {
+        "selector": "Literal[value=/#[0-9a-fA-F]{3,8}\\b/]",
+        "message": "Raw hex color — use a design-system color token via var()."
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": [
+        "**/index.js"
+      ],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
+    }
+  ],
+  "x-omelette": {
+    "components": {},
+    "tokens": [
+      "--border-default",
+      "--color-primary-100",
+      "--color-primary-200",
+      "--color-primary-300",
+      "--color-primary-400",
+      "--color-primary-50",
+      "--color-primary-500",
+      "--color-primary-600",
+      "--color-primary-700",
+      "--color-primary-800",
+      "--color-primary-900",
+      "--color-primary-950",
+      "--font-family",
+      "--radius",
+      "--status-delivered",
+      "--status-failed",
+      "--status-pending",
+      "--status-read",
+      "--status-sent",
+      "--status-skipped",
+      "--surface-overlay",
+      "--surface-page",
+      "--surface-raised",
+      "--text-muted",
+      "--text-primary",
+      "--text-secondary"
+    ],
+    "tokenKinds": {
+      "--color-primary-50": "color",
+      "--color-primary-100": "color",
+      "--color-primary-200": "color",
+      "--color-primary-300": "color",
+      "--color-primary-400": "color",
+      "--color-primary-500": "color",
+      "--color-primary-600": "color",
+      "--color-primary-700": "color",
+      "--color-primary-800": "color",
+      "--color-primary-900": "color",
+      "--color-primary-950": "color",
+      "--surface-page": "color",
+      "--surface-raised": "color",
+      "--surface-overlay": "color",
+      "--border-default": "color",
+      "--text-primary": "font",
+      "--text-secondary": "font",
+      "--text-muted": "font",
+      "--status-sent": "color",
+      "--status-delivered": "color",
+      "--status-read": "color",
+      "--status-failed": "color",
+      "--status-pending": "color",
+      "--status-skipped": "color",
+      "--radius": "radius",
+      "--font-family": "font"
+    },
+    "fontFamilies": []
+  }
+}

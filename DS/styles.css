@@ -1,0 +1,13 @@
+/* SmartZap CF — folha global do design system */
+@import url("tokens/smartzap-tokens.css");
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--surface-page);
+  color: var(--text-primary);
+  font-family: var(--font-family);
+  -webkit-font-smoothing: antialiased;
+}
+
+* { box-sizing: border-box; }

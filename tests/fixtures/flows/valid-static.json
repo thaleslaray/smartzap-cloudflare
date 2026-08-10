@@ -1,0 +1,21 @@
+{
+  "version": "7.3",
+  "screens": [
+    {
+      "id": "WELCOME",
+      "title": "Boas-vindas",
+      "terminal": true,
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          { "type": "TextBody", "text": "Olá" },
+          {
+            "type": "Footer",
+            "label": "Concluir",
+            "on-click-action": { "name": "complete", "payload": {} }
+          }
+        ]
+      }
+    }
+  ]
+}
