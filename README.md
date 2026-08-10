@@ -25,7 +25,12 @@ WhatsApp oficial para campanhas, Inbox, contatos e templates, executado inteiram
 - Durable Objects de tempo real e controle de vazão;
 - Workflow de campanhas e Workflow isolado de diagnóstico do instalador;
 - Cron operacional e rate limit de login;
-- Workers AI e AI Search, instalados mas desligados até ativação explícita.
+- Workers AI disponível, mas desligado até ativação explícita.
+
+AI Search não faz parte do núcleo do botão oficial porque não está entre os
+recursos provisionados automaticamente por esse fluxo. Se o usuário ativar a
+base de conhecimento de IA no `/setup`, o assistente orienta a criação e a
+vinculação do namespace antes de liberar o módulo.
 
 O comando de deploy usa o binding `DB`, nunca um ID de conta. Antes de qualquer migração, o guardião fail-closed reserva um D1 vazio para o nome do Worker. Um banco com dados, sem marcador ou pertencente a outro Worker interrompe o deploy sem alterá-lo:
 

@@ -1,14 +1,14 @@
 {
   "schema": 1,
-  "generatedAt": "2026-08-10T03:00:51.533Z",
+  "generatedAt": "2026-08-10T03:46:11.216Z",
   "sourceCommit": "f6440d2d5be11b0c343d2c0a3b827b1f47ebc666",
   "sourceWorktreeDirty": true,
   "publicRepository": "https://github.com/thaleslaray/smartzap-cloudflare",
-  "snapshotHash": "9b3600e654914648d77e8a66fbb5dfc3c249f791641bab6062fcd470d4d794c2",
+  "snapshotHash": "1ac05b6495ed9910cba57203075111d72b8eee63d89109b566ed1049934eb273",
   "files": [
     {
       "path": ".dev.vars.example",
-      "sha256": "ce3f0500ccd554d2f618ad11955b0c2d17e943810677698701291a691d69d874"
+      "sha256": "83f2928a6bb3e1defade559e52d0a2e60590121385133591feea1aa9e4ea0f04"
     },
     {
       "path": ".gitignore",
@@ -748,7 +748,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "81b3706d739811ea8e8398bf456c818fde85c728ea4307f7d0bbdd90c0257bcb"
+      "sha256": "c46070a850e8dc337bd2de7352a684e9085b87a59ad18db3df2b017e0952fd9f"
     },
     {
       "path": "scripts/deploy-safe.mjs",
@@ -1616,7 +1616,7 @@
     },
     {
       "path": "wrangler.jsonc",
-      "sha256": "948ccb43af78bed7c11017e54dd9a4ca71184f2fb214e4808b008cbbdaf27228"
+      "sha256": "0212ec2e4ea22bff08a541d17f1376ecbbce6bcdef341cbdb2b225a90faf07d2"
     }
   ]
 }

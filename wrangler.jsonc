@@ -13,9 +13,6 @@
   "observability": { "enabled": true },
   "dev": { "inspector_port": 9230 },
   "ai": { "binding": "AI", "remote": true },
-  // O plugin Vite atual ainda exige um nome padrão; o Deploy to Cloudflare
-  // permite personalizá-lo e o módulo permanece desligado até o usuário ativar IA.
-  "ai_search_namespaces": [{ "binding": "AI_SEARCH", "namespace": "smartzap" }],
   // Em dev/test o .dev.vars sobrescreve com ENVIRONMENT=development
   "vars": {
     "ENVIRONMENT": "production",
