@@ -3,10 +3,42 @@ import {
   INSTALL_GUARD_TABLE,
   assessDatabaseSafety,
   assertIsolatedResourceNames,
+  assertPreparedRuntimeResources,
+  deriveRuntimeResourceNames,
   parseWranglerRows,
+  prepareIsolatedDeploymentConfig,
   readWorkerName,
   stripJsonComments,
 } from "../scripts/lib/deploy-safety.mjs";
+
+function installationConfig(workerName = "smartzap-a1b2c3d4") {
+  return {
+    name: workerName,
+    vars: { AI_GATEWAY_ID: "smartzap" },
+    d1_databases: [{ binding: "DB", database_name: `${workerName}-db`, database_id: "auto-created" }],
+    r2_buckets: [{ binding: "MEDIA", bucket_name: `${workerName}-media` }],
+    queues: {
+      producers: [
+        { binding: "WEBHOOK_QUEUE", queue: `${workerName}-meta-webhooks` },
+        { binding: "AUTOMATION_QUEUE", queue: `${workerName}-inbox-automation` },
+        { binding: "CAPI_QUEUE", queue: `${workerName}-meta-conversions` },
+        { binding: "CAPI_DLQ", queue: `${workerName}-meta-conversions-dlq` },
+        { binding: "WEBHOOK_DLQ", queue: `${workerName}-meta-webhooks-dlq` },
+        { binding: "AUTOMATION_DLQ", queue: `${workerName}-inbox-automation-dlq` },
+      ],
+      consumers: [
+        { queue: `${workerName}-meta-webhooks`, dead_letter_queue: `${workerName}-meta-webhooks-dlq` },
+        { queue: `${workerName}-inbox-automation`, dead_letter_queue: `${workerName}-inbox-automation-dlq` },
+        { queue: `${workerName}-meta-conversions` },
+      ],
+    },
+    workflows: [
+      { binding: "CAMPAIGN_WF", name: "campaign-send", class_name: "CampaignSendWorkflow" },
+      { binding: "SETUP_WF", name: "smartzap-setup-health", class_name: "SetupHealthWorkflow" },
+    ],
+    ratelimits: [{ name: "LOGIN_LIMITER", namespace_id: "1001", simple: { limit: 5, period: 60 } }],
+  };
+}
 
 describe("proteção do deploy público", () => {
   it("remove comentários JSONC sem alterar barras dentro de strings", () => {
@@ -75,6 +107,70 @@ describe("proteção do deploy público", () => {
       ...valid,
       queues: { ...valid.queues, consumers: [{ queue: "fila-estranha" }] },
     }))).toThrow(/consumidoras/);
+  });
+
+  it("deriva recursos internos exclusivos do mesmo prefixo", () => {
+    const first = deriveRuntimeResourceNames("smartzap-a1b2c3d4");
+    const second = deriveRuntimeResourceNames("smartzap-01020304");
+    expect(first).toEqual({
+      workerName: "smartzap-a1b2c3d4",
+      workflows: {
+        CAMPAIGN_WF: "smartzap-a1b2c3d4-campaign-send",
+        SETUP_WF: "smartzap-a1b2c3d4-setup-health",
+      },
+      rateLimitNamespace: (BigInt("0xa1b2c3d4") + 1n).toString(10),
+      aiGatewayId: "smartzap-a1b2c3d4",
+    });
+    expect(second.workflows.CAMPAIGN_WF).not.toBe(first.workflows.CAMPAIGN_WF);
+    expect(second.workflows.SETUP_WF).not.toBe(first.workflows.SETUP_WF);
+    expect(second.rateLimitNamespace).not.toBe(first.rateLimitNamespace);
+    expect(second.aiGatewayId).not.toBe(first.aiGatewayId);
+    expect(() => deriveRuntimeResourceNames("smartzap")).toThrow(/nome exclusivo/);
+  });
+
+  it("prepara Workflows, rate limit e AI Gateway antes do acesso remoto", () => {
+    const original = installationConfig();
+    const prepared = prepareIsolatedDeploymentConfig(JSON.stringify(original));
+    const parsed = JSON.parse(prepared.source);
+
+    expect(parsed.workflows).toEqual([
+      { binding: "CAMPAIGN_WF", name: "smartzap-a1b2c3d4-campaign-send", class_name: "CampaignSendWorkflow" },
+      { binding: "SETUP_WF", name: "smartzap-a1b2c3d4-setup-health", class_name: "SetupHealthWorkflow" },
+    ]);
+    expect(parsed.ratelimits[0].namespace_id).toBe((BigInt("0xa1b2c3d4") + 1n).toString(10));
+    expect(parsed.vars.AI_GATEWAY_ID).toBe("smartzap-a1b2c3d4");
+    expect(parsed.d1_databases).toEqual(original.d1_databases);
+    expect(parsed.r2_buckets).toEqual(original.r2_buckets);
+    expect(parsed.queues).toEqual(original.queues);
+    expect(assertPreparedRuntimeResources(prepared.source)).toEqual({
+      workerName: prepared.workerName,
+      workflows: prepared.workflows,
+      rateLimitNamespace: prepared.rateLimitNamespace,
+      aiGatewayId: prepared.aiGatewayId,
+    });
+    expect(prepareIsolatedDeploymentConfig(prepared.source).source).toBe(prepared.source);
+  });
+
+  it("recusa configuração interna fixa, ausente, duplicada ou divergente", () => {
+    const fixed = installationConfig();
+    expect(() => assertPreparedRuntimeResources(JSON.stringify(fixed))).toThrow(/Workflow CAMPAIGN_WF/);
+
+    const missingWorkflow = installationConfig();
+    missingWorkflow.workflows = missingWorkflow.workflows.filter((entry) => entry.binding !== "SETUP_WF");
+    expect(() => prepareIsolatedDeploymentConfig(JSON.stringify(missingWorkflow))).toThrow(/SETUP_WF está ausente/);
+
+    const duplicateWorkflow = installationConfig();
+    duplicateWorkflow.workflows.push({ ...duplicateWorkflow.workflows[0] });
+    expect(() => prepareIsolatedDeploymentConfig(JSON.stringify(duplicateWorkflow))).toThrow(/CAMPAIGN_WF aparece mais de uma vez/);
+
+    const missingLimiter = installationConfig();
+    missingLimiter.ratelimits = [];
+    expect(() => prepareIsolatedDeploymentConfig(JSON.stringify(missingLimiter))).toThrow(/LOGIN_LIMITER está ausente/);
+
+    const prepared = prepareIsolatedDeploymentConfig(JSON.stringify(installationConfig()));
+    const divergent = JSON.parse(prepared.source);
+    divergent.ratelimits[0].namespace_id = "1001";
+    expect(() => assertPreparedRuntimeResources(JSON.stringify(divergent))).toThrow(/LOGIN_LIMITER não está isolado/);
   });
 
   it("interpreta a saída JSON do Wrangler", () => {

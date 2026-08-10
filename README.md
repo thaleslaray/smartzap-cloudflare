@@ -32,9 +32,10 @@ recursos provisionados automaticamente por esse fluxo. Se o usuário ativar a
 base de conhecimento de IA no `/setup`, o assistente orienta a criação e a
 vinculação do namespace antes de liberar o módulo.
 
-O comando de deploy usa o binding `DB`, nunca um ID de conta. Antes de qualquer migração, o guardião fail-closed reserva um D1 vazio para o nome do Worker. Um banco com dados, sem marcador ou pertencente a outro Worker interrompe o deploy sem alterá-lo:
+O comando de deploy usa o binding `DB`, nunca um ID de conta. Antes de qualquer acesso remoto, o instalador deriva automaticamente do nome único do Worker os nomes dos dois Workflows, o namespace inteiro positivo do rate limit e o identificador do AI Gateway opcional. O usuário não precisa preencher esses recursos ocultos no formulário da Cloudflare. Em seguida, o guardião fail-closed reserva um D1 vazio para o nome do Worker. Um banco com dados, sem marcador ou pertencente a outro Worker interrompe o deploy sem alterá-lo:
 
 ```sh
+npm run deploy:prepare
 npm run build
 npm run deploy:guard
 npm run db:migrate:remote

@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "generatedAt": "2026-08-10T04:08:02.311Z",
+  "generatedAt": "2026-08-10T05:06:53.997Z",
   "sourceCommit": "f6440d2d5be11b0c343d2c0a3b827b1f47ebc666",
   "sourceWorktreeDirty": true,
   "publicRepository": "https://github.com/thaleslaray/smartzap-cloudflare",
-  "snapshotHash": "a24e7cd5b67f1083a124da7e4532b9411e0a40107dae7c13d0b9501bc7cbfaf7",
+  "snapshotHash": "b97532c4d6441245b09f27f411ff647c090e400cc70ef510f704fae6ba6a4333",
   "files": [
     {
       "path": ".dev.vars.example",
@@ -716,7 +716,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "6b3ca6371c279236eee5567c44f85432f095d461f6a711f1a348e2e7d27dbddf"
+      "sha256": "6efba01d182b54908946d95d03b6a5f63d174b7fa8689bd4d81835b55e45e0c5"
     },
     {
       "path": "playwright.config.ts",
@@ -748,11 +748,11 @@
     },
     {
       "path": "README.md",
-      "sha256": "c46070a850e8dc337bd2de7352a684e9085b87a59ad18db3df2b017e0952fd9f"
+      "sha256": "98f154fcb03b15ec80fee1a372919f68cde412365aa9ce37c7ee4c4abbddef62"
     },
     {
       "path": "scripts/deploy-safe.mjs",
-      "sha256": "c63fd721b1eb068d3cba1f484da9751f26778f961e514aad6506413cb283ceb2"
+      "sha256": "902996b0f0e72fbbd7b71de239b88149876a3d05a61578ba2d99e3707a770a37"
     },
     {
       "path": "scripts/e2e-seed.sql",
@@ -764,11 +764,11 @@
     },
     {
       "path": "scripts/lib/deploy-safety.d.mts",
-      "sha256": "733fae244f7c7a6e126aac14324a712966d9807e8d3dc5bb679e2b23e77fa607"
+      "sha256": "0b2a33604bd8a53c47661f3e892a1ec16447b4e4eda22e5e3d119e20cd6401b3"
     },
     {
       "path": "scripts/lib/deploy-safety.mjs",
-      "sha256": "08e155996d1cc57ac8a50fee143cd495410af93133727ffbe71dc7ea08211d21"
+      "sha256": "614af0b595b7f8929782aa24fb9bd56a1a58b40031fc42247a988a74ff4f7dee"
     },
     {
       "path": "scripts/lib/manual-accessibility.mjs",
@@ -837,6 +837,10 @@
     {
       "path": "scripts/prepare-dev.mjs",
       "sha256": "1422fe956fff26cffbe38f8d180efcc7ff649bbf78b9a8f5b0776ee6a6cb68f7"
+    },
+    {
+      "path": "scripts/prepare-public-deploy.mjs",
+      "sha256": "a7778c18e65adcce58b111e2969a10e093163160ea06ad442209ae15dcf41984"
     },
     {
       "path": "scripts/qa-ai-logic.d.mts",
@@ -1256,7 +1260,7 @@
     },
     {
       "path": "tests-node/deploy-safety.node.test.ts",
-      "sha256": "495df5ddbfb459ce9667c424fdf3a54ed82bf400a412b92d39cd32d1b9c104b2"
+      "sha256": "711cc9b47e1cb10c2a8d3e5adcb05213fd2e4aeb28f58c1e6c9d008ba7738f9c"
     },
     {
       "path": "tests-node/knowledge-pdf.node.test.ts",

@@ -1,10 +1,12 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { assessDatabaseSafety, assertIsolatedResourceNames, INSTALL_GUARD_TABLE, parseWranglerRows } from "./lib/deploy-safety.mjs";
+import { assessDatabaseSafety, assertIsolatedResourceNames, assertPreparedRuntimeResources, INSTALL_GUARD_TABLE, parseWranglerRows } from "./lib/deploy-safety.mjs";
 
 const wranglerPath = resolve(process.cwd(), "wrangler.jsonc");
-const { workerName } = assertIsolatedResourceNames(readFileSync(wranglerPath, "utf8"));
+const wranglerSource = readFileSync(wranglerPath, "utf8");
+const { workerName } = assertIsolatedResourceNames(wranglerSource);
+assertPreparedRuntimeResources(wranglerSource);
 
 function query(command) {
   const output = execFileSync(

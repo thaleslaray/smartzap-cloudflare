@@ -84,6 +84,101 @@ export function assertIsolatedResourceNames(source) {
   return { workerName, resources: Object.fromEntries(actual) };
 }
 
+export function deriveRuntimeResourceNames(workerName) {
+  const match = /^smartzap-([a-f0-9]{8})$/.exec(workerName);
+  if (!match) {
+    throw new Error("Não foi possível preparar os recursos internos: use o nome exclusivo smartzap- + 8 caracteres gerado em /install.");
+  }
+
+  // A Cloudflare exige um inteiro positivo em formato string. Somar 1 mantém
+  // uma correspondência determinística e sem colisão para todo sufixo de 32 bits.
+  const rateLimitNamespace = (BigInt(`0x${match[1]}`) + 1n).toString(10);
+  return {
+    workerName,
+    workflows: {
+      CAMPAIGN_WF: `${workerName}-campaign-send`,
+      SETUP_WF: `${workerName}-setup-health`,
+    },
+    rateLimitNamespace,
+    aiGatewayId: workerName,
+  };
+}
+
+function findExactlyOne(entries, predicate, missingMessage, duplicateMessage) {
+  const matches = entries.filter(predicate);
+  if (matches.length === 0) throw new Error(missingMessage);
+  if (matches.length > 1) throw new Error(duplicateMessage);
+  return matches[0];
+}
+
+export function prepareIsolatedDeploymentConfig(source) {
+  const { workerName } = assertIsolatedResourceNames(source);
+  const parsed = JSON.parse(stripJsonComments(source));
+  const runtime = deriveRuntimeResourceNames(workerName);
+  const workflows = Array.isArray(parsed.workflows) ? parsed.workflows : [];
+  const workflowClasses = {
+    CAMPAIGN_WF: "CampaignSendWorkflow",
+    SETUP_WF: "SetupHealthWorkflow",
+  };
+
+  for (const [binding, name] of Object.entries(runtime.workflows)) {
+    const workflow = findExactlyOne(
+      workflows,
+      (entry) => entry?.binding === binding,
+      `O Workflow obrigatório ${binding} está ausente. Nenhum recurso remoto foi alterado.`,
+      `O Workflow obrigatório ${binding} aparece mais de uma vez. Nenhum recurso remoto foi alterado.`,
+    );
+    if (workflow.class_name !== workflowClasses[binding]) {
+      throw new Error(`O Workflow ${binding} aponta para uma classe inesperada. Nenhum recurso remoto foi alterado.`);
+    }
+    workflow.name = name;
+  }
+
+  const rateLimits = Array.isArray(parsed.ratelimits) ? parsed.ratelimits : [];
+  const loginLimiter = findExactlyOne(
+    rateLimits,
+    (entry) => entry?.name === "LOGIN_LIMITER",
+    "O limitador obrigatório LOGIN_LIMITER está ausente. Nenhum recurso remoto foi alterado.",
+    "O limitador obrigatório LOGIN_LIMITER aparece mais de uma vez. Nenhum recurso remoto foi alterado.",
+  );
+  loginLimiter.namespace_id = runtime.rateLimitNamespace;
+
+  if (!parsed.vars || typeof parsed.vars !== "object" || Array.isArray(parsed.vars)) {
+    throw new Error("A configuração de variáveis do Worker está ausente. Nenhum recurso remoto foi alterado.");
+  }
+  parsed.vars.AI_GATEWAY_ID = runtime.aiGatewayId;
+
+  return {
+    source: `${JSON.stringify(parsed, null, 2)}\n`,
+    ...runtime,
+  };
+}
+
+export function assertPreparedRuntimeResources(source) {
+  const { workerName } = assertIsolatedResourceNames(source);
+  const parsed = JSON.parse(stripJsonComments(source));
+  const expected = deriveRuntimeResourceNames(workerName);
+  const workflows = Array.isArray(parsed.workflows) ? parsed.workflows : [];
+
+  for (const [binding, expectedName] of Object.entries(expected.workflows)) {
+    const matches = workflows.filter((entry) => entry?.binding === binding);
+    if (matches.length !== 1 || matches[0]?.name !== expectedName) {
+      throw new Error(`O Workflow ${binding} não está isolado para ${workerName}. Execute npm run deploy:prepare antes de publicar.`);
+    }
+  }
+
+  const rateLimits = Array.isArray(parsed.ratelimits) ? parsed.ratelimits : [];
+  const loginLimiters = rateLimits.filter((entry) => entry?.name === "LOGIN_LIMITER");
+  if (loginLimiters.length !== 1 || loginLimiters[0]?.namespace_id !== expected.rateLimitNamespace) {
+    throw new Error(`O limitador LOGIN_LIMITER não está isolado para ${workerName}. Execute npm run deploy:prepare antes de publicar.`);
+  }
+  if (parsed.vars?.AI_GATEWAY_ID !== expected.aiGatewayId) {
+    throw new Error(`O identificador do AI Gateway não está isolado para ${workerName}. Execute npm run deploy:prepare antes de publicar.`);
+  }
+
+  return expected;
+}
+
 export function parseWranglerRows(output) {
   const start = output.indexOf("[");
   if (start < 0) throw new Error("A Cloudflare não devolveu um resultado JSON legível para o D1.");
