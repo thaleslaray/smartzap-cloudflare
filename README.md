@@ -16,8 +16,11 @@ repositório como instalação simples ou pronta para produção.
 6. Ao final do deploy, abra `https://SEU-WORKER.workers.dev/setup`.
 7. Cadastre a Meta, configure o webhook, sincronize os templates e conclua a mensagem real de homologação.
 
-> O botão público será inserido aqui somente depois de três instalações físicas
-> aprovadas, cleanup sem resíduo e liberação de `INST-01` a `INST-07`.
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https%3A%2F%2Fgithub.com%2Fthaleslaray%2Fsmartzap-cloudflare)
+
+> Botão liberado somente para a homologação controlada. A divulgação como
+> instalação simples continua bloqueada até três instalações físicas aprovadas,
+> cleanup sem resíduo e liberação de `INST-01` a `INST-07`.
 
 ## O que a Cloudflare provisiona
 
