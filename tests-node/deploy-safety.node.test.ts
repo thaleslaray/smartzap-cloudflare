@@ -151,6 +151,31 @@ describe("proteção do deploy público", () => {
     expect(prepareIsolatedDeploymentConfig(prepared.source).source).toBe(prepared.source);
   });
 
+  it("normaliza as referências de consumidores que o Deploy Button deixa com nomes padrão", () => {
+    const generatedByCloudflare = installationConfig();
+    generatedByCloudflare.queues.consumers = [
+      { queue: "smartzap-meta-webhooks", dead_letter_queue: "smartzap-meta-webhooks-dlq" },
+      { queue: "smartzap-inbox-automation", dead_letter_queue: "smartzap-inbox-automation-dlq" },
+      { queue: "smartzap-meta-conversions" },
+    ];
+
+    const prepared = JSON.parse(prepareIsolatedDeploymentConfig(JSON.stringify(generatedByCloudflare)).source);
+    expect(prepared.queues.consumers).toEqual(installationConfig().queues.consumers);
+    expect(assertPreparedRuntimeResources(JSON.stringify(prepared))).toMatchObject({
+      workerName: "smartzap-a1b2c3d4",
+    });
+  });
+
+  it("recusa consumidor ou DLQ arbitrários em vez de normalizá-los", () => {
+    const foreignQueue = installationConfig();
+    foreignQueue.queues.consumers[0].queue = "fila-de-outra-instalacao";
+    expect(() => prepareIsolatedDeploymentConfig(JSON.stringify(foreignQueue))).toThrow(/consumidora WEBHOOK está ausente/);
+
+    const foreignDlq = installationConfig();
+    foreignDlq.queues.consumers[0].dead_letter_queue = "dlq-de-outra-instalacao";
+    expect(() => prepareIsolatedDeploymentConfig(JSON.stringify(foreignDlq))).toThrow(/DLQ consumidora WEBHOOK/);
+  });
+
   it("recusa configuração interna fixa, ausente, duplicada ou divergente", () => {
     const fixed = installationConfig();
     expect(() => assertPreparedRuntimeResources(JSON.stringify(fixed))).toThrow(/Workflow CAMPAIGN_WF/);

@@ -111,9 +111,70 @@ function findExactlyOne(entries, predicate, missingMessage, duplicateMessage) {
   return matches[0];
 }
 
+function normalizeCloudflareQueueConsumers(parsed, workerName) {
+  const producers = Array.isArray(parsed.queues?.producers) ? parsed.queues.producers : [];
+  const consumers = Array.isArray(parsed.queues?.consumers) ? parsed.queues.consumers : [];
+  const producerNames = new Map(producers.map((entry) => [entry?.binding, entry?.queue]));
+  const specs = [
+    {
+      label: "WEBHOOK",
+      queueBinding: "WEBHOOK_QUEUE",
+      dlqBinding: "WEBHOOK_DLQ",
+      defaultQueue: "smartzap-meta-webhooks",
+      defaultDlq: "smartzap-meta-webhooks-dlq",
+    },
+    {
+      label: "AUTOMATION",
+      queueBinding: "AUTOMATION_QUEUE",
+      dlqBinding: "AUTOMATION_DLQ",
+      defaultQueue: "smartzap-inbox-automation",
+      defaultDlq: "smartzap-inbox-automation-dlq",
+    },
+    {
+      label: "CAPI",
+      queueBinding: "CAPI_QUEUE",
+      dlqBinding: null,
+      defaultQueue: "smartzap-meta-conversions",
+      defaultDlq: null,
+    },
+  ];
+
+  if (consumers.length !== specs.length) {
+    throw new Error("A quantidade de filas consumidoras mudou. Nenhum recurso remoto foi alterado.");
+  }
+
+  for (const spec of specs) {
+    const queueName = producerNames.get(spec.queueBinding);
+    const allowedQueueNames = new Set([spec.defaultQueue, queueName]);
+    const consumer = findExactlyOne(
+      consumers,
+      (entry) => allowedQueueNames.has(entry?.queue),
+      `A fila consumidora ${spec.label} está ausente. Nenhum recurso remoto foi alterado.`,
+      `A fila consumidora ${spec.label} aparece mais de uma vez. Nenhum recurso remoto foi alterado.`,
+    );
+    if (queueName !== `${workerName}-${spec.defaultQueue.replace(/^smartzap-/, "")}`) {
+      throw new Error(`A fila produtora ${spec.label} não pertence a ${workerName}. Nenhum recurso remoto foi alterado.`);
+    }
+    consumer.queue = queueName;
+
+    if (spec.dlqBinding) {
+      const dlqName = producerNames.get(spec.dlqBinding);
+      const allowedDlqNames = new Set([spec.defaultDlq, dlqName]);
+      if (!allowedDlqNames.has(consumer.dead_letter_queue)) {
+        throw new Error(`A DLQ consumidora ${spec.label} não pertence a ${workerName}. Nenhum recurso remoto foi alterado.`);
+      }
+      consumer.dead_letter_queue = dlqName;
+    } else if (consumer.dead_letter_queue) {
+      throw new Error(`A fila consumidora ${spec.label} contém uma DLQ inesperada. Nenhum recurso remoto foi alterado.`);
+    }
+  }
+}
+
 export function prepareIsolatedDeploymentConfig(source) {
-  const { workerName } = assertIsolatedResourceNames(source);
   const parsed = JSON.parse(stripJsonComments(source));
+  const workerName = readWorkerName(source);
+  normalizeCloudflareQueueConsumers(parsed, workerName);
+  assertIsolatedResourceNames(JSON.stringify(parsed));
   const runtime = deriveRuntimeResourceNames(workerName);
   const workflows = Array.isArray(parsed.workflows) ? parsed.workflows : [];
   const workflowClasses = {
