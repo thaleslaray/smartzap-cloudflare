@@ -107,4 +107,34 @@ describe("reconciliação de status órfãos", () => {
       last_apply_error: "campaign_contact_not_found",
     });
   });
+
+  it("encerra callback antigo da mensagem de setup sem tratá-lo como órfão de campanha", async () => {
+    await env.DB.prepare(
+      "UPDATE status_events SET apply_state='ignored' WHERE apply_state='pending'",
+    ).run();
+    const messageId = `wamid.setup.${crypto.randomUUID()}`;
+    await env.DB.prepare(
+      `INSERT INTO settings(key,value,updated_at) VALUES('setup_test_message_id',?1,datetime('now'))
+       ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at`,
+    ).bind(messageId).run();
+    await env.DB.prepare(
+      `INSERT INTO status_events(message_id,status,raw,received_at,event_kind,event_key,waba_id,apply_state,last_apply_error)
+       VALUES(?1,'delivered','{}',datetime('now'),'message_status',?2,'waba-reconcile','pending','campaign_contact_not_found')`,
+    ).bind(messageId, `status:${messageId}:delivered`).run();
+
+    const result = await reconcilePendingStatusEvents(env.DB);
+    expect(result).toMatchObject({
+      scanned: 1,
+      applied: 0,
+      alreadyCanonical: 1,
+      unmatched: 0,
+      errors: 0,
+    });
+    expect(await env.DB.prepare(
+      "SELECT apply_state,last_apply_error FROM status_events WHERE message_id=?1",
+    ).bind(messageId).first()).toEqual({
+      apply_state: "ignored",
+      last_apply_error: null,
+    });
+  });
 });

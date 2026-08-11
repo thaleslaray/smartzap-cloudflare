@@ -16,6 +16,12 @@ import {
 import { getCredentials, getMetaSecrets, type MetaSecrets } from "../whatsapp/credentials";
 import { whatsappClient } from "../whatsapp/client";
 import { probeMeta } from "../whatsapp/health";
+import {
+  configureMetaAppWebhookSubscription,
+  configureMetaPhoneWebhookOverride,
+  configureMetaWabaWebhookOverride,
+  MetaFlowApiError,
+} from "../whatsapp/flows";
 import { reconcileSetupMessageDelivery } from "../setup/delivery";
 
 const MetaSetupSchema = z.object({
@@ -264,6 +270,76 @@ export const setupRoutes = new Hono<{ Bindings: Env }>()
       updateInstallation(c.env.DB, "configuring", "meta"),
     ]);
     return c.json({ ok: true, callbackUrl });
+  })
+  .post("/meta/webhook/configure", async (c) => {
+    const credentials = await getCredentials(c.env).catch(() => null);
+    if (!credentials)
+      return c.json({ error: "credenciais da Meta ainda não foram cadastradas" }, 409);
+    if (!credentials.verifyToken)
+      return c.json({ error: "Verify Token ausente; salve novamente as credenciais da Meta" }, 409);
+    const verifyToken = credentials.verifyToken;
+
+    const callbackUrl = `${new URL(c.req.url).origin}/webhook`;
+    if (new URL(callbackUrl).protocol !== "https:" && c.env.ENVIRONMENT === "production")
+      return c.json({ error: "o webhook de produção precisa usar HTTPS" }, 400);
+    const operationalCredentials = { ...credentials, callbackUrl };
+
+    try {
+      // A precedência da Meta é número → WABA → aplicativo. Configuramos os
+      // três níveis para que um override antigo não desvie os callbacks da
+      // instalação nova. Nenhum secret deixa o Worker.
+      await configureMetaAppWebhookSubscription({
+        version: operationalCredentials.graphVersion,
+        appId: operationalCredentials.appId,
+        appSecret: operationalCredentials.appSecret,
+        callbackUrl,
+        verifyToken,
+      });
+      await configureMetaWabaWebhookOverride({
+        version: operationalCredentials.graphVersion,
+        wabaId: operationalCredentials.wabaId,
+        token: operationalCredentials.token,
+        callbackUrl,
+        verifyToken,
+      });
+      await configureMetaPhoneWebhookOverride({
+        version: operationalCredentials.graphVersion,
+        phoneId: operationalCredentials.phoneId,
+        token: operationalCredentials.token,
+        callbackUrl,
+        verifyToken,
+      });
+
+      const result = await probeMeta(operationalCredentials);
+      if (!result.ok) {
+        const detail = result.error || "a Meta não confirmou o callback desta instalação";
+        await Promise.all([
+          setCheck(c.env.DB, "meta_credentials", "failed", detail),
+          updateInstallation(c.env.DB, "failed", "meta_webhook", detail),
+        ]);
+        return c.json({ error: detail, code: result.code }, 502);
+      }
+
+      await Promise.all([
+        setCheck(
+          c.env.DB,
+          "meta_credentials",
+          "passed",
+          "token, aplicativo, WABA, número e webhook validados na Meta",
+        ),
+        updateInstallation(c.env.DB, "configuring", "meta_webhook"),
+      ]);
+      return c.json({ ok: true, callbackUrl });
+    } catch (error) {
+      const detail = error instanceof MetaFlowApiError
+        ? error.message
+        : "não foi possível configurar o webhook automaticamente";
+      await Promise.all([
+        setCheck(c.env.DB, "meta_credentials", "failed", detail),
+        updateInstallation(c.env.DB, "failed", "meta_webhook", detail),
+      ]);
+      return c.json({ error: detail }, 502);
+    }
   })
   .post("/meta/validate", async (c) => {
     const credentials = await getCredentials(c.env).catch(() => null);

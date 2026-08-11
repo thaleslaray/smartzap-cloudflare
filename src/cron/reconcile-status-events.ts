@@ -1,4 +1,5 @@
 import { campaignContactsDb } from "../db/campaign-contacts";
+import { settingsDb } from "../db/settings";
 import { statusEventsDb } from "../db/status-events";
 
 export type StatusEventReconciliation = {
@@ -21,6 +22,7 @@ export async function reconcilePendingStatusEvents(
 ): Promise<StatusEventReconciliation> {
   const inbox = statusEventsDb(db);
   const pending = await inbox.pending(limit);
+  const setupMessageId = await settingsDb(db).get("setup_test_message_id");
   const campaignIds = new Set<string>();
   let applied = 0;
   let alreadyCanonical = 0;
@@ -40,6 +42,11 @@ export async function reconcilePendingStatusEvents(
           : undefined,
       );
       if (!result) {
+        if (setupMessageId && event.message_id === setupMessageId) {
+          await inbox.markIgnored(event.event_key);
+          alreadyCanonical += 1;
+          continue;
+        }
         unmatched += 1;
         await inbox.markPending(event.event_key, "campaign_contact_not_found");
         continue;

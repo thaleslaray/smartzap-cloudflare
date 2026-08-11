@@ -1,10 +1,12 @@
 import { SELF, env } from "cloudflare:test";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { handleWebhookBatch } from "../src/queue/webhook-consumer";
 import type { MetaWebhookEvent } from "../src/api/webhook";
 import { workflowProbeOutputOk, workflowProbeStatusOk } from "../src/api/setup";
 
 const AUTH = { "x-api-key": "dev-api-key", "content-type": "application/json" };
+
+afterEach(() => vi.unstubAllGlobals());
 
 describe("instalação SmartZap", () => {
   it("aceita a saída JSON serializada devolvida pelo Workflow da Cloudflare", () => {
@@ -72,6 +74,104 @@ describe("instalação SmartZap", () => {
     const state = await SELF.fetch("https://x.com/api/setup/status", { headers: AUTH })
       .then((result) => result.json() as Promise<{ installation: { last_step: string } }>);
     expect(state.installation.last_step).toBe("meta");
+  });
+
+  it("configura app, WABA e número usando o Verify Token guardado no cofre", async () => {
+    await env.DB.batch([
+      env.DB.prepare(
+        "INSERT INTO settings(key,value)VALUES('whatsapp_phone_id','11111') ON CONFLICT(key) DO UPDATE SET value='11111'",
+      ),
+      env.DB.prepare(
+        "INSERT INTO settings(key,value)VALUES('whatsapp_waba_id','22222') ON CONFLICT(key) DO UPDATE SET value='22222'",
+      ),
+    ]);
+    const callbackUrl = "https://x.com/webhook";
+    const replies = [
+      { success: true },
+      { success: true },
+      { success: true },
+      {
+        id: "11111",
+        status: "CONNECTED",
+        platform_type: "CLOUD_API",
+        account_mode: "LIVE",
+        quality_rating: "GREEN",
+        code_verification_status: "VERIFIED",
+        webhook_configuration: {
+          phone_number: callbackUrl,
+          whatsapp_business_account: callbackUrl,
+          application: callbackUrl,
+        },
+      },
+      { id: "22222" },
+      { data: [{ id: "11111" }] },
+      {
+        data: [{
+          whatsapp_business_api_data: { id: "123456789" },
+          override_callback_uri: callbackUrl,
+        }],
+      },
+      {
+        data: {
+          is_valid: true,
+          app_id: "123456789",
+          type: "SYSTEM_USER",
+          scopes: ["whatsapp_business_management", "whatsapp_business_messaging"],
+        },
+      },
+      {
+        data: [{
+          object: "whatsapp_business_account",
+          active: true,
+          callback_url: callbackUrl,
+          fields: ["messages", "flows"],
+        }],
+      },
+    ];
+    const fetchMock = vi.fn(async () => new Response(
+      JSON.stringify(replies[fetchMock.mock.calls.length - 1]),
+      { status: 200 },
+    ));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await SELF.fetch("https://x.com/api/setup/meta/webhook/configure", {
+      method: "POST",
+      headers: AUTH,
+    });
+    const raw = await response.text();
+    expect(response.status).toBe(200);
+    expect(JSON.parse(raw)).toEqual({ ok: true, callbackUrl });
+    expect(raw).not.toContain("dev-meta-secret");
+    expect(raw).not.toContain("dev-verify");
+    expect(raw).not.toContain("test-token");
+
+    expect(fetchMock).toHaveBeenCalledTimes(9);
+    const calls = fetchMock.mock.calls as unknown as Array<[string, RequestInit]>;
+    expect(String(calls[0]?.[0])).toContain("/123456789/subscriptions");
+    expect(String(calls[1]?.[0])).toContain("/22222/subscribed_apps");
+    expect(String(calls[2]?.[0])).toContain("/11111");
+    const appBody = new URLSearchParams(String(calls[0]?.[1]?.body));
+    const wabaBody = JSON.parse(String(calls[1]?.[1]?.body)) as {
+      override_callback_uri: string;
+      verify_token: string;
+    };
+    const phoneBody = JSON.parse(String(calls[2]?.[1]?.body)) as {
+      webhook_configuration: { override_callback_uri: string; verify_token: string };
+    };
+    expect(wabaBody.override_callback_uri).toBe(callbackUrl);
+    expect(wabaBody.verify_token).toMatch(/^verify-/);
+    expect(appBody.get("verify_token")).toBe(wabaBody.verify_token);
+    expect(phoneBody).toEqual({
+      webhook_configuration: {
+        override_callback_uri: callbackUrl,
+        verify_token: wabaBody.verify_token,
+      },
+    });
+    expect((await env.DB.prepare(
+      "SELECT status,detail FROM setup_checks WHERE id='meta_credentials'",
+    ).first<{ status: string; detail: string }>())).toMatchObject({
+      status: "passed",
+    });
   });
 
   it("não libera o núcleo sem evidência de Meta, templates e read", async () => {
@@ -150,6 +250,15 @@ describe("instalação SmartZap", () => {
     expect(completed).toMatchObject({ status: "passed" });
     expect(completed?.detail).toContain("automaticamente");
     expect(installation?.last_step).toBe("real_message_read");
+    expect((await env.DB.prepare(
+      `SELECT status,apply_state,last_apply_error FROM status_events
+       WHERE message_id=?1 ORDER BY CASE status
+         WHEN 'sent' THEN 1 WHEN 'delivered' THEN 2 WHEN 'read' THEN 3 END`,
+    ).bind(messageId).all()).results).toEqual([
+      { status: "sent", apply_state: "ignored", last_apply_error: null },
+      { status: "delivered", apply_state: "ignored", last_apply_error: null },
+      { status: "read", apply_state: "ignored", last_apply_error: null },
+    ]);
   });
 
   it("não mantém a liberação quando um gate operacional deixa de estar verde", async () => {

@@ -94,6 +94,10 @@ export default function Setup() {
     mutationFn: () => api<{ callbackUrl: string }>("/api/setup/meta", { method: "PUT", body: JSON.stringify(meta) }),
     onSuccess: () => { setMeta(emptyMeta); refresh(); },
   });
+  const configureWebhook = useMutation({
+    mutationFn: () => api<{ callbackUrl: string }>("/api/setup/meta/webhook/configure", { method: "POST" }),
+    onSuccess: refresh,
+  });
   const validateMeta = useMutation({ mutationFn: () => api("/api/setup/meta/validate", { method: "POST" }), onSuccess: refresh });
   const probeInfrastructure = useMutation({ mutationFn: () => api("/api/setup/infrastructure/probe", { method: "POST" }), onSuccess: refresh });
   const rotateVault = useMutation({ mutationFn: () => api("/api/setup/vault/rotate", { method: "POST" }), onSuccess: refresh });
@@ -116,7 +120,7 @@ export default function Setup() {
   const metaCheck = data.checks.meta_credentials;
   const templatesCheck = data.checks.templates;
   const messageCheck = data.checks.real_message;
-  const metaProblem = errorMessage(saveMeta.error) ?? errorMessage(validateMeta.error) ?? (metaCheck?.status === "failed" ? metaCheck.detail : null);
+  const metaProblem = errorMessage(saveMeta.error) ?? errorMessage(configureWebhook.error) ?? errorMessage(validateMeta.error) ?? (metaCheck?.status === "failed" ? metaCheck.detail : null);
   const templateProblem = errorMessage(sync.error) ?? (templatesCheck?.status === "failed" ? templatesCheck.detail : null);
   const messageProblem = errorMessage(send.error) ?? (messageCheck?.status === "failed" ? messageCheck.detail : null);
   const infrastructureProblem = errorMessage(probeInfrastructure.error);
@@ -247,7 +251,8 @@ export default function Setup() {
           <label className="text-sm text-zinc-400">Versão Graph<input className={`${inputClass} mt-2`} value={meta.graphVersion} onChange={(event) => setMeta((current) => ({ ...current, graphVersion: event.target.value }))} /></label>
           <div className="flex flex-wrap items-end gap-3">
             <Button loading={saveMeta.isPending} disabled={!data.vault.configured} type="submit">Salvar com segurança</Button>
-            <Button loading={validateMeta.isPending} disabled={!data.vault.metaStored} type="button" variant="secondary" onClick={() => validateMeta.mutate()}>Validar conexão</Button>
+            <Button loading={configureWebhook.isPending} disabled={!data.vault.metaStored} type="button" variant="secondary" onClick={() => configureWebhook.mutate()}>Configurar webhook</Button>
+            <Button loading={validateMeta.isPending} disabled={!data.vault.metaStored} type="button" variant="secondary" onClick={() => validateMeta.mutate()}>Verificar novamente</Button>
           </div>
         </form>
         {metaProblem && (
@@ -256,7 +261,7 @@ export default function Setup() {
           </InlineNotice>
         )}
         {metaCheck?.status === "pending" && (
-          <InlineNotice title="Credenciais salvas" tone="warning">Agora selecione “Validar conexão” para confirmar o acesso à sua conta da Meta.</InlineNotice>
+          <InlineNotice title="Credenciais salvas" tone="warning">Agora selecione “Configurar webhook”. O SmartZap fará a configuração e a validação na Meta sem mostrar seus segredos.</InlineNotice>
         )}
         {metaCheck?.status === "passed" && (
           <InlineNotice title="Meta e WhatsApp conectados" tone="success">Token, aplicativo, WABA e número foram validados.</InlineNotice>
@@ -265,7 +270,7 @@ export default function Setup() {
           <div className="mt-5 rounded-xl border border-white/10 p-4 text-sm">
             <p className="font-semibold text-zinc-200"><Webhook className="mr-2 inline text-[#96f6bc]" size={17} aria-hidden="true" />Endereço do webhook</p>
             <code className="mt-2 block break-all text-zinc-300">{data.meta.callbackUrl}</code>
-            <p className="mt-2 text-xs leading-relaxed text-zinc-500">Na Meta, abra a configuração do WhatsApp, cole este endereço no campo de callback e use o mesmo Verify Token informado acima.</p>
+            <p className="mt-2 text-xs leading-relaxed text-zinc-500">O SmartZap configura este endereço automaticamente. Use-o apenas para conferir a configuração no painel da Meta.</p>
           </div>
         )}
       </Card>

@@ -418,6 +418,7 @@ export async function handleWebhookBatch(
   const eventRecords = await Promise.all(events.map(recordFor));
   const statusInbox = statusEventsDb(env.DB);
   await statusInbox.insertMany(eventRecords);
+  const setupMessageId = await settingsDb(env.DB).get("setup_test_message_id");
 
   // O assistente de instalação acompanha os callbacks pela própria Queue. Isso
   // evita deixar o gate pendente até alguém abrir a tela e consultar o status.
@@ -816,10 +817,17 @@ export async function handleWebhookBatch(
         await pricing.reconcileCampaignCost(updated.campaign_id);
     }
     if (!updated) {
-      await statusInbox.markPending(
-        eventRecord.event_key,
-        "campaign_contact_not_found",
-      );
+      if (setupMessageId && event.status.id === setupMessageId) {
+        // A mensagem real do assistente de instalação não pertence a uma
+        // campanha. Seus callbacks comprovam o gate do setup e são terminais;
+        // mantê-los pendentes criaria retry e backlog infinitos.
+        await statusInbox.markIgnored(eventRecord.event_key);
+      } else {
+        await statusInbox.markPending(
+          eventRecord.event_key,
+          "campaign_contact_not_found",
+        );
+      }
       continue;
     }
     await statusInbox.markApplied(eventRecord.event_key, {

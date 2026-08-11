@@ -84,7 +84,8 @@ test("assistente falha fechado e não expõe os segredos cadastrados", async ({ 
   await expect(page.getByRole("heading", { name: "Configuração inicial" })).toBeVisible();
   await expect(page.getByText("1 recurso(s) precisa(m) de atenção.")).toBeVisible();
   await expect(page.getByText("Agendamento automático")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Validar conexão" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Configurar webhook" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Verificar novamente" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Rotacionar cofre" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Enviar mensagem de teste" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Concluir configuração" })).toBeDisabled();

@@ -119,7 +119,8 @@ export function statusEventsDb(db: D1Database) {
     },
     async markIgnored(eventKey: string) {
       await db.prepare(
-        `UPDATE status_events SET apply_state='ignored', applied_at=datetime('now')
+        `UPDATE status_events SET apply_state='ignored', applied_at=datetime('now'),
+           last_apply_error=NULL
          WHERE event_key=?1 AND apply_state='pending'`,
       ).bind(eventKey).run();
     },

@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "generatedAt": "2026-08-11T22:07:29.198Z",
+  "generatedAt": "2026-08-11T23:06:42.199Z",
   "sourceCommit": "f6440d2d5be11b0c343d2c0a3b827b1f47ebc666",
   "sourceWorktreeDirty": true,
   "publicRepository": "https://github.com/thaleslaray/smartzap-cloudflare",
-  "snapshotHash": "70ebf29c2bfa8df6337325a1f16e1ff459ca0366c9b5f1efc3aadba24d70eb74",
+  "snapshotHash": "80f879b0d5a434e056eabe6f9c80110533ff883f6d1ab4957bfa65a4932003fe",
   "files": [
     {
       "path": ".dev.vars.example",
@@ -232,7 +232,7 @@
     },
     {
       "path": "app/pages/Setup.tsx",
-      "sha256": "df7910dd823e3accd35ea22ade22259d60c8d2d45c363dde3fc1f09805bdc895"
+      "sha256": "beb76c01ffd8f9933e12fa7873d2702dd77fc0af7fb0c452e49c3a494d17faa3"
     },
     {
       "path": "app/pages/Submissions.tsx",
@@ -448,7 +448,7 @@
     },
     {
       "path": "e2e/installer-setup.spec.ts",
-      "sha256": "f36532cdfe6e7090cf2a2a672022694fd775318acc58297b0c4f8726218404c7"
+      "sha256": "6bb31fe3876054adbfe4fdf577d2a1b14389d70a6f420020bb867632d7b95be7"
     },
     {
       "path": "e2e/legal-public.spec.ts",
@@ -1044,7 +1044,7 @@
     },
     {
       "path": "src/api/setup.ts",
-      "sha256": "afd725e05ef065c33f5b529c58e18916dee70494f2b574a89567904d8ce2127f"
+      "sha256": "30ca3e0d90cf42cf9c2af19b915ad5e4e55a11154986835de6b018079b8b529c"
     },
     {
       "path": "src/api/templates.ts",
@@ -1072,7 +1072,7 @@
     },
     {
       "path": "src/cron/reconcile-status-events.ts",
-      "sha256": "f8efd6297e953b007fc5ed6ddba6f428c6e4d3779a4a7def261cb6af777d1d4f"
+      "sha256": "bea7a1996ba4a3cc0c7f4b131d5abcf877097ff36cd71e3b08d5aa120b23d204"
     },
     {
       "path": "src/cron/reconcile.ts",
@@ -1128,7 +1128,7 @@
     },
     {
       "path": "src/db/status-events.ts",
-      "sha256": "b9ee2b4c01e9dfc25cdc2a47fe60eabac45f172097b4d92d71f1def6f843c376"
+      "sha256": "3f9179bbe0b2668c56840016a5def014978d5aa604e298a0e8886e838bee73f6"
     },
     {
       "path": "src/db/template-drafts.ts",
@@ -1264,7 +1264,7 @@
     },
     {
       "path": "src/queue/webhook-consumer.ts",
-      "sha256": "6380f8c0b2ddede3006270d8efbc252d17d5aab0c87b6a6a915e3c3161a35700"
+      "sha256": "8a4dd79f706ede18efbf452c0ecb45394c070f26fdaa8d656ab063a7777affd8"
     },
     {
       "path": "src/security/vault.ts",
@@ -1620,7 +1620,7 @@
     },
     {
       "path": "tests/reconcile-status-events.test.ts",
-      "sha256": "546d1ca3bf2bf539305cf86d4f4ef926837635b1ff2ab95fc388cfcc72f26f74"
+      "sha256": "205b40173bd628dd5ebd11bfb56e191387b31af595aeb9c03db833678b021cd2"
     },
     {
       "path": "tests/reconcile.test.ts",
@@ -1636,7 +1636,7 @@
     },
     {
       "path": "tests/setup-installer.test.ts",
-      "sha256": "0b448a23f78da3ba99c63078b00689e4bf9eae8cb2cb3f16b1312919dcb19471"
+      "sha256": "52e0a970079e97e6674effe7b74d9f14141c383cf577133a5d5e6684804c80b1"
     },
     {
       "path": "tests/template-factory.test.ts",
