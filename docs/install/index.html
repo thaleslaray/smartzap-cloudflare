@@ -15,7 +15,7 @@
       button, a.button { min-height: 44px; border-radius: 12px; border: 1px solid #34413a; padding: 0 16px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; cursor: pointer; }
       button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid #87efb0; outline-offset: 3px; }
       button.primary, a.primary { background: #bffbd3; border-color: #bffbd3; color: #07120b; font-weight: 750; }
-      button.secondary { background: #151b18; color: #f2f6f3; }
+      button.secondary, a.secondary { background: #151b18; color: #f2f6f3; }
       button:disabled, a.disabled { cursor: not-allowed; opacity: .45; pointer-events: none; }
       main { width: min(820px, calc(100% - 32px)); margin: 0 auto; padding: 40px 0 64px; }
       header { display: flex; align-items: center; gap: 12px; margin-bottom: 48px; }
@@ -45,6 +45,8 @@
       .check input { width: 18px; height: 18px; margin-top: 2px; accent-color: #74e8a2; }
       .check a { color: #9cf6be; }
       .notice { border-color: #5a4b24; background: #17150d; color: #f5dda0; }
+      .blocked { border-color: #654b31; background: #18120d; }
+      .blocked a { color: #bffbd3; }
       .status { min-height: 24px; color: #8df4b6; font-size: 14px; }
       .hidden { display: none !important; }
       footer { margin-top: 32px; color: #7f8b84; font-size: 13px; line-height: 1.6; }
@@ -101,13 +103,20 @@
           </div>
         </div>
 
-        <div class="actions">
-          <a id="deploy" class="button primary disabled" aria-disabled="true" href="https://deploy.workers.cloudflare.com/?url=https%3A%2F%2Fgithub.com%2Fthaleslaray%2Fsmartzap-cloudflare">Deploy to Cloudflare</a>
+        <div class="card blocked" aria-labelledby="cloudflare-status-title">
+          <div class="eyebrow">Status da plataforma</div>
+          <h2 id="cloudflare-status-title">A instalação de um clique está temporariamente pausada.</h2>
+          <p>A Cloudflare está criando os recursos, mas substitui o código do repositório por um Worker vazio e não conecta o primeiro build. O defeito foi reproduzido depois de confirmar a integração do GitHub e liberar a cota de tokens.</p>
+          <p class="muted">A cópia completa pelo GitHub e a conexão manual do Workers Builds funcionaram em um probe. Isso ainda não comprova o provisionamento integral do SmartZap e, por segurança, não será oferecido como instalação produtiva.</p>
+          <div class="actions">
+            <button id="deploy" class="primary" type="button" disabled>Deploy to Cloudflare temporariamente indisponível</button>
+            <a class="button secondary" href="https://github.com/cloudflare/workers-sdk/issues/14553" target="_blank" rel="noreferrer">Acompanhar correção da Cloudflare</a>
+          </div>
+          <p id="deploy-help" class="muted">Você pode gerar e guardar a recuperação agora. O deploy será liberado somente quando a Cloudflare publicar a árvore real e conectar o build.</p>
         </div>
-        <p id="deploy-help" class="muted">Baixe a recuperação e conclua as cinco confirmações para liberar o deploy.</p>
       </section>
 
-      <footer>SmartZap RC8 · O arquivo de recuperação é criado localmente por Web Crypto. Fechar ou recarregar esta página apaga os valores da memória da página.</footer>
+      <footer>SmartZap RC9 · O arquivo de recuperação é criado localmente por Web Crypto. Fechar ou recarregar esta página apaga os valores da memória da página.</footer>
     </main>
 
     <script>
@@ -167,9 +176,8 @@
         const updateDeploy = () => {
           const checked = Array.from(document.querySelectorAll("[data-preflight]"), (item) => item.checked).every(Boolean);
           const ready = Boolean(current && recoverySaved && checked);
-          $("#deploy").classList.toggle("disabled", !ready);
-          $("#deploy").setAttribute("aria-disabled", String(!ready));
-          $("#deploy-help").textContent = ready ? "Pronto. Na Cloudflare, cole os dois secrets e substitua todos os nomes pelos valores salvos." : "Baixe a recuperação e conclua as cinco confirmações para liberar o deploy.";
+          $("#deploy").disabled = true;
+          $("#deploy-help").textContent = ready ? "Sua recuperação está pronta. O deploy continua bloqueado até a correção do provisionador da Cloudflare." : "Você pode gerar e guardar a recuperação agora. O deploy será liberado somente quando a Cloudflare publicar a árvore real e conectar o build.";
         };
         const clear = () => {
           current = null;
@@ -220,7 +228,6 @@
         });
         $("#restart").addEventListener("click", clear);
         document.querySelectorAll("[data-preflight]").forEach((item) => item.addEventListener("change", updateDeploy));
-        $("#deploy").addEventListener("click", (event) => { if ($("#deploy").getAttribute("aria-disabled") === "true") event.preventDefault(); });
         addEventListener("pagehide", clear, { once: true });
         validate(); updateDeploy();
       })();

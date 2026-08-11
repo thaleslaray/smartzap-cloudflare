@@ -21,7 +21,7 @@ describe("instalador estático pré-deploy", () => {
     expect(source).toContain('addEventListener("pagehide", clear');
   });
 
-  it("exige recuperação e cinco confirmações antes do botão", () => {
+  it("exige recuperação e cinco confirmações antes do status final", () => {
     expect(source).toContain("Baixar arquivo de recuperação");
     // Cinco checkboxes e consultas JavaScript que agregam o conjunto.
     expect(source.match(/<input type="checkbox" data-preflight=/g)).toHaveLength(5);
@@ -32,9 +32,10 @@ describe("instalador estático pré-deploy", () => {
     expect(source).toContain("Cloudflare Workers and Pages");
   });
 
-  it("usa o endpoint oficial e a raiz pública suportada", () => {
-    expect(source).toContain("https://deploy.workers.cloudflare.com/?url=");
-    expect(source).toContain("https%3A%2F%2Fgithub.com%2Fthaleslaray%2Fsmartzap-cloudflare");
-    expect(source).not.toContain("%2Ftree%2F");
+  it("bloqueia o deploy conhecido como defeituoso e aponta para o incidente upstream", () => {
+    expect(source).toContain("Deploy to Cloudflare temporariamente indisponível");
+    expect(source).toContain("https://github.com/cloudflare/workers-sdk/issues/14553");
+    expect(source).toContain('$("#deploy").disabled = true');
+    expect(source).not.toContain("https://deploy.workers.cloudflare.com/?url=");
   });
 });
