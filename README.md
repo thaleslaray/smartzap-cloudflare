@@ -2,31 +2,29 @@
 
 WhatsApp oficial para campanhas, Inbox, contatos e templates, executado inteiramente na conta Cloudflare de quem instala.
 
-## Candidata técnica — distribuição ainda bloqueada
+## Candidata técnica — homologação final
 
-O instalador está em homologação. A tag candidata pode ser usada somente nos
-ensaios controlados registrados em `Auditoria.md`; ainda não divulgue este
-repositório como instalação simples ou pronta para produção.
+O provisionador OAuth está em homologação física. Ele pode ser usado nos ensaios
+controlados registrados em `Auditoria.md`; a divulgação como instalação simples
+continua bloqueada até três instalações limpas aprovadas.
 
-1. Abra o **[instalador público independente](https://thaleslaray.github.io/smartzap-cloudflare/install/)**. Ele funciona antes de existir qualquer Worker na sua conta.
-2. Crie e confirme sua `MASTER_PASSWORD`; o navegador gera automaticamente a `SMARTZAP_VAULT_KEY`.
-3. Baixe o arquivo de recuperação e guarde-o em um cofre de senhas. Ele também contém nomes exclusivos para o Worker, D1, R2, filas e DLQs.
-4. Conclua o preflight da conta: conta Cloudflare correta, R2 ativo, vaga para User API Token, integração GitHub instalada e nomes exclusivos confirmados.
-5. Clique em **Deploy to Cloudflare**, cole os dois valores e substitua cada nome pelo correspondente do arquivo.
-6. Confirme no painel que todos os recursos aparecem como **novos**. Nunca aceite D1, R2 ou fila existente ou pré-selecionada.
-7. Ao final do deploy, abra `https://SEU-WORKER.workers.dev/setup`.
-8. Cadastre a Meta, configure o webhook, sincronize os templates e conclua a mensagem real de homologação.
+1. Abra o **[instalador seguro do SmartZap](https://smartzap-provisioner.thales2581.workers.dev/)**.
+2. Autorize a Cloudflare pelo OAuth oficial e escolha explicitamente a conta de destino.
+3. Defina sua senha administrativa; a chave do cofre é criada no navegador.
+4. Baixe o arquivo de recuperação e guarde-o em um gerenciador de senhas.
+5. Confira o plano somente leitura. Recurso incompatível ou sem ledger bloqueia a execução.
+6. Instale e abra o `/setup` indicado ao final.
+7. Cadastre a Meta, configure o webhook, sincronize os templates e conclua a mensagem real de homologação.
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https%3A%2F%2Fgithub.com%2Fthaleslaray%2Fsmartzap-cloudflare)
+O instalador não pede senha da Cloudflare, API Token, CLI, GitHub Actions nem
+configuração manual de bindings. Tokens OAuth ficam cifrados no D1 do control
+plane, expiram em até 30 minutos e são apagados após instalação, desconexão ou
+limpeza de sessão abandonada.
 
-> Botão liberado somente para a homologação controlada. A divulgação como
-> instalação simples continua bloqueada até três instalações físicas aprovadas,
-> cleanup sem resíduo e liberação de `INST-01` a `INST-07`.
-
-## O que a Cloudflare provisiona
+## O que o provisionador cria na conta escolhida
 
 - Worker e assets da aplicação;
-- D1 com migrações automáticas;
+- D1 com uma única baseline final atômica;
 - R2 para mídia;
 - Queues e DLQs de webhook, automação e conversões;
 - Durable Objects de tempo real e controle de vazão;
@@ -34,20 +32,16 @@ repositório como instalação simples ou pronta para produção.
 - Cron operacional e rate limit de login;
 - Workers AI disponível, mas desligado até ativação explícita.
 
-AI Search não faz parte do núcleo do botão oficial porque não está entre os
-recursos provisionados automaticamente por esse fluxo. Se o usuário ativar a
-base de conhecimento de IA no `/setup`, o assistente orienta a criação e a
-vinculação do namespace antes de liberar o módulo.
+AI Search não faz parte do núcleo. Se o usuário ativar a base de conhecimento de
+IA no `/setup`, o assistente só apresenta o módulo como pronto depois de confirmar
+um namespace próprio.
 
-O comando de deploy usa o binding `DB`, nunca um ID de conta. Antes de qualquer acesso remoto, o instalador deriva automaticamente do nome único do Worker os nomes dos dois Workflows, o namespace inteiro positivo do rate limit e o identificador do AI Gateway opcional. O usuário não precisa preencher esses recursos ocultos no formulário da Cloudflare. Em seguida, o guardião fail-closed reserva um D1 vazio para o nome do Worker. Um banco com dados, sem marcador ou pertencente a outro Worker interrompe o deploy sem alterá-lo:
-
-```sh
-npm run deploy:prepare
-npm run build
-npm run deploy:guard
-npm run db:migrate:remote
-wrangler deploy
-```
+Antes de qualquer criação, o plano deriva nomes exclusivos do identificador
+`smartzap-xxxxxxxx`, consulta cada recurso e classifica-o como `criar`,
+`reutilizar` pelo mesmo ledger ou `bloquear`. A baseline D1, o Worker e os assets
+são validados por SHA-256. Falha antes da liberação remove somente os recursos
+criados pela rodada; uma nova sessão OAuth pode retomar a mesma instalação sem
+duplicar versões ou consumidores.
 
 ## Segurança das credenciais
 
@@ -115,7 +109,7 @@ npm run e2e
 
 ## Variáveis e módulos opcionais
 
-O template público exige somente:
+O provisionador solicita somente:
 
 - `MASTER_PASSWORD`;
 - `SMARTZAP_VAULT_KEY`.

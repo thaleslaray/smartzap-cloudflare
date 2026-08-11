@@ -2,10 +2,24 @@ import { SELF, env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import { handleWebhookBatch } from "../src/queue/webhook-consumer";
 import type { MetaWebhookEvent } from "../src/api/webhook";
+import { workflowProbeOutputOk, workflowProbeStatusOk } from "../src/api/setup";
 
 const AUTH = { "x-api-key": "dev-api-key", "content-type": "application/json" };
 
 describe("instalação SmartZap", () => {
+  it("aceita a saída JSON serializada devolvida pelo Workflow da Cloudflare", () => {
+    expect(workflowProbeOutputOk('{"ok":true,"checkedAt":"2026-08-11T00:00:00Z"}')).toBe(true);
+    expect(workflowProbeOutputOk({ ok: true })).toBe(true);
+    expect(workflowProbeOutputOk('{"ok":false}')).toBe(false);
+  });
+
+  it("aceita Workflow concluído quando a Cloudflare ainda não materializou o output", () => {
+    expect(workflowProbeStatusOk({ status: "complete" })).toBe(true);
+    expect(workflowProbeStatusOk({ status: "complete", output: { ok: true } })).toBe(true);
+    expect(workflowProbeStatusOk({ status: "complete", output: { ok: false } })).toBe(false);
+    expect(workflowProbeStatusOk({ status: "running" })).toBe(false);
+  });
+
   it("executa um Workflow de diagnóstico antes de liberar a infraestrutura", async () => {
     const response = await SELF.fetch("https://x.com/api/setup/infrastructure/probe", {
       method: "POST",
@@ -148,5 +162,29 @@ describe("instalação SmartZap", () => {
     expect(state.infrastructure.cron).toBe(false);
     expect(state.complete).toBe(false);
     await env.DB.prepare("UPDATE settings SET value='false' WHERE key='setup_complete'").run();
+  });
+
+  it("reconhece cron recém-configurado pela API antes da primeira execução agendada", async () => {
+    await env.DB.prepare(
+      `INSERT INTO setup_checks(id,status,detail,checked_at)
+       VALUES('cron_config','passed','confirmado pela API',datetime('now'))
+       ON CONFLICT(id) DO UPDATE SET status='passed',detail='confirmado pela API',checked_at=datetime('now')`,
+    ).run();
+    const state = await SELF.fetch("https://x.com/api/setup/status", { headers: AUTH })
+      .then((result) => result.json() as Promise<{ infrastructure: { cron: boolean } }>);
+    expect(state.infrastructure.cron).toBe(true);
+    await env.DB.prepare("DELETE FROM setup_checks WHERE id='cron_config'").run();
+  });
+
+  it("exige heartbeat real quando a confirmação inicial do cron envelhece", async () => {
+    await env.DB.prepare(
+      `INSERT INTO setup_checks(id,status,detail,checked_at)
+       VALUES('cron_config','passed','confirmado pela API',datetime('now','-31 minutes'))
+       ON CONFLICT(id) DO UPDATE SET status='passed',detail='confirmado pela API',checked_at=datetime('now','-31 minutes')`,
+    ).run();
+    const state = await SELF.fetch("https://x.com/api/setup/status", { headers: AUTH })
+      .then((result) => result.json() as Promise<{ infrastructure: { cron: boolean } }>);
+    expect(state.infrastructure.cron).toBe(false);
+    await env.DB.prepare("DELETE FROM setup_checks WHERE id='cron_config'").run();
   });
 });

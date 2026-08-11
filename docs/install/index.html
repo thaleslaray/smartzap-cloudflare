@@ -5,52 +5,31 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="dark" />
     <meta name="referrer" content="no-referrer" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:; connect-src 'none'; font-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; font-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; navigate-to https://smartzap-provisioner.thales2581.workers.dev" />
     <title>Instalar SmartZap com segurança</title>
     <style>
       :root { color-scheme: dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #080b0a; color: #f2f6f3; }
       * { box-sizing: border-box; }
-      body { margin: 0; min-width: 320px; background: radial-gradient(circle at 80% 0%, rgba(39, 130, 82, .16), transparent 34rem), #080b0a; }
-      button, input, a { font: inherit; }
-      button, a.button { min-height: 44px; border-radius: 12px; border: 1px solid #34413a; padding: 0 16px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; cursor: pointer; }
-      button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid #87efb0; outline-offset: 3px; }
-      button.primary, a.primary { background: #bffbd3; border-color: #bffbd3; color: #07120b; font-weight: 750; }
-      button.secondary, a.secondary { background: #151b18; color: #f2f6f3; }
-      button:disabled, a.disabled { cursor: not-allowed; opacity: .45; pointer-events: none; }
-      main { width: min(820px, calc(100% - 32px)); margin: 0 auto; padding: 40px 0 64px; }
+      body { margin: 0; min-width: 320px; background: radial-gradient(circle at 80% 0%, rgba(39, 130, 82, .18), transparent 34rem), #080b0a; }
+      main { width: min(760px, calc(100% - 32px)); margin: 0 auto; padding: 48px 0 72px; }
       header { display: flex; align-items: center; gap: 12px; margin-bottom: 48px; }
       .logo { width: 42px; height: 42px; border-radius: 13px; display: grid; place-items: center; background: #0b8e63; font-weight: 900; font-size: 22px; }
       .brand { font-weight: 750; }
       .muted { color: #9da8a1; }
       .eyebrow { color: #8df4b6; text-transform: uppercase; letter-spacing: .14em; font-size: 12px; font-weight: 750; }
-      h1 { margin: 12px 0 14px; max-width: 700px; font-size: clamp(34px, 7vw, 58px); letter-spacing: -.045em; line-height: 1.02; }
-      h2 { margin: 0; font-size: 20px; }
+      h1 { margin: 14px 0; max-width: 700px; font-size: clamp(34px, 7vw, 58px); letter-spacing: -.045em; line-height: 1.02; }
+      h2 { margin: 3px 0 0; font-size: 18px; }
       p { line-height: 1.6; }
-      .card { margin-top: 20px; padding: clamp(20px, 4vw, 30px); border: 1px solid #28332d; border-radius: 22px; background: rgba(18, 24, 21, .92); }
-      .grid { display: grid; gap: 16px; }
-      .two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      label > span { display: block; margin-bottom: 8px; font-size: 14px; font-weight: 650; }
-      input[type="password"], input[type="text"] { width: 100%; min-height: 48px; border: 1px solid #34413a; border-radius: 12px; background: #0c110f; color: #fff; padding: 0 14px; }
-      .rules { margin: 18px 0 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; list-style: none; color: #aeb8b2; font-size: 14px; }
-      .rules li::before { content: "○"; margin-right: 8px; }
-      .rules li.ok { color: #8df4b6; }
-      .rules li.ok::before { content: "✓"; }
-      .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 22px; }
-      .secret { overflow-x: auto; margin-top: 10px; padding: 13px; border: 1px solid #2b3731; border-radius: 12px; background: #090d0b; color: #caffdd; white-space: nowrap; }
-      .resource-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
-      .resource { min-width: 0; padding: 12px; border: 1px solid #28332d; border-radius: 12px; background: #0c110f; }
-      .resource small { color: #8e9a93; text-transform: uppercase; letter-spacing: .08em; }
-      .resource code { display: block; overflow-x: auto; margin-top: 6px; color: #caffdd; }
-      .check { display: flex; gap: 12px; align-items: flex-start; padding: 13px; border: 1px solid #2c3832; border-radius: 12px; background: #0c110f; line-height: 1.45; }
-      .check input { width: 18px; height: 18px; margin-top: 2px; accent-color: #74e8a2; }
-      .check a { color: #9cf6be; }
-      .notice { border-color: #5a4b24; background: #17150d; color: #f5dda0; }
-      .blocked { border-color: #654b31; background: #18120d; }
-      .blocked a { color: #bffbd3; }
-      .status { min-height: 24px; color: #8df4b6; font-size: 14px; }
-      .hidden { display: none !important; }
-      footer { margin-top: 32px; color: #7f8b84; font-size: 13px; line-height: 1.6; }
-      @media (max-width: 620px) { .two, .rules, .resource-grid { grid-template-columns: 1fr; } .actions > * { width: 100%; } main { padding-top: 24px; } header { margin-bottom: 34px; } }
+      .card { margin-top: 28px; padding: clamp(20px, 4vw, 30px); border: 1px solid #28332d; border-radius: 22px; background: rgba(18, 24, 21, .92); }
+      ol { margin: 0; padding: 0; list-style: none; }
+      li { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 14px; padding: 17px 0; border-bottom: 1px solid #28332d; }
+      li:first-child { padding-top: 0; }
+      li:last-child { padding-bottom: 0; border-bottom: 0; }
+      .number { display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid #3d6554; border-radius: 50%; color: #8df4b6; font-weight: 750; }
+      a.primary { min-height: 48px; margin-top: 22px; border-radius: 12px; padding: 0 18px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: #bffbd3; color: #07120b; font-weight: 750; text-decoration: none; }
+      a:focus-visible { outline: 3px solid #87efb0; outline-offset: 3px; }
+      footer { margin-top: 30px; color: #7f8b84; font-size: 13px; line-height: 1.6; }
+      @media (max-width: 520px) { main { padding-top: 26px; } header { margin-bottom: 34px; } a.primary { width: 100%; } }
     </style>
   </head>
   <body>
@@ -61,176 +40,23 @@
       </header>
 
       <section aria-labelledby="title">
-        <div class="eyebrow">Antes do deploy</div>
-        <h1 id="title">Crie as chaves sem enviá-las para ninguém.</h1>
-        <p class="muted">Esta página funciona antes de o seu SmartZap existir. A senha e a chave do cofre são geradas somente neste navegador. Não usamos servidor, analytics, cookies ou armazenamento local.</p>
+        <div class="eyebrow">Instalador oficial</div>
+        <h1 id="title">Instale sem terminal, token de API ou GitHub Actions.</h1>
+        <p class="muted">O provisionador usa o login oficial da Cloudflare, mostra tudo o que será criado e bloqueia qualquer colisão antes de alterar sua conta.</p>
       </section>
 
-      <section id="password-step" class="card" aria-labelledby="password-title">
-        <h2 id="password-title">1. Defina a senha administrativa</h2>
-        <p class="muted">Você usará esta senha para entrar no SmartZap. Se preferir, gere uma sugestão forte e salve-a no seu gerenciador de senhas.</p>
-        <div class="grid two">
-          <label><span>Senha administrativa</span><input id="password" type="password" maxlength="128" autocomplete="new-password" aria-describedby="password-rules" /></label>
-          <label><span>Confirme a senha</span><input id="confirmation" type="password" maxlength="128" autocomplete="new-password" /></label>
-        </div>
-        <ul id="password-rules" class="rules" aria-live="polite">
-          <li data-rule="length">12 caracteres ou mais</li><li data-rule="upper">uma letra maiúscula</li><li data-rule="lower">uma letra minúscula</li><li data-rule="number">um número</li><li data-rule="symbol">um símbolo</li>
-        </ul>
-        <p id="password-error" role="alert" class="muted"></p>
-        <div class="actions"><button id="prepare" class="primary" type="button" disabled>Criar chave e nomes</button><button id="suggest" class="secondary" type="button">Gerar senha forte</button><button id="toggle" class="secondary" type="button">Mostrar senha</button></div>
+      <section class="card" aria-label="Como funciona">
+        <ol>
+          <li><span class="number">1</span><div><h2>Autorize a conta</h2><p class="muted">Confira as permissões mínimas e escolha explicitamente a conta de destino.</p></div></li>
+          <li><span class="number">2</span><div><h2>Crie sua senha e seu cofre</h2><p class="muted">Os valores nascem no navegador e seguem uma única vez como secrets do novo Worker.</p></div></li>
+          <li><span class="number">3</span><div><h2>Confira e instale</h2><p class="muted">O plano cria D1, R2, filas, Workflows e o Worker somente quando tudo estiver seguro.</p></div></li>
+        </ol>
       </section>
 
-      <section id="recovery-step" class="hidden" aria-labelledby="recovery-title">
-        <div class="card">
-          <h2 id="recovery-title">2. Salve a recuperação</h2>
-          <p class="muted">Os valores abaixo não poderão ser recuperados pelo SmartZap.</p>
-          <div><strong>SMARTZAP_VAULT_KEY</strong><div id="vault" class="secret" tabindex="0"></div><button class="secondary copy" type="button" data-copy="vault">Copiar chave</button></div>
-          <div style="margin-top:18px"><strong>MASTER_PASSWORD</strong><div id="master" class="secret" tabindex="0"></div><button class="secondary copy" type="button" data-copy="master">Copiar senha</button></div>
-          <div id="resources" class="resource-grid"></div>
-          <div class="actions"><button id="download" class="primary" type="button">Baixar arquivo de recuperação</button><button id="restart" class="secondary" type="button">Trocar a senha</button></div>
-          <p id="copy-status" class="status" aria-live="polite"></p>
-        </div>
+      <a id="provisioner" class="primary" href="https://smartzap-provisioner.thales2581.workers.dev/">Abrir instalador seguro <span aria-hidden="true">↗</span></a>
+      <p class="muted">A senha administrativa e a chave do cofre serão criadas somente no próximo passo. O SmartZap nunca pede sua senha da Cloudflare.</p>
 
-        <div class="card" aria-labelledby="preflight-title">
-          <h2 id="preflight-title">3. Confira a conta antes de publicar</h2>
-          <p class="muted">O botão só será liberado depois destas confirmações. Elas evitam cobrança inesperada, colisão com produção e falha silenciosa do clone.</p>
-          <div class="grid">
-            <label class="check"><input type="checkbox" data-preflight="account" /><span>Estou conectado na <strong>conta Cloudflare correta</strong> e vou conferir o nome dela antes de publicar.</span></label>
-            <label class="check"><input type="checkbox" data-preflight="r2" /><span>O <a href="https://dash.cloudflare.com/?to=/:account/r2" target="_blank" rel="noreferrer">R2 está ativado</a> nessa conta e entendo que a Cloudflare pode solicitar uma forma de pagamento.</span></label>
-            <label class="check"><input type="checkbox" data-preflight="tokens" /><span>Há pelo menos uma vaga entre os <a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank" rel="noreferrer">50 User API Tokens</a> para o token temporário do build.</span></label>
-            <label class="check"><input type="checkbox" data-preflight="github" /><span>A integração <a href="https://github.com/settings/installations" target="_blank" rel="noreferrer">Cloudflare Workers and Pages</a> está instalada no GitHub com acesso ao repositório.</span></label>
-            <label class="check notice"><input type="checkbox" data-preflight="names" /><span>Vou usar exatamente os nomes do arquivo e confirmar que D1, R2 e filas aparecem como <strong>novos</strong>, nunca como recursos existentes.</span></label>
-          </div>
-        </div>
-
-        <div class="card blocked" aria-labelledby="cloudflare-status-title">
-          <div class="eyebrow">Status da plataforma</div>
-          <h2 id="cloudflare-status-title">A instalação de um clique está temporariamente pausada.</h2>
-          <p>A Cloudflare está criando os recursos, mas substitui o código do repositório por um Worker vazio e não conecta o primeiro build. O defeito foi reproduzido depois de confirmar a integração do GitHub e liberar a cota de tokens.</p>
-          <p class="muted">A cópia completa pelo GitHub e a conexão manual do Workers Builds funcionaram em um probe. Isso ainda não comprova o provisionamento integral do SmartZap e, por segurança, não será oferecido como instalação produtiva.</p>
-          <div class="actions">
-            <button id="deploy" class="primary" type="button" disabled>Deploy to Cloudflare temporariamente indisponível</button>
-            <a class="button secondary" href="https://github.com/cloudflare/workers-sdk/issues/14553" target="_blank" rel="noreferrer">Acompanhar correção da Cloudflare</a>
-          </div>
-          <p id="deploy-help" class="muted">Você pode gerar e guardar a recuperação agora. O deploy será liberado somente quando a Cloudflare publicar a árvore real e conectar o build.</p>
-        </div>
-      </section>
-
-      <footer>SmartZap RC9 · O arquivo de recuperação é criado localmente por Web Crypto. Fechar ou recarregar esta página apaga os valores da memória da página.</footer>
+      <footer>SmartZap · instalação OAuth na conta escolhida pelo cliente.</footer>
     </main>
-
-    <script>
-      (() => {
-        "use strict";
-        let current = null;
-        let recoverySaved = false;
-        const $ = (selector) => document.querySelector(selector);
-        const password = $("#password");
-        const confirmation = $("#confirmation");
-        const rules = {
-          length: (value) => value.length >= 12 && value.length <= 128,
-          upper: (value) => /[A-Z]/.test(value),
-          lower: (value) => /[a-z]/.test(value),
-          number: (value) => /\d/.test(value),
-          symbol: (value) => /[^A-Za-z0-9]/.test(value),
-        };
-        const randomBytes = (length) => crypto.getRandomValues(new Uint8Array(length));
-        const base64url = (bytes) => btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-        const hex = (bytes) => Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
-        const pick = (characters) => characters[crypto.getRandomValues(new Uint32Array(1))[0] % characters.length];
-        const strongPassword = () => {
-          const groups = ["ABCDEFGHJKLMNPQRSTUVWXYZ", "abcdefghijkmnopqrstuvwxyz", "23456789", "!@#$%&*_-+="];
-          const result = groups.map(pick);
-          while (result.length < 24) result.push(pick(groups.join("")));
-          for (let index = result.length - 1; index > 0; index -= 1) {
-            const swap = crypto.getRandomValues(new Uint32Array(1))[0] % (index + 1);
-            [result[index], result[swap]] = [result[swap], result[index]];
-          }
-          return result.join("");
-        };
-        const names = () => {
-          const prefix = `smartzap-${hex(randomBytes(4))}`;
-          return {
-            "Projeto / Worker": prefix,
-            "Banco D1": `${prefix}-db`,
-            "Bucket R2": `${prefix}-media`,
-            "Fila de webhooks": `${prefix}-meta-webhooks`,
-            "Fila de automações": `${prefix}-inbox-automation`,
-            "Fila de conversões": `${prefix}-meta-conversions`,
-            "DLQ de conversões": `${prefix}-meta-conversions-dlq`,
-            "DLQ de webhooks": `${prefix}-meta-webhooks-dlq`,
-            "DLQ de automações": `${prefix}-inbox-automation-dlq`,
-          };
-        };
-        const validate = () => {
-          const value = password.value;
-          const valid = Object.entries(rules).every(([name, test]) => {
-            const passed = test(value);
-            document.querySelector(`[data-rule="${name}"]`).classList.toggle("ok", passed);
-            return passed;
-          });
-          const matches = value.length > 0 && value === confirmation.value;
-          $("#prepare").disabled = !(valid && matches);
-          $("#password-error").textContent = confirmation.value && !matches ? "As senhas não coincidem." : "";
-        };
-        const updateDeploy = () => {
-          const checked = Array.from(document.querySelectorAll("[data-preflight]"), (item) => item.checked).every(Boolean);
-          const ready = Boolean(current && recoverySaved && checked);
-          $("#deploy").disabled = true;
-          $("#deploy-help").textContent = ready ? "Sua recuperação está pronta. O deploy continua bloqueado até a correção do provisionador da Cloudflare." : "Você pode gerar e guardar a recuperação agora. O deploy será liberado somente quando a Cloudflare publicar a árvore real e conectar o build.";
-        };
-        const clear = () => {
-          current = null;
-          recoverySaved = false;
-          password.value = "";
-          confirmation.value = "";
-          $("#vault").textContent = "";
-          $("#master").textContent = "";
-          $("#resources").replaceChildren();
-          document.querySelectorAll("[data-preflight]").forEach((item) => { item.checked = false; });
-          $("#recovery-step").classList.add("hidden");
-          $("#password-step").classList.remove("hidden");
-          validate();
-          updateDeploy();
-        };
-        password.addEventListener("input", validate);
-        confirmation.addEventListener("input", validate);
-        $("#suggest").addEventListener("click", () => { const value = strongPassword(); password.value = value; confirmation.value = value; password.type = "text"; confirmation.type = "text"; $("#toggle").textContent = "Ocultar senha"; validate(); });
-        $("#toggle").addEventListener("click", () => { const show = password.type === "password"; password.type = show ? "text" : "password"; confirmation.type = show ? "text" : "password"; $("#toggle").textContent = show ? "Ocultar senha" : "Mostrar senha"; });
-        $("#prepare").addEventListener("click", () => {
-          validate();
-          if ($("#prepare").disabled) return;
-          current = { password: password.value, vault: base64url(randomBytes(32)), resources: names() };
-          $("#vault").textContent = current.vault;
-          $("#master").textContent = current.password;
-          for (const [label, value] of Object.entries(current.resources)) {
-            const item = document.createElement("div"); item.className = "resource";
-            const small = document.createElement("small"); small.textContent = label;
-            const code = document.createElement("code"); code.textContent = value;
-            item.append(small, code); $("#resources").append(item);
-          }
-          $("#password-step").classList.add("hidden");
-          $("#recovery-step").classList.remove("hidden");
-          $("#recovery-title").focus?.();
-          updateDeploy();
-        });
-        document.querySelectorAll(".copy").forEach((button) => button.addEventListener("click", async () => {
-          if (!current) return;
-          await navigator.clipboard.writeText(button.dataset.copy === "vault" ? current.vault : current.password);
-          $("#copy-status").textContent = "Copiado. Não cole esse valor em chats ou e-mails.";
-        }));
-        $("#download").addEventListener("click", () => {
-          if (!current) return;
-          const lines = ["SMARTZAP — ARQUIVO DE RECUPERAÇÃO", "Guarde em um cofre de senhas. Não envie por e-mail ou chat.", "", `SMARTZAP_VAULT_KEY=${current.vault}`, `MASTER_PASSWORD=${current.password}`, "", "NOMES EXCLUSIVOS PARA O DEPLOY CLOUDFLARE", ...Object.entries(current.resources).map(([label, value]) => `${label}=${value}`), "", `Gerado em ${new Date().toISOString()}`];
-          const url = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" }));
-          const anchor = document.createElement("a"); anchor.href = url; anchor.download = "smartzap-recuperacao.txt"; anchor.click(); URL.revokeObjectURL(url);
-          recoverySaved = true; updateDeploy();
-        });
-        $("#restart").addEventListener("click", clear);
-        document.querySelectorAll("[data-preflight]").forEach((item) => item.addEventListener("change", updateDeploy));
-        addEventListener("pagehide", clear, { once: true });
-        validate(); updateDeploy();
-      })();
-    </script>
   </body>
 </html>

@@ -39,8 +39,7 @@ function provisionedSnapshot() {
       aiGatewayId: current.runtime.aiGatewayId,
     },
     d1State: {
-      guardWorkerName: current.resources.worker,
-      migrations: [current.runtime.migrationTarget],
+      installVersions: [current.runtime.baselineTarget],
     },
   };
 }

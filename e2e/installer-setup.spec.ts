@@ -50,49 +50,18 @@ async function mockSetupStatus(page: Page, state: () => Record<string, unknown>)
   }));
 }
 
-test("instalador gera segredos localmente sem persistência ou overflow", async ({ page }) => {
+test("entrada interna encaminha ao provisionador OAuth sem coletar segredos", async ({ page }) => {
   const requests: string[] = [];
   page.on("request", (request) => requests.push(`${request.url()}\n${request.postData() || ""}`));
   await page.goto("/install");
-  await expect(page.getByRole("heading", { name: "Proteja sua instalação antes do deploy." })).toBeVisible();
-  const prepare = page.getByRole("button", { name: "Criar chave do cofre" });
-  await expect(prepare).toBeDisabled();
-  await page.getByRole("button", { name: "Gerar senha forte" }).click();
-  const suggestedPassword = await page.getByLabel("Senha administrativa").inputValue();
-  expect(suggestedPassword).toHaveLength(24);
-  expect(await page.getByLabel("Confirme a senha").inputValue()).toBe(suggestedPassword);
-  await expect(prepare).toBeEnabled();
-
-  await page.getByLabel("Senha administrativa").fill("fraca");
-  await page.getByLabel("Confirme a senha").fill("diferente");
-  await expect(page.getByText("As senhas não coincidem.")).toBeVisible();
-  await expect(prepare).toBeDisabled();
-
-  const chosenPassword = "SmartZap!Seguro2026";
-  await page.getByLabel("Senha administrativa").fill(chosenPassword);
-  await page.getByLabel("Confirme a senha").fill(chosenPassword);
-  await expect(prepare).toBeEnabled();
-  await prepare.click();
-
-  const vault = await page.locator("code").nth(0).textContent();
-  const password = await page.locator("code").nth(1).textContent();
-  expect(vault).toMatch(/^[A-Za-z0-9_-]{43}$/);
-  expect(password).toBe(chosenPassword);
-  expect(vault).not.toBe(password);
-
-  const resourceNames = await page.locator("dl code").allTextContents();
-  expect(resourceNames).toHaveLength(9);
-  expect(new Set(resourceNames).size).toBe(9);
-  for (const name of resourceNames) expect(name).toMatch(/^smartzap-[a-f0-9]{8}(?:-[a-z-]+)?$/);
-
-  const browserStorage = await page.evaluate(() => JSON.stringify({
-    local: { ...localStorage },
-    session: { ...sessionStorage },
-  }));
-  expect(browserStorage).not.toContain(vault!);
-  expect(browserStorage).not.toContain(password!);
-  expect(requests.join("\n")).not.toContain(vault!);
-  expect(requests.join("\n")).not.toContain(password!);
+  await expect(page.getByRole("heading", { name: "Instale sem terminal, token de API ou GitHub Actions." })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Abrir instalador seguro" })).toHaveAttribute(
+    "href",
+    "https://smartzap-provisioner.thales2581.workers.dev/",
+  );
+  await expect(page.locator('input, button, form')).toHaveCount(0);
+  await expect(page.locator('a[href*="deploy.workers.cloudflare.com"]')).toHaveCount(0);
+  expect(requests.every((entry) => !entry.includes("MASTER_PASSWORD") && !entry.includes("SMARTZAP_VAULT_KEY"))).toBe(true);
 
   for (const width of [360, 390, 620, 768, 1440, 1920]) {
     await page.setViewportSize({ width, height: width < 700 ? 844 : 900 });
@@ -104,24 +73,6 @@ test("instalador gera segredos localmente sem persistência ou overflow", async 
   }
   const accessibility = await new AxeBuilder({ page }).include("main").analyze();
   expect(accessibility.violations).toEqual([]);
-  await expect(page.getByRole("button", { name: "Salve a recuperação" })).toBeDisabled();
-  const [download] = await Promise.all([
-    page.waitForEvent("download"),
-    page.getByRole("button", { name: "Baixar recuperação" }).click(),
-  ]);
-  const stream = await download.createReadStream();
-  let recovery = "";
-  for await (const chunk of stream) recovery += chunk.toString();
-  expect(recovery).toContain(`SMARTZAP_VAULT_KEY=${vault}`);
-  expect(recovery).toContain(`MASTER_PASSWORD=${password}`);
-  for (const name of resourceNames) expect(recovery).toContain(name);
-
-  await expect(page.getByRole("button", { name: "Confirme os nomes" })).toBeDisabled();
-  await page.getByLabel(/Vou usar estes nomes/).check();
-  await expect(page.getByRole("link", { name: "Deploy to Cloudflare" })).toHaveAttribute(
-    "href",
-    /deploy\.workers\.cloudflare\.com\/\?url=/,
-  );
 });
 
 test("assistente falha fechado e não expõe os segredos cadastrados", async ({ page }) => {

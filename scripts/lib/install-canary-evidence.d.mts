@@ -25,7 +25,7 @@ export interface InstallCanaryManifest {
     rateLimitNamespace: string;
     aiGatewayId: string;
     cron: string;
-    migrationTarget: string;
+    baselineTarget: string;
   };
   cleanupPolicy: {
     exactPrefixOnly: true;
@@ -48,7 +48,7 @@ export interface CanarySnapshot {
     rateLimitNamespace?: string;
     aiGatewayId?: string;
   };
-  d1State?: { guardWorkerName?: string; migrations?: string[] };
+  d1State?: { installVersions?: string[] };
   app?: {
     reachable?: boolean;
     setupCompleted?: boolean;

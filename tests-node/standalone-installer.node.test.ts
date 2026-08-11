@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 const source = readFileSync(resolve(process.cwd(), "docs/install/index.html"), "utf8");
 
-describe("instalador estático pré-deploy", () => {
+describe("entrada pública do provisionador", () => {
   it("bloqueia comunicação e armazenamento no contrato da página", () => {
     expect(source).toContain("connect-src 'none'");
     expect(source).not.toMatch(/\bfetch\s*\(/);
@@ -13,29 +13,26 @@ describe("instalador estático pré-deploy", () => {
     expect(source).not.toMatch(/<script[^>]+src=/);
   });
 
-  it("gera chave, senha opcional e nomes exclusivos com Web Crypto", () => {
-    expect(source).toContain("crypto.getRandomValues");
-    expect(source).toContain("SMARTZAP_VAULT_KEY");
-    expect(source).toContain("MASTER_PASSWORD");
-    expect(source).toContain("smartzap-${hex(randomBytes(4))}");
-    expect(source).toContain('addEventListener("pagehide", clear');
+  it("não coleta nem gera credenciais fora do provisionador", () => {
+    expect(source).not.toMatch(/<input\b|<form\b|<button\b/);
+    expect(source).not.toContain("crypto.getRandomValues");
+    expect(source).not.toContain("MASTER_PASSWORD=");
+    expect(source).not.toContain("SMARTZAP_VAULT_KEY=");
+    expect(source).toContain("serão criadas somente no próximo passo");
   });
 
-  it("exige recuperação e cinco confirmações antes do status final", () => {
-    expect(source).toContain("Baixar arquivo de recuperação");
-    // Cinco checkboxes e consultas JavaScript que agregam o conjunto.
-    expect(source.match(/<input type="checkbox" data-preflight=/g)).toHaveLength(5);
-    expect(source).toContain("recoverySaved && checked");
-    expect(source).toContain("conta Cloudflare correta");
-    expect(source).toContain("R2 está ativado");
-    expect(source).toContain("50 User API Tokens");
-    expect(source).toContain("Cloudflare Workers and Pages");
+  it("explica as três decisões antes da instalação", () => {
+    expect(source).toContain("Autorize a conta");
+    expect(source).toContain("Crie sua senha e seu cofre");
+    expect(source).toContain("Confira e instale");
+    expect(source).toContain("bloqueia qualquer colisão");
   });
 
-  it("bloqueia o deploy conhecido como defeituoso e aponta para o incidente upstream", () => {
-    expect(source).toContain("Deploy to Cloudflare temporariamente indisponível");
-    expect(source).toContain("https://github.com/cloudflare/workers-sdk/issues/14553");
-    expect(source).toContain('$("#deploy").disabled = true');
+  it("aponta somente para o provisionador OAuth final", () => {
+    expect(source).toContain('id="provisioner"');
+    expect(source).toContain('href="https://smartzap-provisioner.thales2581.workers.dev/"');
     expect(source).not.toContain("https://deploy.workers.cloudflare.com/?url=");
+    expect(source).not.toContain("User API Token");
+    expect(source).not.toContain("GitHub App");
   });
 });

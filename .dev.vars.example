@@ -1,3 +1,3 @@
-# Defina estes dois valores em /install. Nunca os versione.
+# Desenvolvimento local apenas. Nunca versione estes valores.
 MASTER_PASSWORD=
 SMARTZAP_VAULT_KEY=

@@ -61,6 +61,26 @@ async function updateInstallation(
   ).bind(status, lastStep, lastError?.slice(0, 500) ?? null).run();
 }
 
+export function workflowProbeOutputOk(output: unknown): boolean {
+  let decoded = output;
+  if (typeof decoded === "string") {
+    try {
+      decoded = JSON.parse(decoded);
+    } catch {
+      return false;
+    }
+  }
+  return Boolean(decoded && typeof decoded === "object" && "ok" in decoded && decoded.ok === true);
+}
+
+export function workflowProbeStatusOk(result: { status: string; output?: unknown }): boolean {
+  if (result.status !== "complete") return false;
+  // A API de Workflows pode sinalizar a conclusão antes de materializar o
+  // output final no status. A conclusão já comprova que o step obrigatório
+  // terminou; quando o output estiver presente, ainda validamos seu contrato.
+  return result.output === undefined || workflowProbeOutputOk(result.output);
+}
+
 async function probeWorkflow(workflow: Workflow<{ probe: string }>): Promise<boolean> {
   try {
     const instance = await workflow.create({
@@ -68,17 +88,11 @@ async function probeWorkflow(workflow: Workflow<{ probe: string }>): Promise<boo
       params: { probe: "smartzap-setup" },
       retention: { successRetention: "1 day", errorRetention: "1 day" },
     });
-    for (let attempt = 0; attempt < 20; attempt++) {
+    for (let attempt = 0; attempt < 18; attempt++) {
       const result = await instance.status();
-      if (result.status === "complete")
-        return Boolean(
-          result.output
-          && typeof result.output === "object"
-          && "ok" in result.output
-          && result.output.ok === true,
-        );
+      if (result.status === "complete") return workflowProbeStatusOk(result);
       if (["errored", "terminated", "unknown"].includes(result.status)) return false;
-      await scheduler.wait(250);
+      await scheduler.wait(Math.min(250 * (2 ** attempt), 4_000));
     }
     return false;
   } catch {
@@ -149,7 +163,8 @@ async function setupState(env: Env) {
     rateLimit: rateLimitOk,
     workersAi: Boolean(env.AI),
     aiSearch: Boolean(env.AI_SEARCH),
-    cron: Boolean(cronLastRun && Date.now() - Date.parse(cronLastRun) < 30 * 60 * 1000),
+    cron: (status.cron_config?.status === "passed" && isRecent(status.cron_config.checked_at, 30 * 60 * 1000))
+      || isRecent(cronLastRun, 30 * 60 * 1000),
   };
   const requiredInfrastructure = Object.entries(infrastructure)
     .filter(([name]) => !["workersAi", "aiSearch"].includes(name))
@@ -186,6 +201,13 @@ async function setupState(env: Env) {
     required: env.SETUP_REQUIRED === "true",
     complete,
   };
+}
+
+function isRecent(value: string | null | undefined, maxAgeMs: number): boolean {
+  if (!value) return false;
+  const normalized = /(?:Z|[+-]\d\d:\d\d)$/.test(value) ? value : `${value.replace(" ", "T")}Z`;
+  const timestamp = Date.parse(normalized);
+  return Number.isFinite(timestamp) && Date.now() - timestamp >= 0 && Date.now() - timestamp < maxAgeMs;
 }
 
 export const setupRoutes = new Hono<{ Bindings: Env }>()

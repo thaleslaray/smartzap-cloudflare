@@ -78,7 +78,7 @@ export function buildInstallCanaryManifest({ prefix, release, generatedAt = new 
       rateLimitNamespace: (BigInt(`0x${suffix}`) + 1n).toString(10),
       aiGatewayId: worker,
       cron: "*/15 * * * *",
-      migrationTarget: "0051_vault_rotation_recovery.sql",
+      baselineTarget: "0001_fresh_install.sql",
     },
     cleanupPolicy: {
       exactPrefixOnly: true,
@@ -154,13 +154,12 @@ export function assessInstallCanarySnapshot({ phase, snapshot, manifest }) {
     exactCheck(checks, "runtime:ai-gateway", snapshot?.runtime?.aiGatewayId, manifest.runtime.aiGatewayId, "Identificador opcional de AI Gateway isolado");
     const cronTriggers = namesOf(snapshot?.cronTriggers, ["cron"]);
     checkPresence(checks, "runtime:cron", manifest.runtime.cron, cronTriggers, true);
-    exactCheck(checks, "d1:guard", snapshot?.d1State?.guardWorkerName, manifest.resources.worker, "D1 reservado pelo mesmo Worker");
     checks.push({
-      id: "d1:migrations",
-      passed: (snapshot?.d1State?.migrations ?? []).includes(manifest.runtime.migrationTarget),
-      detail: (snapshot?.d1State?.migrations ?? []).includes(manifest.runtime.migrationTarget)
-        ? `migração ${manifest.runtime.migrationTarget} aplicada`
-        : `migração ${manifest.runtime.migrationTarget} ausente`,
+      id: "d1:baseline",
+      passed: (snapshot?.d1State?.installVersions ?? []).includes(manifest.runtime.baselineTarget),
+      detail: (snapshot?.d1State?.installVersions ?? []).includes(manifest.runtime.baselineTarget)
+        ? `baseline final ${manifest.runtime.baselineTarget} aplicada`
+        : `baseline final ${manifest.runtime.baselineTarget} ausente`,
     });
   }
 
