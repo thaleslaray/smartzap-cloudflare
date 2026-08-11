@@ -12,7 +12,7 @@ WhatsApp oficial para campanhas, Inbox, contatos e templates, executado inteiram
 6. Ao final do deploy, abra `https://SEU-WORKER.workers.dev/setup`.
 7. Cadastre a Meta, configure o webhook, sincronize os templates e conclua a mensagem real de homologação.
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https%3A%2F%2Fgithub.com%2Fthaleslaray%2Fsmartzap-cloudflare)
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https%3A%2F%2Fgithub.com%2Fthaleslaray%2Fsmartzap-cloudflare%2Ftree%2Fv1.0.0-rc.6)
 
 > Esta é uma candidata pública. Consulte a release mais recente para ver a matriz de instalações físicas já homologada.
 
