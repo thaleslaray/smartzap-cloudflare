@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "generatedAt": "2026-08-10T05:06:53.997Z",
+  "generatedAt": "2026-08-11T15:45:25.152Z",
   "sourceCommit": "f6440d2d5be11b0c343d2c0a3b827b1f47ebc666",
   "sourceWorktreeDirty": true,
   "publicRepository": "https://github.com/thaleslaray/smartzap-cloudflare",
-  "snapshotHash": "b97532c4d6441245b09f27f411ff647c090e400cc70ef510f704fae6ba6a4333",
+  "snapshotHash": "c939eba215bdbce8ce4e4cab1d098b8339dddf5ea2451bf4cdb1c7cfac0ccc98",
   "files": [
     {
       "path": ".dev.vars.example",
@@ -259,6 +259,14 @@
       "sha256": "8d19a8facabc5f552a4680075ca356ea51b9493cb6461c688b6313e08747bb92"
     },
     {
+      "path": "docs/index.html",
+      "sha256": "ea2bb2e0ed8e4e32683849b37adde7574cb7ab32b6ad7c295dc4ebc17e71b026"
+    },
+    {
+      "path": "docs/install/index.html",
+      "sha256": "f01cd88fb52a3fb378d8de42fdfb10759c58b8d14806b4133b5885a55859061a"
+    },
+    {
       "path": "DS/_adherence.oxlintrc.json",
       "sha256": "87cd52e8947392ce6e854c9035d164f2ee062142dca2f7c249311b190b796e83"
     },
@@ -469,6 +477,10 @@
     {
       "path": "e2e/smoke.spec.ts",
       "sha256": "8b7b84fe22b0b0b8180dcfd3234bafc4f7ed37ce9ea5056507e1902c7e9a1cbb"
+    },
+    {
+      "path": "e2e/standalone-installer.spec.ts",
+      "sha256": "07628fbb87f643ecd791629031ab3dd543f4d8c082af5769db2d85f1925fe84d"
     },
     {
       "path": "e2e/support/a11y.ts",
@@ -748,7 +760,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "98f154fcb03b15ec80fee1a372919f68cde412365aa9ce37c7ee4c4abbddef62"
+      "sha256": "fe8a102a7154e3d4dcc09a5a41c6720a1bd2212086fc60c85eec7029b06578b4"
     },
     {
       "path": "scripts/deploy-safe.mjs",
@@ -768,7 +780,15 @@
     },
     {
       "path": "scripts/lib/deploy-safety.mjs",
-      "sha256": "614af0b595b7f8929782aa24fb9bd56a1a58b40031fc42247a988a74ff4f7dee"
+      "sha256": "efdfa1569e09232b2e6b6db0157ad84e5f4a8dabde16342a180a5d6f5a762485"
+    },
+    {
+      "path": "scripts/lib/install-canary-evidence.d.mts",
+      "sha256": "6c43ad6a05c80aae347c97716010a1ff26aacfd5386338cbb21db1e3579576b4"
+    },
+    {
+      "path": "scripts/lib/install-canary-evidence.mjs",
+      "sha256": "378bbac6565d34830064b52b72f3361c10e696e20aaa659d35393bfa2b4eddb4"
     },
     {
       "path": "scripts/lib/manual-accessibility.mjs",
@@ -1260,7 +1280,11 @@
     },
     {
       "path": "tests-node/deploy-safety.node.test.ts",
-      "sha256": "711cc9b47e1cb10c2a8d3e5adcb05213fd2e4aeb28f58c1e6c9d008ba7738f9c"
+      "sha256": "43c9e2d11c248da614a5cf27d6650e6b78476578ac10cbe98a1f4ec78263999d"
+    },
+    {
+      "path": "tests-node/install-canary-evidence.node.test.ts",
+      "sha256": "7804b4904146d366364df7fd5bc4273806d8ee33e86fab1c5d1a2d3d197d9d5e"
     },
     {
       "path": "tests-node/knowledge-pdf.node.test.ts",
@@ -1305,6 +1329,10 @@
     {
       "path": "tests-node/soak-consolidation.node.test.ts",
       "sha256": "ca16beb7fd14e2d57c545c6c327bfb50f0ecbe63c05ae8e0a9c75581020b97d5"
+    },
+    {
+      "path": "tests-node/standalone-installer.node.test.ts",
+      "sha256": "fa4469f5ef6d1f3f8dcef6e51b6bf1a221e6d33e8a21dea5369e74e1a1e820ac"
     },
     {
       "path": "tests/agents.test.ts",
