@@ -14,7 +14,8 @@ terceiros.
 1. Abra **[Instalar com meu próprio código](https://instalar.escoladeautomacao.com/smartzap/fork/)**.
 2. Crie o fork no GitHub.
 3. Importe o fork no Workers Builds.
-4. Use `npm run fork:deploy` e cadastre os três Build secrets mostrados.
+4. Use `npm run fork:deploy` em produção e `npm run fork:branch` como comando
+   não produtivo; somente `staging/*` provisiona staging físico.
 5. Abra `/setup` e homologue a Meta.
 
 Consulte [instalação com fork](docs/FORK_INSTALLATION.md),

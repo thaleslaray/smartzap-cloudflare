@@ -20,8 +20,9 @@ Esta é a modalidade recomendada para produção.
 6. Use build `npm ci && npm run build` e deploy `npm run fork:deploy`.
 7. Cadastre como Build secrets: `SMARTZAP_INSTALL_ID`, `MASTER_PASSWORD` e
    `SMARTZAP_VAULT_KEY`.
-8. Para branch não produtiva use `npm run fork:preview`; ela cria recursos com
-   sufixo `-staging`, sem compartilhar D1/R2/Queues com produção.
+8. Configure o comando de branch não produtiva como `npm run fork:branch`.
+   Somente `staging/*` cria recursos com sufixo `-staging`; `sync/*`,
+   `customer/*` e branches desconhecidas validam sem publicar nada.
 9. Após o deploy, abra `/setup` e conclua a homologação Meta real.
 
 O bootstrap cria ou retoma somente recursos derivados de
@@ -35,6 +36,11 @@ posteriores declaradas em `release/migrations.json`.
 - `upstream-sync` ou `sync/vX.Y.Z`: código oficial recebido;
 - `customer/*`: customizações;
 - branches de staging: deploy físico isolado antes do merge.
+
+O comando `npm run fork:preview` continua disponível para execução manual e
+explícita. Não o configure diretamente como comando geral de branches da
+Cloudflare, pois isso faria uma proposta `sync/*` criar recursos antes da
+aprovação.
 
 Durable Objects, R2 e Queues exigem staging real; preview visual isolado não
 substitui a homologação operacional.

@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "generatedAt": "2026-08-12T19:19:38.050Z",
+  "generatedAt": "2026-08-12T20:15:19.837Z",
   "sourceCommit": "f6440d2d5be11b0c343d2c0a3b827b1f47ebc666",
   "sourceWorktreeDirty": true,
   "publicRepository": "https://github.com/thaleslaray/smartzap-cloudflare",
-  "snapshotHash": "3b6ed29681dbe96a45fbcc4bc388734ffac75c9eb352a9391c984f6338731e97",
+  "snapshotHash": "dbcfed4e45f7aa7eefad364cf13236f17c212a84cdfad113084b401f93b9c5db",
   "files": [
     {
       "path": ".dev.vars.example",
@@ -12,11 +12,15 @@
     },
     {
       "path": ".github/workflows/upstream-sync.yml",
-      "sha256": "5db23b0318b79bb3b463b135382fa5ad33e545a256e7ef545f36879fe9d33882"
+      "sha256": "acf9e4035936f088ed9a9f0b19c175a435567613c3367d080eb9762c868f974e"
     },
     {
       "path": ".gitignore",
       "sha256": "5538c339fd02ab4f21b68092eb12b1cb064808728d3dd5025499fd40ccf58060"
+    },
+    {
+      "path": ".gitleaks.toml",
+      "sha256": "0b7167bce2b8308e4c1e8403fa7846dce22aad08cdd98c4d5f1d2d13982c043f"
     },
     {
       "path": "app/App.tsx",
@@ -260,7 +264,7 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "fb5964097c4abe3c32d0b876802a8d75660eda961ce2c33fc3fab2973354ce16"
+      "sha256": "ab6c76b2b45a9155456dcd611f8d2719d5460f01566963b11f3d9e0759868001"
     },
     {
       "path": "config/wrangler.test.jsonc",
@@ -268,7 +272,7 @@
     },
     {
       "path": "docs/FORK_INSTALLATION.md",
-      "sha256": "d831dfb36352e5fdc3bacace3680ff2d0fc7c23dfe11e4fd81f09c339a4accb0"
+      "sha256": "788df11279fefb41c2748d4b44327dc958ea495ca98490d68a74f797f3d616d8"
     },
     {
       "path": "docs/GUIA-PROVISIONADOR-CLOUDFLARE-POR-PRODUTO.md",
@@ -292,7 +296,7 @@
     },
     {
       "path": "docs/UPGRADING.md",
-      "sha256": "e62dcd6589df907598f3d7b43ec240d1c74df55580aea09e957c0c44e3892651"
+      "sha256": "deda46f6823244243d8029155ef3eff1caefeb4261ce558906ea858620176955"
     },
     {
       "path": "DS/_adherence.oxlintrc.json",
@@ -564,11 +568,11 @@
     },
     {
       "path": "package-lock.json",
-      "sha256": "23f5599b3e3999134bbc2781cc86be533d9ea01731ed8aabcca0d96f13e64a73"
+      "sha256": "d0088b81ff8a5551fcb580dd68d9dce526894884b3ceb2a1d156eaebaa3786cd"
     },
     {
       "path": "package.json",
-      "sha256": "c93da7da5a52d711b4c11e003b2e5f2b067f0bcd1804a58aaa85c1a16cfa58bd"
+      "sha256": "a3c8f10364b4fdf39f87b9824dd67a0a5416e4f9e258ebe05fed7d58e5aa1ead"
     },
     {
       "path": "playwright.config.ts",
@@ -604,7 +608,7 @@
     },
     {
       "path": "provisioner/src/fork-ui.ts",
-      "sha256": "88817a9d9854d846673c482b9f83781c402741736e24b09a5534e108588e0cd2"
+      "sha256": "c7bc8b1be45178c0f8bcaf2598afd4b8d475dc102e8b728dd15773eaa752ba9f"
     },
     {
       "path": "provisioner/src/index.ts",
@@ -676,7 +680,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "691ff30e695a9ebe5349525554168bf9b280f790e1d3bbdff27d7e26d77e1d2a"
+      "sha256": "433a295434551229e8bdd3a22ccb7ecb20d91a4b7c0f0b47576dfdd457d21a53"
     },
     {
       "path": "release/allowed_signers",
@@ -701,6 +705,10 @@
     {
       "path": "scripts/fork-rollback.mjs",
       "sha256": "e5fa1060d96cfa03f363f41baff7db0978c6ef34c73a3b005d5eda2d6456b54f"
+    },
+    {
+      "path": "scripts/generate-update-pr-body.mjs",
+      "sha256": "524cbf5a3373db23c9aa6e081044c74510da0a35715fa51c4cee8dcad2e77eab"
     },
     {
       "path": "scripts/lib/ai-human-calibration.mjs",
@@ -803,6 +811,10 @@
       "sha256": "eddf42b6f23fd891f9a112546cc15cf383bcc96667552ef76b95dc62b6a3ed7d"
     },
     {
+      "path": "scripts/lib/workers-build-policy.mjs",
+      "sha256": "735929239e125149cf213e0486dfb78ed0bc026c52ffddc140922408b2f37bc4"
+    },
+    {
       "path": "scripts/prepare-dev.mjs",
       "sha256": "1422fe956fff26cffbe38f8d180efcc7ff649bbf78b9a8f5b0776ee6a6cb68f7"
     },
@@ -829,6 +841,10 @@
     {
       "path": "scripts/verify-release-tag.mjs",
       "sha256": "92933d9e095256c8b8f783c16cbb28cdda265a31e89fefd8b1f13e9cea85bf37"
+    },
+    {
+      "path": "scripts/workers-build-deploy.mjs",
+      "sha256": "250a04eafa6feddf169f7ce2294ae245cd0ce3376e25f3a90331dcf5daeacf37"
     },
     {
       "path": "SECURITY.md",
@@ -1305,6 +1321,10 @@
     {
       "path": "tests-node/standalone-installer.node.test.ts",
       "sha256": "8f21c0a1e3e76496156ca20e85754ce0600bdbe764adfe1dd6172f1f9554b209"
+    },
+    {
+      "path": "tests-node/workers-build-policy.node.test.ts",
+      "sha256": "5129e8665dffde35ba0f1468ec76947eb9544a23699bd08e1ee29abfd07c55b0"
     },
     {
       "path": "tests/agents.test.ts",

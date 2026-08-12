@@ -5,6 +5,26 @@ versionamento segue SemVer.
 
 ## [Unreleased]
 
+## [1.0.0-rc.19] - 2026-08-12
+
+### Segurança
+
+- adiciona uma política fail-closed para Workers Builds: somente `main`
+  publica produção e somente `staging/*` pode criar o ambiente físico de
+  homologação;
+- branches `sync/*`, `customer/*` e quaisquer outras branches não autorizadas
+  concluem a validação sem chamar Wrangler, migrar D1 ou publicar recursos;
+- ausência de `WORKERS_CI_BRANCH` interrompe o comando em vez de assumir um
+  ambiente.
+
+### Adicionado
+
+- o workflow de atualização passa a materializar no Pull Request o changelog
+  exato, a matriz de migrations, incompatibilidades, recuperação e checklist
+  de aprovação do proprietário;
+- o pacote público reprova a build se o executor de branches, a política ou o
+  gerador auditável do Pull Request estiverem ausentes.
+
 ## [1.0.0-rc.18] - 2026-08-12
 
 ### Corrigido

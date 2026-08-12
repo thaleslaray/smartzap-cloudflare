@@ -4,7 +4,8 @@
 2. Confirme commit e checksums.
 3. Execute manualmente o workflow **Propor atualização oficial** ou crie
    `sync/vX.Y.Z` a partir da tag.
-4. Revise o PR contra `main`; o bot não resolve conflitos.
+4. Revise o PR contra `main`; ele materializa changelog, migrations,
+   incompatibilidades e recuperação. O bot não resolve conflitos.
 5. Execute `npm ci`, `npm run release:validate`, `npm test` e `npm run build`.
 6. Capture bookmark D1 e os backups necessários.
 7. Faça deploy em staging com recursos próprios e execute migrations.
@@ -17,3 +18,8 @@ Guarde esse arquivo até o fim da homologação; ele não contém secrets.
 
 Se houver conflito, preserve suas customizações em `customer/*`, compare o
 changelog e resolva manualmente. Nunca force uma atualização para “ficar verde”.
+
+No Workers Builds, use `npm run fork:branch` como comando não produtivo. Uma
+branch `sync/*` executa somente a validação já concluída pelo build e não chama
+Wrangler. Para homologação física, crie deliberadamente `staging/*`; somente
+esse prefixo pode executar o bootstrap com recursos `-staging`.
