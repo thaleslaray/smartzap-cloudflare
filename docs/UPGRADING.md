@@ -1,7 +1,9 @@
 # Atualizar um fork
 
 1. Escolha uma tag exata no repositório oficial e leia o GitHub Release.
-2. Confirme commit e checksums.
+2. Baixe o pacote, o manifesto, `SHA256SUMS` e `SHA256SUMS.sig` da mesma
+   release. Confirme a tag, o commit e a assinatura com
+   `npm run release:verify-assets -- vX.Y.Z --directory=DIRETORIO`.
 3. Execute manualmente o workflow **Propor atualização oficial** ou crie
    `sync/vX.Y.Z` a partir da tag.
 4. Revise o PR contra `main`; ele materializa changelog, migrations,

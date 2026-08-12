@@ -28,6 +28,7 @@ Verificação local de uma release:
 
 ```bash
 npm run release:verify-tag -- v1.2.3
+npm run release:verify-assets -- v1.2.3 --directory=./release-baixada
 ```
 
 A chave privada de assinatura não faz parte do repositório, dos pacotes ou da

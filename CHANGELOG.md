@@ -5,6 +5,23 @@ versionamento segue SemVer.
 
 ## [Unreleased]
 
+## [1.0.0-rc.23] - 2026-08-12
+
+### Segurança
+
+- a GitHub Release passa a anexar pacote derivado da tag pública exata,
+  manifesto com commit, árvore, inventário e migrations, `SHA256SUMS` e
+  assinatura SSH destacada;
+- o verificador recusa tag, commit, pacote, manifesto, checksum agregado ou
+  assinatura divergentes antes de qualquer atualização;
+- o snapshot público deixa de versionar um manifesto pré-commit que apontava
+  para o checkout privado de origem.
+
+### Operação
+
+- a `rc.23` não altera runtime nem schema da `rc.22`; é uma correção da cadeia
+  de distribuição e pode ser homologada sem migration D1.
+
 ## [1.0.0-rc.22] - 2026-08-12
 
 ### Corrigido
