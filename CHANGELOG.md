@@ -5,6 +5,12 @@ versionamento segue SemVer.
 
 ## [Unreleased]
 
+## [1.0.0-rc.14] - 2026-08-12
+
+### Corrigido
+
+- o checkpoint de upgrade não usa `commit` como alias SQL reservado no D1.
+
 ## [1.0.0-rc.13] - 2026-08-12
 
 ### Corrigido

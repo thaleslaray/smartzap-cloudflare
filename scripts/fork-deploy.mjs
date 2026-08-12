@@ -142,8 +142,15 @@ function captureRollbackCheckpoint(d1Created) {
   if (d1Created) return null;
   const metadataTable = queryD1("SELECT name FROM sqlite_schema WHERE type='table' AND name='smartzap_release_metadata' LIMIT 1;")[0];
   if (!metadataTable) return null;
-  const current = queryD1("SELECT version, commit_sha AS commit, schema_version AS schemaVersion, channel FROM smartzap_release_metadata WHERE id='current' LIMIT 1;")[0];
-  if (!current || current.version === version && current.commit === commit && String(current.schemaVersion) === schemaVersion) return null;
+  const currentRow = queryD1("SELECT version, commit_sha, schema_version, channel FROM smartzap_release_metadata WHERE id='current' LIMIT 1;")[0];
+  if (!currentRow) return null;
+  const current = {
+    version: currentRow.version,
+    commit: currentRow.commit_sha,
+    schemaVersion: currentRow.schema_version,
+    channel: currentRow.channel,
+  };
+  if (current.version === version && current.commit === commit && String(current.schemaVersion) === schemaVersion) return null;
   const bookmark = parseTimeTravelBookmark(runWrangler(["d1", "time-travel", "info", names.database, "--json"]));
   const versionId = parseActiveDeploymentVersion(runWrangler(["deployments", "list", "--name", workerName, "--json"]));
   const checkpoint = buildRollbackCheckpoint({ workerName, databaseName: names.database, bookmark, versionId, fromRelease: current, toRelease: release });

@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "generatedAt": "2026-08-12T18:26:25.286Z",
+  "generatedAt": "2026-08-12T18:28:33.932Z",
   "sourceCommit": "f6440d2d5be11b0c343d2c0a3b827b1f47ebc666",
   "sourceWorktreeDirty": true,
   "publicRepository": "https://github.com/thaleslaray/smartzap-cloudflare",
-  "snapshotHash": "cd6805aeb9fb1765004200e4e33788980573fd5a2ebfd5bd80b38c9e3ac576ef",
+  "snapshotHash": "aec10c88e0392846057b847ecaead6de6f2e992b270a9a34cd5a0250796632cc",
   "files": [
     {
       "path": ".dev.vars.example",
@@ -260,7 +260,7 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "30d6de505616bd49c2f2b0b182345adc62305bb1c32893b0c09606e4fbdd0079"
+      "sha256": "c25cc4e58fe540bedb1489d563e1f456dfd71c491d767a6bb3c49b64845a1753"
     },
     {
       "path": "config/wrangler.test.jsonc",
@@ -560,11 +560,11 @@
     },
     {
       "path": "package-lock.json",
-      "sha256": "e63d1196a36365e366fbefdcf5faf88f9d4c6ec9e1ad4a7c4dbb0bc928722ff8"
+      "sha256": "07c6acac5a029e93d254324ffc1c691c897ac4da0414819ed8e540f8a170b7e4"
     },
     {
       "path": "package.json",
-      "sha256": "4e787c55b6a3b1645312ea900dca8ed4239b64ac4223e29be7de117d731832af"
+      "sha256": "16ce037a1a0fb35388f22f7d02b3fefba0bc473ffdd0c8aa5f13753c69753ffa"
     },
     {
       "path": "playwright.config.ts",
@@ -684,7 +684,7 @@
     },
     {
       "path": "scripts/fork-deploy.mjs",
-      "sha256": "813bf37bd48770960472f536fc6b958903f0ba17872dfbd46163f0123076d340"
+      "sha256": "9984ccaf1fa86c8e4aeeb84706dd551f43792543779daf59ae9bcc6ef58aafb7"
     },
     {
       "path": "scripts/fork-rollback.mjs",
