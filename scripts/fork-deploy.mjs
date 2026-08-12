@@ -13,6 +13,7 @@ import {
   parseQueueNames,
 } from "./lib/fork-bootstrap.mjs";
 import { buildRollbackCheckpoint, parseActiveDeploymentVersion, parseTimeTravelBookmark } from "./lib/fork-release.mjs";
+import { assertSchemaTransition, validateForkMigrationManifest } from "./lib/fork-migrations.mjs";
 import { INSTALL_GUARD_TABLE, parseWranglerRows } from "./lib/deploy-safety.mjs";
 
 const root = process.cwd();
@@ -21,10 +22,11 @@ const baseInstallId = assertSecretInputs(process.env);
 const workerName = deploymentId(baseInstallId, staging);
 const names = deploymentResourceNames(workerName);
 const packageJson = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8"));
+const migrationManifest = validateForkMigrationManifest(root);
 const version = String(packageJson.version || "0.0.0");
 const commit = gitCommit();
 const channel = /-(?:beta)/.test(version) ? "beta" : /-(?:rc)/.test(version) ? "rc" : "stable";
-const schemaVersion = releaseSchemaVersion();
+const schemaVersion = String(migrationManifest.schemaVersion);
 const release = { version, commit, channel, schemaVersion };
 const workDirectory = resolve(root, ".smartzap");
 const configPath = resolve(root, "wrangler.fork.generated.json");
@@ -44,13 +46,6 @@ function runWrangler(args, options = {}) {
 
 function gitCommit() {
   return String(process.env.CF_PAGES_COMMIT_SHA || process.env.GITHUB_SHA || execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" })).trim();
-}
-
-function releaseSchemaVersion() {
-  const manifestPath = resolve(root, "release", "migrations.json");
-  if (!existsSync(manifestPath)) return "1";
-  const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
-  return String(manifest.schemaVersion || "1");
 }
 
 function ensureD1() {
@@ -129,11 +124,9 @@ function writeMigrationSet() {
   writeFileSync(join(migrationsDirectory, "0001_fresh_install.sql"), `${preamble}\n${baseline.trim()}\n`);
   const upgradesDirectory = resolve(root, "fork-migrations");
   if (existsSync(upgradesDirectory)) {
-    for (const name of JSON.parse(readFileSync(resolve(root, "release", "migrations.json"), "utf8")).migrations || []) {
-      if (name.file === "0001_fresh_install.sql") continue;
-      const source = resolve(upgradesDirectory, name.file);
-      if (!existsSync(source)) throw new Error(`Migration declarada e ausente: ${name.file}`);
-      writeFileSync(join(migrationsDirectory, name.file), readFileSync(source));
+    for (const migration of migrationManifest.migrations) {
+      if (migration.file === "0001_fresh_install.sql") continue;
+      writeFileSync(join(migrationsDirectory, migration.file), readFileSync(migration.path));
     }
   }
 }
@@ -162,9 +155,24 @@ function captureRollbackCheckpoint(d1Created) {
 }
 
 function applyMigrations() {
+  const metadataTable = queryD1("SELECT name FROM sqlite_schema WHERE type='table' AND name='smartzap_release_metadata' LIMIT 1;")[0]?.name;
+  const current = metadataTable === "smartzap_release_metadata"
+    ? queryD1("SELECT version, commit_sha, schema_version, channel FROM smartzap_release_metadata WHERE id='current' LIMIT 1;")[0]
+    : null;
+  const currentSchema = Number(current?.schema_version || 0);
+  assertSchemaTransition({ currentSchema, targetSchema: migrationManifest.schemaVersion, manifest: migrationManifest });
   runWrangler(["d1", "migrations", "apply", "DB", "--config", configPath, "--remote"], { visible: true });
   const escaped = (value) => String(value).replaceAll("'", "''");
+  const table = queryD1("SELECT name FROM sqlite_schema WHERE type='table' AND name='smartzap_release_history' LIMIT 1;")[0]?.name;
+  if (migrationManifest.schemaVersion >= 2 && table !== "smartzap_release_history") throw new Error("Postcheck falhou: histórico de releases ausente após a migration.");
+  const transition = current?.version && current.version !== "bootstrap" ? "upgrade" : "install";
+  const releaseKey = `${version}@${commit}`;
+  queryD1(`INSERT OR IGNORE INTO smartzap_release_history(release_key,version,commit_sha,schema_version,channel,transition,previous_version) VALUES('${escaped(releaseKey)}','${escaped(version)}','${escaped(commit)}',${Number(schemaVersion)},'${escaped(channel)}','${transition}',${current?.version && current.version !== "bootstrap" ? `'${escaped(current.version)}'` : "NULL"});`);
   queryD1(`UPDATE smartzap_release_metadata SET version='${escaped(version)}', commit_sha='${escaped(commit)}', schema_version='${escaped(schemaVersion)}', channel='${escaped(channel)}', updated_at=datetime('now') WHERE id='current';`);
+  const postcheck = queryD1("SELECT version, commit_sha, schema_version FROM smartzap_release_metadata WHERE id='current' LIMIT 1;")[0];
+  if (postcheck?.version !== version || postcheck?.commit_sha !== commit || String(postcheck?.schema_version) !== schemaVersion) {
+    throw new Error("Postcheck falhou: identidade da release não corresponde ao schema aplicado.");
+  }
 }
 
 function deploy() {

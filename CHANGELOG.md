@@ -5,6 +5,16 @@ versionamento segue SemVer.
 
 ## [Unreleased]
 
+## [1.0.0-rc.15] - 2026-08-12
+
+### Adicionado
+
+- primeira migration pública pós-baseline (`schema 1 → 2`), expansiva e sem
+  downtime, com histórico imutável das releases instaladas;
+- validação fail-closed de sequência, metadados e SHA-256 de todas as migrations
+  antes de qualquer operação na Cloudflare;
+- postchecks que vinculam versão, commit e schema realmente persistidos.
+
 ## [1.0.0-rc.14] - 2026-08-12
 
 ### Corrigido

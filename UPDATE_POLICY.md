@@ -29,7 +29,7 @@ breaking changes e recuperação.
 
 ## Fluxo recomendado
 
-1. Buscar a tag oficial e criar `sync/vX.Y.Z`.
+1. Buscar a tag oficial, verificar sua assinatura e criar `sync/vX.Y.Z`.
 2. Revisar changelog, checksums, migrations e conflitos.
 3. Executar testes sem publicar.
 4. Capturar bookmark D1 e backups necessários.

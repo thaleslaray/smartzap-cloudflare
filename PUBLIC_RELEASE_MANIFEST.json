@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "generatedAt": "2026-08-12T18:28:33.932Z",
+  "generatedAt": "2026-08-12T18:55:31.284Z",
   "sourceCommit": "f6440d2d5be11b0c343d2c0a3b827b1f47ebc666",
   "sourceWorktreeDirty": true,
   "publicRepository": "https://github.com/thaleslaray/smartzap-cloudflare",
-  "snapshotHash": "aec10c88e0392846057b847ecaead6de6f2e992b270a9a34cd5a0250796632cc",
+  "snapshotHash": "0deee1364d96b8e8696a44b0b8db6f75fb954e4834f57c2dd6d24c7f4172b47e",
   "files": [
     {
       "path": ".dev.vars.example",
@@ -12,7 +12,7 @@
     },
     {
       "path": ".github/workflows/upstream-sync.yml",
-      "sha256": "4ba2d1bf9aaf0abd634aaf97c52d5ddac5d4f11905dc1c481b6ec73d20c439d2"
+      "sha256": "5db23b0318b79bb3b463b135382fa5ad33e545a256e7ef545f36879fe9d33882"
     },
     {
       "path": ".gitignore",
@@ -260,7 +260,7 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "c25cc4e58fe540bedb1489d563e1f456dfd71c491d767a6bb3c49b64845a1753"
+      "sha256": "1c23c345fd7b4c664359cd42c976fedb65635b17f52b6fb1665fa4aa8f69b490"
     },
     {
       "path": "config/wrangler.test.jsonc",
@@ -288,7 +288,7 @@
     },
     {
       "path": "docs/MIGRATIONS_AND_ROLLBACK.md",
-      "sha256": "d99ccd92b3e80008d6038b4ea514ed071b5abe3b36db2ecc56b0ebbab35e936e"
+      "sha256": "c632dbe5f8d6c3a8a74621433bb39038686e8c55751089ba7eb511f3223294ed"
     },
     {
       "path": "docs/UPGRADING.md",
@@ -539,8 +539,12 @@
       "sha256": "4462ebce07fdd7f38eb698c98a99df04395620c47ac1ef28e9e90e80ff421771"
     },
     {
+      "path": "fork-migrations/0002_release_history.sql",
+      "sha256": "30efe10c812912f69ee9dbc327ba7c0ad75a39e58e1c59d25296ba2cd7bc4513"
+    },
+    {
       "path": "fork-migrations/README.md",
-      "sha256": "02fafabc1f94e844aa474197d2299d1a6b9b34ef241bd49d103562cbb0aed4d1"
+      "sha256": "6d0a7a59f831df1e5ba344d05a09540cfdc40c3ea87d485d493b13685aae109f"
     },
     {
       "path": "index.html",
@@ -560,11 +564,11 @@
     },
     {
       "path": "package-lock.json",
-      "sha256": "07c6acac5a029e93d254324ffc1c691c897ac4da0414819ed8e540f8a170b7e4"
+      "sha256": "5e995b6cb6a2b9f9920c744c6ae90ad4380d308f884bbdf3a31766d340345123"
     },
     {
       "path": "package.json",
-      "sha256": "16ce037a1a0fb35388f22f7d02b3fefba0bc473ffdd0c8aa5f13753c69753ffa"
+      "sha256": "6e83117b5c55896be4966f7c629a22557a5165462f02a13f213ba171fbecf0c5"
     },
     {
       "path": "playwright.config.ts",
@@ -675,8 +679,16 @@
       "sha256": "691ff30e695a9ebe5349525554168bf9b280f790e1d3bbdff27d7e26d77e1d2a"
     },
     {
+      "path": "release/allowed_signers",
+      "sha256": "35422065d2d8c315efc15856c930adffcbeb1f1231ca1d29ea5be0b8c86a2420"
+    },
+    {
       "path": "release/migrations.json",
-      "sha256": "ce9ff59ef58eded263a09a244134f69659fa081e67c74c882d57156b7055241f"
+      "sha256": "23168983181802801573757831135afdc5377fa2a438533ec99100d3c32f0358"
+    },
+    {
+      "path": "release/SMARTZAP_RELEASE_SIGNING_KEY.pub",
+      "sha256": "fb0b90f8f82493fa6d3ec1ef2b19d5abef8d204d0bbb55e1d60ffba9603bc2e8"
     },
     {
       "path": "scripts/e2e-seed.sql",
@@ -684,7 +696,7 @@
     },
     {
       "path": "scripts/fork-deploy.mjs",
-      "sha256": "9984ccaf1fa86c8e4aeeb84706dd551f43792543779daf59ae9bcc6ef58aafb7"
+      "sha256": "1f88504ce4a00caeac9e1382d628b563e27bb25b0a299ea2c59cc1cab108f9b3"
     },
     {
       "path": "scripts/fork-rollback.mjs",
@@ -705,6 +717,10 @@
     {
       "path": "scripts/lib/fork-bootstrap.mjs",
       "sha256": "e54174628ffa4f9f60e8fadcbc9d3b9c5c1dc85b97511d5cd6d36bc46a64c714"
+    },
+    {
+      "path": "scripts/lib/fork-migrations.mjs",
+      "sha256": "82a4c5a5c7e3b10a21804ed5643b2b9c312c2bd2a0df30f9a028fa492916dae3"
     },
     {
       "path": "scripts/lib/fork-release.mjs",
@@ -804,11 +820,15 @@
     },
     {
       "path": "scripts/validate-release-metadata.mjs",
-      "sha256": "3d2b7e0b35590b180abd1252240ecf86566367857ac130176c2f6296410cf0fd"
+      "sha256": "272fb5c6518612ae0bff5c7838d702fe0cf102cb1e6691eb9620628998386c67"
+    },
+    {
+      "path": "scripts/verify-release-tag.mjs",
+      "sha256": "92933d9e095256c8b8f783c16cbb28cdda265a31e89fefd8b1f13e9cea85bf37"
     },
     {
       "path": "SECURITY.md",
-      "sha256": "bb0afa365e893bf97e0856215475018d972876d25115910f0109d1a404c7577e"
+      "sha256": "da29309e497a9ac4798ff5a01891230b6f2dbe01f959478994eca1f73d9e85ca"
     },
     {
       "path": "shared/template-validation.ts",
@@ -1220,7 +1240,7 @@
     },
     {
       "path": "tests-node/fork-bootstrap.node.test.ts",
-      "sha256": "8a18ccaee3593c9af77c352eee6015379ebeee98e3e7593a7a305b1637078786"
+      "sha256": "eeccfccc530b8abab5c9346819b1228e998fcfbe84951d969f81d95c2a79d57d"
     },
     {
       "path": "tests-node/install-canary-evidence.node.test.ts",
@@ -1580,7 +1600,7 @@
     },
     {
       "path": "UPDATE_POLICY.md",
-      "sha256": "e25f64e760d59c24c1f01eef71d0c70bebfaa16b8e1778309564dbc9ce635e69"
+      "sha256": "1591262f8b3f1bdb2120dc509421d7c72ecd3aad376f0e8079e0c5f61e092252"
     },
     {
       "path": "vite.config.ts",

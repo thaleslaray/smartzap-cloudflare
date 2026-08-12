@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { buildForkWrangler, classifyForkResources, deploymentId, deploymentResourceNames, parseCreatedD1Id, parseD1Databases, parseQueueNames, parseR2BucketNames } from "../scripts/lib/fork-bootstrap.mjs";
 import { assertRollbackCheckpoint, buildRollbackCheckpoint, parseActiveDeploymentVersion, parseTimeTravelBookmark } from "../scripts/lib/fork-release.mjs";
+import { assertSchemaTransition, validateForkMigrationManifest } from "../scripts/lib/fork-migrations.mjs";
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import { createHash } from "node:crypto";
 
 const template = `{
   "name":"smartzap",
@@ -77,5 +82,24 @@ describe("bootstrap fork-first", () => {
     expect(assertRollbackCheckpoint(checkpoint, "smartzap-12ab34cd")).toEqual(expect.objectContaining({ bookmark, versionId }));
     expect(JSON.stringify(checkpoint)).not.toMatch(/password|vault|token/i);
     expect(() => assertRollbackCheckpoint(checkpoint, "smartzap-deadbeef")).toThrow(/não pertence/);
+  });
+
+  it("valida a cadeia real de migration e bloqueia checksum divergente antes do deploy", () => {
+    const manifest = validateForkMigrationManifest(resolve(import.meta.dirname, ".."));
+    expect(manifest.schemaVersion).toBe(2);
+    expect(assertSchemaTransition({ currentSchema: 1, targetSchema: 2, manifest }).map((migration) => migration.file)).toEqual(["0002_release_history.sql"]);
+    expect(assertSchemaTransition({ currentSchema: 2, targetSchema: 2, manifest })).toEqual([]);
+
+    const root = mkdtempSync(join(tmpdir(), "smartzap-migration-"));
+    mkdirSync(join(root, "release"), { recursive: true });
+    mkdirSync(join(root, "provisioner", "baseline"), { recursive: true });
+    writeFileSync(join(root, "provisioner", "baseline", "0001_fresh_install.sql"), "CREATE TABLE sample(id TEXT);\n");
+    const hash = createHash("sha256").update(readFileSync(join(root, "provisioner", "baseline", "0001_fresh_install.sql"))).digest("hex");
+    writeFileSync(join(root, "release", "migrations.json"), JSON.stringify({
+      schemaVersion: 1,
+      baseline: "provisioner/baseline/0001_fresh_install.sql",
+      migrations: [{ file: "0001_fresh_install.sql", sha256: hash.replace(/^./, hash[0] === "0" ? "1" : "0"), fromSchema: 0, toSchema: 1, compatibleWithPreviousCode: false, downtimeRequired: false, destructive: false, prechecks: ["vazio"], postchecks: ["criado"], recovery: "excluir" }],
+    }));
+    expect(() => validateForkMigrationManifest(root)).toThrow(/Checksum divergente/);
   });
 });

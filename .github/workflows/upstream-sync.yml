@@ -41,7 +41,7 @@ jobs:
           set -euo pipefail
           git remote add upstream "https://github.com/${UPSTREAM_REPOSITORY}.git" 2>/dev/null || git remote set-url upstream "https://github.com/${UPSTREAM_REPOSITORY}.git"
           git fetch --no-tags upstream "refs/tags/${VERSION}:refs/tags/${VERSION}"
-          git tag --verify "${VERSION}"
+          git -c gpg.format=ssh -c gpg.ssh.allowedSignersFile=release/allowed_signers tag --verify "${VERSION}"
           branch="sync/${VERSION}"
           git switch --detach "${VERSION}"
           git switch -C "$branch"

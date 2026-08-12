@@ -16,6 +16,13 @@ indisponibilidade, destrutividade, prechecks, postchecks e recuperação.
 e grava um checkpoint não secreto em `.smartzap/checkpoints/`. Sem bookmark ou
 versão ativa anterior, a migration é interrompida.
 
+Antes do inventário remoto, o comando também valida a sequência completa do
+manifesto e o SHA-256 de cada arquivo. Arquivo ausente, checksum divergente,
+salto de schema ou downgrade interrompem a execução antes de tocar a conta.
+Depois da aplicação, a identidade persistida e os postchecks de schema precisam
+corresponder à release; caso contrário, a atualização falha e o checkpoint deve
+ser usado para recuperação.
+
 ## Rollback
 
 - Worker: volte para a versão anterior em Versions & Deployments.

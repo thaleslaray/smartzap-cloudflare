@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "baseline": "provisioner/baseline/0001_fresh_install.sql",
   "migrations": [
     {
@@ -13,6 +13,18 @@
       "prechecks": ["D1 vazio ou reservado pelo mesmo SMARTZAP_INSTALL_ID"],
       "postchecks": ["baseline aplicada", "ledger d1_migrations presente", "smartzap_release_metadata presente"],
       "recovery": "Excluir somente os recursos da instalação incompleta ou restaurar o bookmark anterior do D1"
+    },
+    {
+      "file": "0002_release_history.sql",
+      "sha256": "30efe10c812912f69ee9dbc327ba7c0ad75a39e58e1c59d25296ba2cd7bc4513",
+      "fromSchema": 1,
+      "toSchema": 2,
+      "compatibleWithPreviousCode": true,
+      "downtimeRequired": false,
+      "destructive": false,
+      "prechecks": ["schema atual igual a 1", "checksum da migration validado", "bookmark D1 capturado em atualização"],
+      "postchecks": ["smartzap_release_history presente", "índice de recorded_at presente", "metadata atualizada para schema 2"],
+      "recovery": "Voltar o Worker para a versão anterior e restaurar o bookmark D1 capturado pelo checkpoint"
     }
   ]
 }
