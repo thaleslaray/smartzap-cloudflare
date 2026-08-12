@@ -86,7 +86,7 @@
     "react-router": "^8.3.0",
     "sharp": "^0.35.3",
     "tailwindcss": "^4.3.2",
-    "typescript": "^6.0.3",
+    "typescript": "^7.0.2",
     "vite": "^8.1.4",
     "vitest": "^4.1.10",
     "wrangler": "^4.120.0"
