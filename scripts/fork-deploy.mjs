@@ -11,7 +11,6 @@ import {
   deploymentResourceNames,
   parseD1Databases,
   parseQueueNames,
-  parseR2BucketNames,
 } from "./lib/fork-bootstrap.mjs";
 import { buildRollbackCheckpoint, parseActiveDeploymentVersion, parseTimeTravelBookmark } from "./lib/fork-release.mjs";
 import { INSTALL_GUARD_TABLE, parseWranglerRows } from "./lib/deploy-safety.mjs";
@@ -75,9 +74,20 @@ function listAllQueueNames() {
 }
 
 function inspectResourceNames(database) {
-  const buckets = parseR2BucketNames(runWrangler(["r2", "bucket", "list"]));
+  const buckets = r2BucketExists(names.media) ? [names.media] : [];
   const queues = listAllQueueNames();
   return classifyForkResources({ database, buckets, queues, names });
+}
+
+function r2BucketExists(name) {
+  try {
+    const output = runWrangler(["r2", "bucket", "info", name, "--json"]);
+    return JSON.parse(output)?.name === name;
+  } catch (error) {
+    const detail = `${error?.stderr || ""}\n${error?.message || ""}`;
+    if (detail.includes("code: 10006") || detail.includes("does not exist")) return false;
+    throw error;
+  }
 }
 
 function queryD1(sql) {
@@ -101,9 +111,8 @@ function assertOrPrepareDatabase(created) {
 }
 
 function ensureR2AndQueues(inventory) {
-  const existingBuckets = new Set(parseR2BucketNames(runWrangler(["r2", "bucket", "list"])));
   const existingQueues = new Set(listAllQueueNames());
-  if (!existingBuckets.has(names.media)) runWrangler(["r2", "bucket", "create", names.media], { visible: true });
+  if (!r2BucketExists(names.media)) runWrangler(["r2", "bucket", "create", names.media], { visible: true });
   for (const queue of inventory.requiredQueues) if (!existingQueues.has(queue)) runWrangler(["queues", "create", queue], { visible: true });
 }
 

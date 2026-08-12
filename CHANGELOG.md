@@ -5,6 +5,13 @@ versionamento segue SemVer.
 
 ## [Unreleased]
 
+## [1.0.0-rc.13] - 2026-08-12
+
+### Corrigido
+
+- a retomada consulta diretamente o bucket R2 pelo nome, evitando o limite da
+  listagem da conta e impedindo tentativas de recriação durante upgrades.
+
 ## [1.0.0-rc.12] - 2026-08-12
 
 ### Corrigido
