@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "generatedAt": "2026-08-12T19:06:55.763Z",
+  "generatedAt": "2026-08-12T19:13:19.197Z",
   "sourceCommit": "f6440d2d5be11b0c343d2c0a3b827b1f47ebc666",
   "sourceWorktreeDirty": true,
   "publicRepository": "https://github.com/thaleslaray/smartzap-cloudflare",
-  "snapshotHash": "74a528ed0b8c49abd80a958a736b24c270242da403568d0261d5f26ef6e83514",
+  "snapshotHash": "2e155c01b9867e68653b6d7c343af57f601a22b31e17e70ba53dac42b53e8662",
   "files": [
     {
       "path": ".dev.vars.example",
@@ -260,7 +260,7 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "522718db790b625be537bc00acce29aba3a744b3758cbe3ae7be696bb724855f"
+      "sha256": "71de29b7c574660f3021c810824879abbd0a4bb0c870cee0d958b05c76280198"
     },
     {
       "path": "config/wrangler.test.jsonc",
@@ -564,11 +564,11 @@
     },
     {
       "path": "package-lock.json",
-      "sha256": "c324489740b4c34fb86596fdae282c515bd172663c23f28e5dc740648ed6c4ba"
+      "sha256": "23b921377cd2c715ed4724caf3f0597926e923ea52bd16fca022d7aa208b008c"
     },
     {
       "path": "package.json",
-      "sha256": "bf47225e8e81741ec47beef5e21b56cfe4677786daeef183a7acf6e91d074e8f"
+      "sha256": "b8ab21c5f7e6a7fef68b61d177b473a5ff9c0d6ad4d82f1b6aeeb17ff2fbca61"
     },
     {
       "path": "playwright.config.ts",
@@ -696,7 +696,7 @@
     },
     {
       "path": "scripts/fork-deploy.mjs",
-      "sha256": "1f88504ce4a00caeac9e1382d628b563e27bb25b0a299ea2c59cc1cab108f9b3"
+      "sha256": "82a7690ab36cbdf87e185e5cce6352270146fb4c36489240e7a046a64ed157a4"
     },
     {
       "path": "scripts/fork-rollback.mjs",
@@ -705,6 +705,10 @@
     {
       "path": "scripts/lib/ai-human-calibration.mjs",
       "sha256": "bdc93017911851f7c3f2342699615bd3d6c5e7fc9bbb8009f2bf0247c5383292"
+    },
+    {
+      "path": "scripts/lib/artifact-safety.mjs",
+      "sha256": "3ea6f7751d48c6ddfe440d8cbdc9fb2116f9ab729bd7de08321bbc53261008b8"
     },
     {
       "path": "scripts/lib/deploy-safety.d.mts",
@@ -816,7 +820,7 @@
     },
     {
       "path": "scripts/sanitize-build.mjs",
-      "sha256": "02479b96a3c14ece302dd7aa366125b3b27515826d8b862bcbea2751648b4eb7"
+      "sha256": "46518d1ab14f8966f29f7ab326c1e3f9df9bb0442666feae75921e5b0b454e01"
     },
     {
       "path": "scripts/validate-release-metadata.mjs",
@@ -1229,6 +1233,10 @@
     {
       "path": "tests-node/ai-human-calibration.node.test.ts",
       "sha256": "63851d45b58db7b1f0a25fd4d5495515f2593f4755f4a6be450346cb4290c76d"
+    },
+    {
+      "path": "tests-node/artifact-safety.node.test.ts",
+      "sha256": "615aa7433f876719625d9a3a6a51cc4067c2e867f836a022da1d7f643401dceb"
     },
     {
       "path": "tests-node/dashboard-client.node.test.ts",

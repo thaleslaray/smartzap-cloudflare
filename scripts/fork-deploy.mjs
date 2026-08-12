@@ -15,6 +15,7 @@ import {
 import { buildRollbackCheckpoint, parseActiveDeploymentVersion, parseTimeTravelBookmark } from "./lib/fork-release.mjs";
 import { assertSchemaTransition, validateForkMigrationManifest } from "./lib/fork-migrations.mjs";
 import { INSTALL_GUARD_TABLE, parseWranglerRows } from "./lib/deploy-safety.mjs";
+import { assertSafeDeployArtifact } from "./lib/artifact-safety.mjs";
 
 const root = process.cwd();
 const staging = process.argv.includes("--staging");
@@ -176,6 +177,7 @@ function applyMigrations() {
 }
 
 function deploy() {
+  assertSafeDeployArtifact(resolve(root, "dist"));
   const secretPath = join(tmpdir(), `smartzap-secrets-${crypto.randomUUID()}.json`);
   try {
     const secretValues = Object.fromEntries(

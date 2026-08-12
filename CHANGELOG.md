@@ -5,6 +5,15 @@ versionamento segue SemVer.
 
 ## [Unreleased]
 
+## [1.0.0-rc.17] - 2026-08-12
+
+### Segurança
+
+- remove o `.dev.vars` gerado pelo plugin Vite tanto em `smartzap` quanto no
+  nome legado `smartzap_cf`;
+- o deploy fork-first recusa artefatos sem `dist/client` ou com qualquer
+  `.dev.vars`, mesmo quando o build foi invocado fora do pipeline recomendado.
+
 ## [1.0.0-rc.16] - 2026-08-12
 
 ### Corrigido
