@@ -5,6 +5,18 @@ versionamento segue SemVer.
 
 ## [Unreleased]
 
+## [1.0.0-rc.20] - 2026-08-12
+
+### Adicionado
+
+- verificador executável de fork verdadeiro, que exige o vínculo GitHub com o
+  upstream oficial, proprietário esperado, branch padrão `main` e visibilidade
+  pública;
+- preparação idempotente da branch `upstream-sync` a partir do SHA exato de
+  `main`, sem criar customizações artificiais nem tocar na Cloudflare;
+- documentação e cobertura automatizada para rejeitar cópia independente,
+  upstream falso ou repositório no proprietário errado.
+
 ## [1.0.0-rc.19] - 2026-08-12
 
 ### Segurança

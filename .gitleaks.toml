@@ -11,7 +11,22 @@ regexTarget = "secret"
 regexes = [
   '''^MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY$''',
   '''^ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA$''',
+  # Gitleaks 8.30 também testa candidatos decodificados e reduz a detecção
+  # ao prefixo de oito bytes dessas mesmas fixtures públicas.
+  '''^01234567$''',
+  '''^fedcba98$''',
 ]
+paths = [
+  '''(^|/)config/wrangler\.test\.jsonc$''',
+  '''(^|/)tests/vault\.test\.ts$''',
+  '''(^|/)vitest\.config\.ts$''',
+]
+
+[[allowlists]]
+description = "Prefixos decodificados das fixtures públicas do cofre"
+targetRules = ["generic-api-key"]
+condition = "AND"
+stopwords = ["01234567", "fedcba98"]
 paths = [
   '''(^|/)config/wrangler\.test\.jsonc$''',
   '''(^|/)tests/vault\.test\.ts$''',

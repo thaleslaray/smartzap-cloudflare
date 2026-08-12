@@ -14,6 +14,9 @@ Esta é a modalidade recomendada para produção.
 
 1. Abra `https://instalar.escoladeautomacao.com/smartzap/fork/`.
 2. Crie o fork verdadeiro no GitHub.
+   Depois da criação, confirme o vínculo e prepare a branch de sincronização com
+   `npm run fork:verify -- --owner=SEU_OWNER --prepare`. O comando recusa uma
+   cópia sem vínculo com `thaleslaray/smartzap-cloudflare`.
 3. Gere `SMARTZAP_INSTALL_ID`, a chave do cofre e defina sua senha.
 4. Baixe o recovery file e guarde-o fora do Git.
 5. Em Workers & Pages, escolha **Import a repository** e selecione seu fork.
@@ -36,6 +39,9 @@ posteriores declaradas em `release/migrations.json`.
 - `upstream-sync` ou `sync/vX.Y.Z`: código oficial recebido;
 - `customer/*`: customizações;
 - branches de staging: deploy físico isolado antes do merge.
+
+`customer/*` é criada somente quando houver uma customização real; o verificador
+não cria uma branch artificial apenas para satisfazer o catálogo.
 
 O comando `npm run fork:preview` continua disponível para execução manual e
 explícita. Não o configure diretamente como comando geral de branches da
