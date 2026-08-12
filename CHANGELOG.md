@@ -5,6 +5,13 @@ versionamento segue SemVer.
 
 ## [Unreleased]
 
+## [1.0.0-rc.12] - 2026-08-12
+
+### Corrigido
+
+- o instalador confirma o trigger agendado somente após o deploy bem-sucedido,
+  permitindo validar a infraestrutura sem aguardar a primeira execução do cron.
+
 ## [1.0.0-rc.11] - 2026-08-12
 
 ### Corrigido

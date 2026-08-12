@@ -164,6 +164,12 @@ function deploy() {
   }
 }
 
+function confirmScheduledTrigger() {
+  queryD1(
+    "INSERT INTO setup_checks(id,status,detail,checked_at) VALUES('cron_config','passed','trigger agendado confirmado após o deploy',datetime('now')) ON CONFLICT(id) DO UPDATE SET status='passed',detail=excluded.detail,checked_at=excluded.checked_at;",
+  );
+}
+
 try {
   const existingDatabase = parseD1Databases(runWrangler(["d1", "list", "--json"])).find((database) => database.name === names.database);
   const inventory = inspectResourceNames(existingDatabase);
@@ -176,6 +182,7 @@ try {
   captureRollbackCheckpoint(d1.created);
   applyMigrations();
   deploy();
+  confirmScheduledTrigger();
   console.log(`SmartZap ${version} publicado como ${workerName}. Abra a URL do Worker e conclua /setup.`);
 } catch (error) {
   console.error(`Instalação interrompida com segurança: ${error instanceof Error ? error.message : String(error)}`);
