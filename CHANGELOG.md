@@ -5,6 +5,13 @@ versionamento segue SemVer.
 
 ## [Unreleased]
 
+## [1.0.0-rc.18] - 2026-08-12
+
+### Corrigido
+
+- o fallback de reconciliação não registra mais a migration legada `0035` ao
+  apenas verificar uma baseline nova que já possui todas as colunas.
+
 ## [1.0.0-rc.17] - 2026-08-12
 
 ### Segurança

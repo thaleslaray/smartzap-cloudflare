@@ -23,7 +23,12 @@ function statusEvent(messageId: string, status: "delivered" | "read" | "failed")
 }
 
 describe("reconciliação de status órfãos", () => {
-  it("mantém a preparação do schema idempotente e registra a migration", async () => {
+  it("mantém a preparação idempotente sem poluir o ledger de uma baseline completa", async () => {
+    // O ambiente de testes aplica o histórico interno completo; removemos a
+    // marca antiga para simular o banco público criado diretamente da baseline.
+    await env.DB.prepare(
+      "DELETE FROM d1_migrations WHERE name='0035_status_event_reconciliation.sql'",
+    ).run();
     expect(await ensureStatusEventReconciliationSchema(env.DB)).toEqual({
       changed: false,
       columns: 6,
@@ -32,7 +37,7 @@ describe("reconciliação de status órfãos", () => {
       await env.DB.prepare(
         "SELECT COUNT(*) AS n FROM d1_migrations WHERE name='0035_status_event_reconciliation.sql'",
       ).first(),
-    ).toEqual({ n: 1 });
+    ).toEqual({ n: 0 });
   });
 
   it("aplica callback que chegou antes de message_id ser persistido", async () => {
