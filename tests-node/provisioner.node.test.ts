@@ -396,6 +396,10 @@ describe("interface de instalação", () => {
     expect(fork).toContain("npm run fork:deploy");
     expect(fork).toContain("SMARTZAP_INSTALL_ID");
     expect(fork).toContain("crypto.getRandomValues");
+    expect(fork).toContain("https://api.github.com/repos/");
+    expect(fork).toContain("repo.fork!==true");
+    expect(fork).toContain('repo.parent?.full_name!=="thaleslaray/smartzap-cloudflare"');
+    expect(fork).toContain('id="cloudflare-link" aria-disabled="true"');
     expect(fork).not.toContain("localStorage");
 
     const env = { PUBLIC_ORIGIN: "https://instalar.escoladeautomacao.com/smartzap" } as ProvisionerEnv;
@@ -404,6 +408,7 @@ describe("interface de instalação", () => {
     const quick = await provisionerWorker.fetch(new Request("https://instalar.escoladeautomacao.com/smartzap/quick/"), env);
     expect(await quick.text()).toContain("instalação rápida");
     const forkRoute = await provisionerWorker.fetch(new Request("https://instalar.escoladeautomacao.com/smartzap/fork/"), env);
+    expect(forkRoute.headers.get("Content-Security-Policy")).toContain("connect-src 'self' https://api.github.com");
     expect(await forkRoute.text()).toContain("O SmartZap passa a ser seu");
   });
 });

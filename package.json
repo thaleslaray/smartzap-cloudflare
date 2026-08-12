@@ -1,6 +1,6 @@
 {
   "name": "smartzap-cloudflare",
-  "version": "1.0.0-rc.23",
+  "version": "1.0.0-rc.24",
   "description": "SmartZap instalável em uma conta Cloudflare própria",
   "main": "index.js",
   "type": "module",
@@ -15,6 +15,7 @@
     "predev": "node scripts/prepare-dev.mjs",
     "dev": "vite dev",
     "build": "vite build",
+    "typecheck": "tsc --noEmit",
     "postbuild": "node scripts/sanitize-build.mjs",
     "db:migrate:local": "wrangler d1 migrations apply smartzap --local",
     "db:migrate:e2e": "CI=1 wrangler d1 migrations apply smartzap-test --config config/wrangler.test.jsonc --local --persist-to .wrangler/e2e-state",

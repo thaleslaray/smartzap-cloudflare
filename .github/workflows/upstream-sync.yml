@@ -1,11 +1,13 @@
 name: Propor atualização oficial
 
 on:
+  schedule:
+    - cron: "17 11 * * *"
   workflow_dispatch:
     inputs:
       version:
-        description: "Tag oficial exata, por exemplo v1.2.3"
-        required: true
+        description: "Tag oficial exata; deixe vazio para a stable mais recente"
+        required: false
         type: string
 
 permissions:
@@ -16,52 +18,89 @@ jobs:
   propose:
     runs-on: ubuntu-latest
     steps:
-      - name: Validar versão
+      - name: Resolver e validar versão
+        id: release
         shell: bash
         env:
-          VERSION: ${{ inputs.version }}
+          REQUESTED_VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
+          UPSTREAM_REPOSITORY: thaleslaray/smartzap-cloudflare
         run: |
           set -euo pipefail
+          VERSION="${REQUESTED_VERSION:-}"
+          if [ -z "$VERSION" ]; then
+            VERSION="$(gh api "repos/${UPSTREAM_REPOSITORY}/releases/latest" --jq .tag_name 2>/dev/null || true)"
+          fi
+          if [ -z "$VERSION" ]; then
+            echo "Nenhuma release stable oficial está disponível; nada será alterado."
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || {
             echo "Use uma tag SemVer exata. latest não é aceito." >&2
             exit 1
           }
+          echo "available=true" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Checkout do fork
+        if: steps.release.outputs.available == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
       - name: Criar branch a partir da tag oficial
+        if: steps.release.outputs.available == 'true'
         shell: bash
         env:
-          VERSION: ${{ inputs.version }}
+          VERSION: ${{ steps.release.outputs.version }}
           UPSTREAM_REPOSITORY: thaleslaray/smartzap-cloudflare
         run: |
           set -euo pipefail
           git remote add upstream "https://github.com/${UPSTREAM_REPOSITORY}.git" 2>/dev/null || git remote set-url upstream "https://github.com/${UPSTREAM_REPOSITORY}.git"
           git fetch --no-tags upstream "refs/tags/${VERSION}:refs/tags/${VERSION}"
-          allowed_signers="$(mktemp)"
-          trap 'rm -f "$allowed_signers"' EXIT
-          git show "${VERSION}:release/allowed_signers" > "$allowed_signers"
-          git -c gpg.format=ssh -c gpg.ssh.allowedSignersFile="$allowed_signers" tag --verify "${VERSION}"
+          test -s release/allowed_signers || {
+            echo "Âncora de confiança release/allowed_signers ausente no fork." >&2
+            exit 1
+          }
+          git -c gpg.format=ssh -c gpg.ssh.allowedSignersFile=release/allowed_signers tag --verify "${VERSION}"
           branch="sync/${VERSION}"
           git switch --detach "${VERSION}"
           git switch -C "$branch"
           git push --force-with-lease origin "$branch"
 
       - name: Materializar changelog, migrations e incompatibilidades
+        if: steps.release.outputs.available == 'true'
         shell: bash
         env:
-          VERSION: ${{ inputs.version }}
+          VERSION: ${{ steps.release.outputs.version }}
           OUTPUT_FILE: ${{ runner.temp }}/smartzap-update-pr.md
         run: node scripts/generate-update-pr-body.mjs
 
+      - name: Preparar Node.js
+        if: steps.release.outputs.available == 'true'
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Validar a release sem publicar
+        if: steps.release.outputs.available == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run release:validate
+          npm run typecheck
+          npm test
+          npm run build
+
       - name: Abrir pull request sem merge automático
+        if: steps.release.outputs.available == 'true'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ inputs.version }}
+          VERSION: ${{ steps.release.outputs.version }}
         run: |
           set -euo pipefail
           branch="sync/${VERSION}"

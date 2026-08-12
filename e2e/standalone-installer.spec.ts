@@ -6,6 +6,7 @@ import { pathToFileURL } from "node:url";
 const installerUrl = pathToFileURL(resolve(process.cwd(), "docs/install/index.html")).href;
 
 const provisionerUrl = "https://instalar.escoladeautomacao.com/smartzap/";
+const forkInstallerUrl = `${provisionerUrl}fork/`;
 
 test.describe("entrada pública do provisionador", () => {
   test("não coleta credenciais e aponta para o seletor das duas modalidades", async ({ page }) => {
@@ -46,5 +47,62 @@ test.describe("entrada pública do provisionador", () => {
     await page.goto(installerUrl);
     const { violations } = await new AxeBuilder({ page }).include("main").withTags(["wcag2a", "wcag2aa"]).analyze();
     expect(violations).toEqual([]);
+  });
+});
+
+test.describe("confirmação do fork verdadeiro", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.route("https://instalar.escoladeautomacao.com/smartzap/fork/", async (route) => {
+      const { forkInstallerHtml } = await import("../provisioner/src/fork-ui");
+      await route.fulfill({
+        contentType: "text/html; charset=utf-8",
+        body: forkInstallerHtml(),
+        headers: { "Content-Security-Policy": "default-src 'self'; connect-src 'self' https://api.github.com; script-src 'unsafe-inline'; style-src 'unsafe-inline'" },
+      });
+    });
+  });
+
+  test("bloqueia Cloudflare até o GitHub comprovar o vínculo upstream", async ({ page }) => {
+    await page.route("https://api.github.com/repos/cliente-smartzap/smartzap-cloudflare", async (route) => {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          full_name: "cliente-smartzap/smartzap-cloudflare",
+          fork: true,
+          parent: { full_name: "thaleslaray/smartzap-cloudflare" },
+          default_branch: "main",
+          private: false,
+        }),
+      });
+    });
+    await page.goto(forkInstallerUrl);
+    const cloudflare = page.getByRole("link", { name: /Abrir Workers/ });
+    await expect(cloudflare).toHaveAttribute("aria-disabled", "true");
+    await cloudflare.dispatchEvent("click");
+    await expect(page.getByText("Confirme primeiro que o fork verdadeiro foi criado.")).toBeVisible();
+
+    await page.getByLabel("Seu usuário ou organização no GitHub").fill("cliente-smartzap");
+    await page.getByRole("button", { name: "Confirmar meu fork" }).click();
+    await expect(page.getByText(/Fork confirmado: cliente-smartzap\/smartzap-cloudflare/)).toBeVisible();
+    await expect(cloudflare).toHaveAttribute("aria-disabled", "false");
+  });
+
+  test("recusa uma cópia independente mesmo com nome idêntico", async ({ page }) => {
+    await page.route("https://api.github.com/repos/copia-smartzap/smartzap-cloudflare", async (route) => {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          full_name: "copia-smartzap/smartzap-cloudflare",
+          fork: false,
+          default_branch: "main",
+          private: false,
+        }),
+      });
+    });
+    await page.goto(forkInstallerUrl);
+    await page.getByLabel("Seu usuário ou organização no GitHub").fill("copia-smartzap");
+    await page.getByRole("button", { name: "Confirmar meu fork" }).click();
+    await expect(page.getByText("Esse repositório não é um fork público válido do SmartZap com branch main.")).toBeVisible();
+    await expect(page.getByRole("link", { name: /Abrir Workers/ })).toHaveAttribute("aria-disabled", "true");
   });
 });

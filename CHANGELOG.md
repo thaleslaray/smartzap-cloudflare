@@ -5,6 +5,37 @@ versionamento segue SemVer.
 
 ## [Unreleased]
 
+## [1.0.0-rc.24] - 2026-08-12
+
+### Segurança
+
+- neutraliza as páginas de privacidade e exclusão para que cada proprietário do
+  fork seja identificado como responsável pela própria instalação, sem atribuir
+  dados de terceiros ao mantenedor do projeto;
+- o fluxo de atualização verifica tags com a âncora de confiança já aprovada no
+  fork, em vez de aceitar uma lista de assinantes fornecida pela própria tag;
+- adiciona Dependabot somente para dependências npm e GitHub Actions, sem merge,
+  deploy ou sincronização automática do core;
+- inclui um check de pull request sem permissão de escrita e proteção executável
+  da `main` contra force-push, exclusão ou merge sem validação.
+
+### Instalação e atualização
+
+- a página fork-first consulta a API pública do GitHub e só libera a etapa
+  Cloudflare após confirmar um fork público verdadeiro, vinculado ao upstream e
+  com branch `main`;
+- o workflow opcional detecta diariamente a release `stable` mais recente ou
+  aceita uma tag SemVer exata informada pelo proprietário, executa typecheck,
+  testes e build e apenas então abre o pull request;
+- o clone público passa a incluir declarações de tipos para os módulos do
+  instalador, migration, rollback e release, tornando `npm run typecheck` um
+  gate real do pacote inteiro.
+
+### Operação
+
+- a `rc.24` não altera runtime de negócio nem schema D1 da `rc.23`; as mudanças
+  atingem governança do fork, supply chain, documentação legal e instalador.
+
 ## [1.0.0-rc.23] - 2026-08-12
 
 ### Segurança

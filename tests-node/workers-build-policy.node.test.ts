@@ -32,10 +32,29 @@ describe("política fail-closed do Workers Builds", () => {
 });
 
 describe("corpo auditável do PR de atualização", () => {
-  it("verifica a tag com allowed_signers vindo da própria tag", () => {
+  it("verifica a tag somente com a âncora de confiança já aprovada no fork", () => {
     const workflow = readFileSync(resolve(".github/workflows/upstream-sync.yml"), "utf8");
-    expect(workflow).toContain('git show "${VERSION}:release/allowed_signers"');
-    expect(workflow).not.toMatch(/allowedSignersFile=release\/allowed_signers/);
+    expect(workflow).toContain("test -s release/allowed_signers");
+    expect(workflow).toMatch(/allowedSignersFile=release\/allowed_signers/);
+    expect(workflow).not.toContain('git show "${VERSION}:release/allowed_signers"');
+  });
+
+  it("detecta stable diariamente, aceita tag manual e nunca publica no workflow", () => {
+    const workflow = readFileSync(resolve(".github/workflows/upstream-sync.yml"), "utf8");
+    expect(workflow).toContain("schedule:");
+    expect(workflow).toContain('repos/${UPSTREAM_REPOSITORY}/releases/latest');
+    expect(workflow).toContain("REQUESTED_VERSION:");
+    expect(workflow).toContain("npm run typecheck");
+    expect(workflow).not.toMatch(/wrangler\s+deploy|fork:deploy|merge\s+--auto|gh\s+pr\s+merge/);
+  });
+
+  it("mantém um check de pull request separado e sem credencial de escrita", () => {
+    const workflow = readFileSync(resolve(".github/workflows/validate-fork.yml"), "utf8");
+    expect(workflow).toContain("pull_request:");
+    expect(workflow).toContain("contents: read");
+    expect(workflow).toContain("name: validar");
+    expect(workflow).toContain("npm run typecheck");
+    expect(workflow).not.toMatch(/wrangler\s+deploy|fork:deploy|contents:\s*write/);
   });
 
   it("materializa changelog, migrations, incompatibilidades e checklist", () => {

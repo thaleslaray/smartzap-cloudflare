@@ -14,9 +14,14 @@ Esta é a modalidade recomendada para produção.
 
 1. Abra `https://instalar.escoladeautomacao.com/smartzap/fork/`.
 2. Crie o fork verdadeiro no GitHub.
+   Ative o GitHub Actions no fork antes de proteger a branch, para que o check
+   obrigatório `validar` possa executar nos pull requests.
    Depois da criação, confirme o vínculo e prepare a branch de sincronização com
-   `npm run fork:verify -- --owner=SEU_OWNER --prepare`. O comando recusa uma
+   `npm run fork:verify -- --owner=SEU_OWNER --prepare --protect-main`. O comando recusa uma
    cópia sem vínculo com `thaleslaray/smartzap-cloudflare`.
+   Com `--protect-main`, ele também exige pull request, histórico linear,
+   resolução das conversas e o check `validar`, e proíbe force-push e exclusão
+   da branch. O comando usa a autenticação local do GitHub do proprietário.
 3. Gere `SMARTZAP_INSTALL_ID`, a chave do cofre e defina sua senha.
 4. Baixe o recovery file e guarde-o fora do Git.
 5. Em Workers & Pages, escolha **Import a repository** e selecione seu fork.

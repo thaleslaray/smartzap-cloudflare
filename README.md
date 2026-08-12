@@ -13,10 +13,12 @@ terceiros.
 
 1. Abra **[Instalar com meu próprio código](https://instalar.escoladeautomacao.com/smartzap/fork/)**.
 2. Crie o fork no GitHub.
-3. Importe o fork no Workers Builds.
-4. Use `npm run fork:deploy` em produção e `npm run fork:branch` como comando
+3. Confirme e proteja o fork com
+   `npm run fork:verify -- --owner=SEU_OWNER --prepare --protect-main`.
+4. Importe o fork no Workers Builds.
+5. Use `npm run fork:deploy` em produção e `npm run fork:branch` como comando
    não produtivo; somente `staging/*` provisiona staging físico.
-5. Abra `/setup` e homologue a Meta.
+6. Abra `/setup` e homologue a Meta.
 
 Consulte [instalação com fork](docs/FORK_INSTALLATION.md),
 [política de atualizações](UPDATE_POLICY.md), [suporte](SUPPORT.md) e
@@ -128,7 +130,7 @@ Validação principal:
 
 ```sh
 npm test
-npx tsc --noEmit
+npm run typecheck
 npm run build
 npm run e2e
 ```

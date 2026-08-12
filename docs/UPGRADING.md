@@ -4,8 +4,11 @@
 2. Baixe o pacote, o manifesto, `SHA256SUMS` e `SHA256SUMS.sig` da mesma
    release. Confirme a tag, o commit e a assinatura com
    `npm run release:verify-assets -- vX.Y.Z --directory=DIRETORIO`.
-3. Execute manualmente o workflow **Propor atualização oficial** ou crie
-   `sync/vX.Y.Z` a partir da tag.
+3. Aguarde a detecção diária da release `stable`, execute manualmente o workflow
+   **Propor atualização oficial** para uma tag exata ou crie `sync/vX.Y.Z` a
+   partir da tag. O workflow valida a assinatura contra a chave que já estava
+   confiada no fork; nunca aceita uma lista de assinantes trazida pela própria
+   tag como nova âncora de confiança.
 4. Revise o PR contra `main`; ele materializa changelog, migrations,
    incompatibilidades e recuperação. O bot não resolve conflitos.
 5. Execute `npm ci`, `npm run release:validate`, `npm test` e `npm run build`.
