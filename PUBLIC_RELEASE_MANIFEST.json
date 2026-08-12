@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "generatedAt": "2026-08-12T18:05:45.139Z",
+  "generatedAt": "2026-08-12T18:15:49.117Z",
   "sourceCommit": "f6440d2d5be11b0c343d2c0a3b827b1f47ebc666",
   "sourceWorktreeDirty": true,
   "publicRepository": "https://github.com/thaleslaray/smartzap-cloudflare",
-  "snapshotHash": "c344dfbecdb36a3d07150f9afec62b8f1dc340cfca75591e7d56e368125fd963",
+  "snapshotHash": "f36b6e2b5132b5e823b5f62e1bf8048a034d863d4a66e9abbe209d9d95f6b673",
   "files": [
     {
       "path": ".dev.vars.example",
@@ -260,7 +260,7 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "1fae313978840612683f3cc9ef129e7ec6c3cb7730fa35cc42d0b7d3ab5100dd"
+      "sha256": "444d9fbb56e82a7484d50649c8df4836f357db04b07407fe4ccef56983ee719e"
     },
     {
       "path": "config/wrangler.test.jsonc",
@@ -560,11 +560,11 @@
     },
     {
       "path": "package-lock.json",
-      "sha256": "ac518107b99cb0ba89040f4759e4d9ce718cd79b1982176095a9c5819de74c80"
+      "sha256": "58f208270b71a2b2778927e39e1585b4b2c752ba3e9dc6f67423366877cf4761"
     },
     {
       "path": "package.json",
-      "sha256": "499fb7356cb0358c2cde2663bca163595f021ef52c7652cd5120c63e28a40067"
+      "sha256": "80c68ddf8d047a351fe6e11da458f5ff46a8812edc814d37ecd07ba6a8363a67"
     },
     {
       "path": "playwright.config.ts",
@@ -684,7 +684,7 @@
     },
     {
       "path": "scripts/fork-deploy.mjs",
-      "sha256": "51f4e52798085d2f52eef5de81a9f987bce4c15782ca5850d800590c5fad86b2"
+      "sha256": "746632bb95a25d6df74db9782b0f271200926d3ffbf2e91e8bc1a0def247bf6d"
     },
     {
       "path": "scripts/fork-rollback.mjs",
@@ -704,7 +704,7 @@
     },
     {
       "path": "scripts/lib/fork-bootstrap.mjs",
-      "sha256": "c87538775bfb753ec349fd8ec0e44bb6c29761615398efc75df0af9759940557"
+      "sha256": "e54174628ffa4f9f60e8fadcbc9d3b9c5c1dc85b97511d5cd6d36bc46a64c714"
     },
     {
       "path": "scripts/lib/fork-release.mjs",
@@ -1220,7 +1220,7 @@
     },
     {
       "path": "tests-node/fork-bootstrap.node.test.ts",
-      "sha256": "8e743a91cd70e120fab4bb743e455e500861247d83a8deb7a1cb2d87f039302e"
+      "sha256": "8a18ccaee3593c9af77c352eee6015379ebeee98e3e7593a7a305b1637078786"
     },
     {
       "path": "tests-node/install-canary-evidence.node.test.ts",

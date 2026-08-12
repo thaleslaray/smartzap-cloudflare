@@ -5,6 +5,14 @@ versionamento segue SemVer.
 
 ## [Unreleased]
 
+## [1.0.0-rc.11] - 2026-08-12
+
+### Corrigido
+
+- bootstrap D1 passa a obter o UUID pela listagem JSON estruturada do Wrangler;
+- tabelas internas `_cf_*` deixam de ser confundidas com conteúdo pré-existente;
+- retomada segura da instalação após a criação física do D1.
+
 ## [1.0.0-rc.10] - 2026-08-12
 
 ### Adicionado

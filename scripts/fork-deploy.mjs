@@ -9,7 +9,6 @@ import {
   classifyForkResources,
   deploymentId,
   deploymentResourceNames,
-  parseCreatedD1Id,
   parseD1Databases,
   parseQueueNames,
   parseR2BucketNames,
@@ -58,8 +57,10 @@ function releaseSchemaVersion() {
 function ensureD1() {
   const existing = parseD1Databases(runWrangler(["d1", "list", "--json"])).find((database) => database.name === names.database);
   if (existing) return { id: existing.id, created: false };
-  const output = runWrangler(["d1", "create", names.database]);
-  return { id: parseCreatedD1Id(output), created: true };
+  runWrangler(["d1", "create", names.database]);
+  const created = parseD1Databases(runWrangler(["d1", "list", "--json"])).find((database) => database.name === names.database);
+  if (!created?.id) throw new Error("O D1 foi criado, mas não apareceu na listagem estruturada da conta.");
+  return { id: created.id, created: true };
 }
 
 function listAllQueueNames() {
@@ -85,7 +86,7 @@ function queryD1(sql) {
 }
 
 function assertOrPrepareDatabase(created) {
-  const tables = queryD1("SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name;").map((row) => String(row.name));
+  const tables = queryD1("SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%' ORDER BY name;").map((row) => String(row.name));
   if (tables.length === 0) {
     if (!created) throw new Error(`O banco ${names.database} já existia, mas não possui o ledger desta instalação. O deploy foi interrompido sem adotá-lo.`);
     queryD1(`CREATE TABLE ${INSTALL_GUARD_TABLE} (id TEXT PRIMARY KEY, worker_name TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now'))); INSERT INTO ${INSTALL_GUARD_TABLE}(id, worker_name) VALUES ('singleton', '${workerName}');`);

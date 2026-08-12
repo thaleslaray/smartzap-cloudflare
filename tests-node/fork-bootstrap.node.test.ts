@@ -42,6 +42,7 @@ describe("bootstrap fork-first", () => {
   it("lê respostas D1 sem depender de IDs fixos", () => {
     expect(parseD1Databases('[{"uuid":"11111111-1111-4111-8111-111111111111","name":"smartzap-12ab34cd-db"}]')).toEqual([{ id: "11111111-1111-4111-8111-111111111111", name: "smartzap-12ab34cd-db" }]);
     expect(parseCreatedD1Id('database_id = "22222222-2222-4222-8222-222222222222"')).toBe("22222222-2222-4222-8222-222222222222");
+    expect(parseCreatedD1Id('database_id = \u001b[32m"33333333-3333-4333-8333-333333333333"\u001b[0m')).toBe("33333333-3333-4333-8333-333333333333");
     expect(deploymentResourceNames("smartzap-12ab34cd").conversionDlq).toBe("smartzap-12ab34cd-meta-conversions-dlq");
   });
 

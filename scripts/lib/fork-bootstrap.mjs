@@ -69,7 +69,8 @@ export function parseD1Databases(output) {
 }
 
 export function parseCreatedD1Id(output) {
-  const match = String(output).match(/(?:database_id\s*[=:]\s*["']?|"uuid"\s*:\s*")([0-9a-f-]{36})/i);
+  const normalized = String(output).replace(/\u001b\[[0-9;]*m/g, "");
+  const match = normalized.match(/(?:database_id\s*[=:]\s*["']?|"uuid"\s*:\s*")([0-9a-f-]{36})/i);
   if (!match) throw new Error("O D1 foi criado, mas o UUID não pôde ser lido com segurança.");
   return match[1];
 }
