@@ -1,4 +1,5 @@
 export const SMARTZAP_UPSTREAM = "thaleslaray/smartzap-cloudflare";
+export const SMARTZAP_UPSTREAM_OWNER = SMARTZAP_UPSTREAM.split("/")[0];
 export const SMARTZAP_REPOSITORY = "smartzap-cloudflare";
 
 export function normalizeGitHubOwner(value) {
@@ -11,6 +12,14 @@ export function normalizeGitHubOwner(value) {
 
 export function githubForkTarget(owner) {
   return `${normalizeGitHubOwner(owner)}/${SMARTZAP_REPOSITORY}`;
+}
+
+export function assertIndependentForkOwner(value) {
+  const owner = normalizeGitHubOwner(value);
+  if (owner.toLowerCase() === SMARTZAP_UPSTREAM_OWNER.toLowerCase()) {
+    throw new Error(`O fork precisa pertencer a outra conta ou organização; a origem já pertence a ${SMARTZAP_UPSTREAM_OWNER}.`);
+  }
+  return owner;
 }
 
 export function assertTrueGitHubFork(repository, expectedOwner) {

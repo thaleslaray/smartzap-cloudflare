@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "generatedAt": "2026-08-12T20:31:41.270Z",
+  "generatedAt": "2026-08-12T20:41:26.393Z",
   "sourceCommit": "f6440d2d5be11b0c343d2c0a3b827b1f47ebc666",
   "sourceWorktreeDirty": true,
   "publicRepository": "https://github.com/thaleslaray/smartzap-cloudflare",
-  "snapshotHash": "27cd7549a63fa25ada1d3323ae0c2f2f42ee6496ebd8f3897f18aef8f2c076aa",
+  "snapshotHash": "e5ee5b11e647e50826a9894c5f1691970d244092a2313dccfa0488d0a78ac0b3",
   "files": [
     {
       "path": ".dev.vars.example",
@@ -264,7 +264,7 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "493590dbf2c112d7b7228201926594d9c41be25bef5b868953b15de0e69c6646"
+      "sha256": "aece706196cecb51e6ffb998e8aa3d40dbf0fae61e32b23a57cc87a30749a988"
     },
     {
       "path": "config/wrangler.test.jsonc",
@@ -296,7 +296,7 @@
     },
     {
       "path": "docs/UPGRADING.md",
-      "sha256": "deda46f6823244243d8029155ef3eff1caefeb4261ce558906ea858620176955"
+      "sha256": "345f907107ea46a9ed95f64fd7bca035a7c257db99c5fdd2a52f2601e99fd5d7"
     },
     {
       "path": "DS/_adherence.oxlintrc.json",
@@ -568,11 +568,11 @@
     },
     {
       "path": "package-lock.json",
-      "sha256": "5c3fd084328b4c9967a1e666579e75d38bc6df30411a12885b1701557c2a8ac8"
+      "sha256": "dbc9b2faf093ea08c06e1233fd3ce6ba3787d30070bff9c134c26a0ae77c14a7"
     },
     {
       "path": "package.json",
-      "sha256": "8af6bd345986fb1d0a730a2febf11d0d128e7d8e16e8228373d60ac79f0d245e"
+      "sha256": "6d96249a13dacca925a23c5e4e2f16aa63aab8586ae04990b906e7c6bc2f1b0b"
     },
     {
       "path": "playwright.config.ts",
@@ -740,7 +740,7 @@
     },
     {
       "path": "scripts/lib/github-fork.mjs",
-      "sha256": "87e768ef0dc9258efa45f36faf47b634e07745481103c7054e823e9f0439d50d"
+      "sha256": "232a9c6fbb9bab7b09935cf38ff9d75968fe7342c7bcc3ac3fc336a74d5a2853"
     },
     {
       "path": "scripts/lib/install-canary-evidence.d.mts",
@@ -831,6 +831,10 @@
       "sha256": "1fb780d59097ea92b67204e9e1258d1d50554cd3a1da4154de265c963f3fff55"
     },
     {
+      "path": "scripts/qa-fork-update-scenarios.mjs",
+      "sha256": "1418566f369d36c82491ce48edd17d3b57679dc7fba386b8e404f43405789a6d"
+    },
+    {
       "path": "scripts/qa-secret-scan.mjs",
       "sha256": "1eb01397b7fd74b3fd62fd21658a931377ae4532512a6b17ac534064d403a2bd"
     },
@@ -844,7 +848,7 @@
     },
     {
       "path": "scripts/verify-github-fork.mjs",
-      "sha256": "ad2085dcf9e644203616e46e6794db367995926b706db6051f2ffb83a9e19406"
+      "sha256": "3cb8c3865ee7cf1ba08c722b114a53c4153f899ab432e3f5fcf1a1c8b721ac73"
     },
     {
       "path": "scripts/verify-release-tag.mjs",
@@ -1275,8 +1279,12 @@
       "sha256": "eeccfccc530b8abab5c9346819b1228e998fcfbe84951d969f81d95c2a79d57d"
     },
     {
+      "path": "tests-node/fork-update-scenarios.node.test.ts",
+      "sha256": "070cf1d7f8f29882d33ccdae0dfe437809133d83dbc576e0680d3a8d7ae7a170"
+    },
+    {
       "path": "tests-node/github-fork.node.test.ts",
-      "sha256": "9712cdff79abf4aa0d45a55cf57cb9fdcc27a0ff292ecdb54c48083eaff9834f"
+      "sha256": "f998a82ca34e4e87f46f1d63fbea662229c80876114fb79f94717b967642b9d8"
     },
     {
       "path": "tests-node/install-canary-evidence.node.test.ts",

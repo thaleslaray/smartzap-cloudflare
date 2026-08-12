@@ -12,6 +12,13 @@
 8. Valide `/setup`, Meta, filas, DLQs, cron e regressão.
 9. Aprove o merge. Somente então Workers Builds de produção publica `main`.
 
+Antes de usar uma conta real, execute `npm run qa:fork:updates`. O ensaio cria
+somente repositórios Git temporários e comprova três comportamentos: patch
+limpo, customização do proprietário sem conflito e conflito intencional. No
+terceiro caso, a atualização precisa parar, não pode resolver nada sozinha e o
+cancelamento deve restaurar o fork anterior. Esse ensaio não substitui o PR e o
+staging físicos exigidos para aprovar `UPD-02`.
+
 O deploy do fork captura automaticamente versão ativa e bookmark D1 antes da
 primeira migration pendente e salva o checkpoint em `.smartzap/checkpoints/`.
 Guarde esse arquivo até o fim da homologação; ele não contém secrets.

@@ -1,6 +1,6 @@
 {
   "name": "smartzap-cloudflare",
-  "version": "1.0.0-rc.20",
+  "version": "1.0.0-rc.21",
   "description": "SmartZap instalável em uma conta Cloudflare própria",
   "main": "index.js",
   "type": "module",
@@ -31,6 +31,7 @@
     "fork:preview": "node scripts/fork-deploy.mjs --staging",
     "fork:branch": "node scripts/workers-build-deploy.mjs",
     "fork:verify": "node scripts/verify-github-fork.mjs",
+    "qa:fork:updates": "node scripts/qa-fork-update-scenarios.mjs",
     "fork:rollback": "node scripts/fork-rollback.mjs",
     "release:validate": "node scripts/validate-release-metadata.mjs",
     "release:verify-tag": "node scripts/verify-release-tag.mjs",

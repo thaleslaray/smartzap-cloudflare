@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   assertForkBranches,
+  assertIndependentForkOwner,
   assertTrueGitHubFork,
   githubForkTarget,
   normalizeGitHubOwner,
@@ -37,6 +38,12 @@ describe("verificação do fork verdadeiro", () => {
     expect(normalizeGitHubOwner("smartzap-homologacao")).toBe("smartzap-homologacao");
     expect(githubForkTarget("smartzap-homologacao")).toBe("smartzap-homologacao/smartzap-cloudflare");
     expect(() => normalizeGitHubOwner("owner/injecao")).toThrow(/inválido/);
+  });
+
+  it("aceita a conta pessoal autenticada do instalador e recusa somente o dono do upstream", () => {
+    expect(assertIndependentForkOwner("cliente-smartzap")).toBe("cliente-smartzap");
+    expect(assertIndependentForkOwner("smartzap-homologacao")).toBe("smartzap-homologacao");
+    expect(() => assertIndependentForkOwner("thaleslaray")).toThrow(/origem já pertence/);
   });
 
   it("exige main e upstream-sync, sem inventar customer/*", () => {

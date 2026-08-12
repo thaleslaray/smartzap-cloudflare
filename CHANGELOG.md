@@ -5,6 +5,22 @@ versionamento segue SemVer.
 
 ## [Unreleased]
 
+## [1.0.0-rc.21] - 2026-08-12
+
+### Corrigido
+
+- o verificador de fork agora aceita corretamente a conta pessoal autenticada
+  do instalador e recusa somente o proprietário do repositório upstream;
+- a candidata `rc.20` comparava incorretamente o login autenticado ao destino,
+  bloqueando o caso normal de um cliente validar o próprio fork.
+
+### Adicionado
+
+- ensaio local e isolado das três situações de atualização: patch limpo,
+  customização sem conflito e conflito intencional;
+- o conflito precisa interromper o merge sem resolução automática, e o aborto
+  precisa restaurar integralmente o fork anterior.
+
 ## [1.0.0-rc.20] - 2026-08-12
 
 ### Adicionado

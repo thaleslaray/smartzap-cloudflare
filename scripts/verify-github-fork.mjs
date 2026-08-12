@@ -1,14 +1,14 @@
 import { execFileSync } from "node:child_process";
 import {
   assertForkBranches,
+  assertIndependentForkOwner,
   assertTrueGitHubFork,
   githubForkTarget,
-  normalizeGitHubOwner,
   synchronizationRef,
 } from "./lib/github-fork.mjs";
 
 const ownerArgument = process.argv.find((argument) => argument.startsWith("--owner="))?.slice("--owner=".length);
-const owner = normalizeGitHubOwner(ownerArgument || process.env.SMARTZAP_GITHUB_OWNER);
+const owner = assertIndependentForkOwner(ownerArgument || process.env.SMARTZAP_GITHUB_OWNER);
 const prepare = process.argv.includes("--prepare");
 const target = githubForkTarget(owner);
 
@@ -25,11 +25,6 @@ function api(path, method = "GET", fields = []) {
   for (const [key, value] of fields) args.push("-f", `${key}=${value}`);
   const output = gh(args);
   return output ? JSON.parse(output) : null;
-}
-
-const authenticatedOwner = gh(["api", "user", "--jq", ".login"]);
-if (authenticatedOwner.toLowerCase() === owner.toLowerCase()) {
-  throw new Error("O fork precisa pertencer a outra conta ou organização; a origem já pertence ao usuário autenticado.");
 }
 
 const repository = api(`repos/${target}`);
