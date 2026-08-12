@@ -5,6 +5,25 @@ versionamento segue SemVer.
 
 ## [Unreleased]
 
+## [1.0.0-rc.22] - 2026-08-12
+
+### Corrigido
+
+- uma atualização após rollback para runtime anterior à `rc.18` remove do
+  ledger público somente o marcador sintético interno `0035`, que podia ser
+  recriado mesmo quando a baseline já continha todas as colunas;
+- o postcheck da publicação reprova a atualização se esse marcador legado
+  permanecer no D1.
+
+### Operação
+
+- a migration pública `0003` é compatível com o código anterior, não altera
+  dados de negócio nem exige indisponibilidade; a remoção do registro de ledger
+  é declarada como destrutiva e exige o bookmark já capturado pelo instalador;
+- restaurar o bookmark D1 continua recuperando exatamente o estado anterior,
+  inclusive o marcador legado, e por isso uma retomada deve reaplicar a
+  `rc.22` antes de reabrir o tráfego.
+
 ## [1.0.0-rc.21] - 2026-08-12
 
 ### Corrigido

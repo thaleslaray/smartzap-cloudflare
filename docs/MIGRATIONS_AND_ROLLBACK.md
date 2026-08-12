@@ -37,6 +37,11 @@ ser usado para recuperação.
 
 Depois, execute postchecks, `/setup`, health, Queue, DLQs e reconciliação.
 
+Uma restauração D1 é exata: ela também recupera registros antigos do ledger.
+Se o bookmark anterior contiver o marcador sintético interno `0035`, mantenha
+o tráfego fechado e reaplique a release atual para que a migration pública
+`0003` o remova antes dos postchecks finais.
+
 O comando abaixo apenas mostra o plano:
 
 ```bash

@@ -46,6 +46,7 @@ describe("corpo auditável do PR de atualização", () => {
     const body = readFileSync(output, "utf8");
     expect(body).toContain("Changelog desta versão");
     expect(body).toContain("0002_release_history.sql");
+    expect(body).toContain("0003_repair_legacy_status_marker.sql");
     expect(body).toContain("Incompatibilidades e atenção");
     expect(body).toContain("staging físico");
     expect(body).toContain("Branches `sync/*` executam validação sem deploy");

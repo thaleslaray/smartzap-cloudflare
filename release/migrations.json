@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "baseline": "provisioner/baseline/0001_fresh_install.sql",
   "migrations": [
     {
@@ -25,6 +25,18 @@
       "prechecks": ["schema atual igual a 1", "checksum da migration validado", "bookmark D1 capturado em atualização"],
       "postchecks": ["smartzap_release_history presente", "índice de recorded_at presente", "metadata atualizada para schema 2"],
       "recovery": "Voltar o Worker para a versão anterior e restaurar o bookmark D1 capturado pelo checkpoint"
+    },
+    {
+      "file": "0003_repair_legacy_status_marker.sql",
+      "sha256": "2c3f7ff5ac4741d64605777e67d5d6c95c76c5f0091afc7d9088ef696a5f2f67",
+      "fromSchema": 2,
+      "toSchema": 3,
+      "compatibleWithPreviousCode": true,
+      "downtimeRequired": false,
+      "destructive": true,
+      "prechecks": ["schema atual igual a 2", "checksum da migration validado", "bookmark D1 capturado em atualização"],
+      "postchecks": ["marcador sintético 0035 ausente", "migrations públicas 0001, 0002 e 0003 preservadas", "metadata atualizada para schema 3"],
+      "recovery": "Voltar o Worker e restaurar o bookmark D1; a restauração recupera exatamente o ledger anterior, inclusive eventual marcador sintético"
     }
   ]
 }

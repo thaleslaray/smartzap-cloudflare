@@ -166,6 +166,14 @@ function applyMigrations() {
   const escaped = (value) => String(value).replaceAll("'", "''");
   const table = queryD1("SELECT name FROM sqlite_schema WHERE type='table' AND name='smartzap_release_history' LIMIT 1;")[0]?.name;
   if (migrationManifest.schemaVersion >= 2 && table !== "smartzap_release_history") throw new Error("Postcheck falhou: histórico de releases ausente após a migration.");
+  if (migrationManifest.schemaVersion >= 3) {
+    const legacyMarker = queryD1("SELECT name FROM d1_migrations WHERE name='0035_status_event_reconciliation.sql' LIMIT 1;")[0]?.name;
+    if (legacyMarker) throw new Error("Postcheck falhou: marcador sintético 0035 permaneceu no ledger público.");
+    const publicLedger = queryD1("SELECT name FROM d1_migrations WHERE name IN ('0001_fresh_install.sql','0002_release_history.sql','0003_repair_legacy_status_marker.sql') ORDER BY name;").map((row) => row.name);
+    if (publicLedger.join(",") !== "0001_fresh_install.sql,0002_release_history.sql,0003_repair_legacy_status_marker.sql") {
+      throw new Error("Postcheck falhou: ledger público incompleto após a reparação.");
+    }
+  }
   const transition = current?.version && current.version !== "bootstrap" ? "upgrade" : "install";
   const releaseKey = `${version}@${commit}`;
   queryD1(`INSERT OR IGNORE INTO smartzap_release_history(release_key,version,commit_sha,schema_version,channel,transition,previous_version) VALUES('${escaped(releaseKey)}','${escaped(version)}','${escaped(commit)}',${Number(schemaVersion)},'${escaped(channel)}','${transition}',${current?.version && current.version !== "bootstrap" ? `'${escaped(current.version)}'` : "NULL"});`);

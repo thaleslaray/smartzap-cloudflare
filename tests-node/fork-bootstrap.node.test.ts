@@ -86,9 +86,10 @@ describe("bootstrap fork-first", () => {
 
   it("valida a cadeia real de migration e bloqueia checksum divergente antes do deploy", () => {
     const manifest = validateForkMigrationManifest(resolve(import.meta.dirname, ".."));
-    expect(manifest.schemaVersion).toBe(2);
-    expect(assertSchemaTransition({ currentSchema: 1, targetSchema: 2, manifest }).map((migration) => migration.file)).toEqual(["0002_release_history.sql"]);
-    expect(assertSchemaTransition({ currentSchema: 2, targetSchema: 2, manifest })).toEqual([]);
+    expect(manifest.schemaVersion).toBe(3);
+    expect(assertSchemaTransition({ currentSchema: 1, targetSchema: 3, manifest }).map((migration) => migration.file)).toEqual(["0002_release_history.sql", "0003_repair_legacy_status_marker.sql"]);
+    expect(assertSchemaTransition({ currentSchema: 2, targetSchema: 3, manifest }).map((migration) => migration.file)).toEqual(["0003_repair_legacy_status_marker.sql"]);
+    expect(assertSchemaTransition({ currentSchema: 3, targetSchema: 3, manifest })).toEqual([]);
 
     const root = mkdtempSync(join(tmpdir(), "smartzap-migration-"));
     mkdirSync(join(root, "release"), { recursive: true });

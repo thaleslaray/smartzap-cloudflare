@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "generatedAt": "2026-08-12T20:41:26.393Z",
+  "generatedAt": "2026-08-12T21:27:02.252Z",
   "sourceCommit": "f6440d2d5be11b0c343d2c0a3b827b1f47ebc666",
   "sourceWorktreeDirty": true,
   "publicRepository": "https://github.com/thaleslaray/smartzap-cloudflare",
-  "snapshotHash": "e5ee5b11e647e50826a9894c5f1691970d244092a2313dccfa0488d0a78ac0b3",
+  "snapshotHash": "ab149e9dea506cdf3b76293366183526b889384f4450fb27907d793e85e1c206",
   "files": [
     {
       "path": ".dev.vars.example",
@@ -264,7 +264,7 @@
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "aece706196cecb51e6ffb998e8aa3d40dbf0fae61e32b23a57cc87a30749a988"
+      "sha256": "14c65cf66099bfa3ff85340c376dea986a67722cddd22435904eac387e6f9207"
     },
     {
       "path": "config/wrangler.test.jsonc",
@@ -292,7 +292,7 @@
     },
     {
       "path": "docs/MIGRATIONS_AND_ROLLBACK.md",
-      "sha256": "c632dbe5f8d6c3a8a74621433bb39038686e8c55751089ba7eb511f3223294ed"
+      "sha256": "0679e38013e1d7ca766608a52d4bd02eb142b91d2371e36db63f30f3a7f70996"
     },
     {
       "path": "docs/UPGRADING.md",
@@ -547,8 +547,12 @@
       "sha256": "30efe10c812912f69ee9dbc327ba7c0ad75a39e58e1c59d25296ba2cd7bc4513"
     },
     {
+      "path": "fork-migrations/0003_repair_legacy_status_marker.sql",
+      "sha256": "2c3f7ff5ac4741d64605777e67d5d6c95c76c5f0091afc7d9088ef696a5f2f67"
+    },
+    {
       "path": "fork-migrations/README.md",
-      "sha256": "6d0a7a59f831df1e5ba344d05a09540cfdc40c3ea87d485d493b13685aae109f"
+      "sha256": "f830759d23d94d799c7aacbcb1ceadc158c2c9d8154f95ee076a3ce1c0516dc7"
     },
     {
       "path": "index.html",
@@ -568,11 +572,11 @@
     },
     {
       "path": "package-lock.json",
-      "sha256": "dbc9b2faf093ea08c06e1233fd3ce6ba3787d30070bff9c134c26a0ae77c14a7"
+      "sha256": "298c04a37c57fba53b0b356e1d0659717dfd14dfdbc325a2002f36f814b01bd9"
     },
     {
       "path": "package.json",
-      "sha256": "6d96249a13dacca925a23c5e4e2f16aa63aab8586ae04990b906e7c6bc2f1b0b"
+      "sha256": "c1c599b06c6bbb34a109f9788a25a8959c35bcdefc031cbd7d7c19e8fc4e4b79"
     },
     {
       "path": "playwright.config.ts",
@@ -688,7 +692,7 @@
     },
     {
       "path": "release/migrations.json",
-      "sha256": "23168983181802801573757831135afdc5377fa2a438533ec99100d3c32f0358"
+      "sha256": "e28e32eeab2ff7afc04761ff8aa55a316b9b68a227dca76788e984498b29d3e8"
     },
     {
       "path": "release/SMARTZAP_RELEASE_SIGNING_KEY.pub",
@@ -700,7 +704,7 @@
     },
     {
       "path": "scripts/fork-deploy.mjs",
-      "sha256": "82a7690ab36cbdf87e185e5cce6352270146fb4c36489240e7a046a64ed157a4"
+      "sha256": "d5ae5b85c85930fc9221d333ab563dff8f26da6c6895e5b026fd196bebe15c60"
     },
     {
       "path": "scripts/fork-rollback.mjs",
@@ -1276,7 +1280,7 @@
     },
     {
       "path": "tests-node/fork-bootstrap.node.test.ts",
-      "sha256": "eeccfccc530b8abab5c9346819b1228e998fcfbe84951d969f81d95c2a79d57d"
+      "sha256": "a620a209a4847a981a3cbe5c0b61e4688b8d7199fe273d92bd54a4f0ceab5ffb"
     },
     {
       "path": "tests-node/fork-update-scenarios.node.test.ts",
@@ -1344,7 +1348,7 @@
     },
     {
       "path": "tests-node/workers-build-policy.node.test.ts",
-      "sha256": "5129e8665dffde35ba0f1468ec76947eb9544a23699bd08e1ee29abfd07c55b0"
+      "sha256": "2265614267db5724beec3dd19cb9a6d02f088dbf95d9934bef437e6baa5a6379"
     },
     {
       "path": "tests/agents.test.ts",

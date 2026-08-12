@@ -11,3 +11,9 @@ baseline final. Nunca altere uma migration depois de publicada.
 estrutura nova, continua compatível com o código do schema 1 e registra a
 identidade de cada instalação ou atualização. O bootstrap valida o SHA-256 do
 manifesto antes de consultar ou alterar qualquer recurso remoto.
+
+`0003_repair_legacy_status_marker.sql` remove exclusivamente o marcador interno
+`0035` que runtimes anteriores à rc.18 podiam recriar durante um rollback. Em
+uma instalação pública ele nunca representa uma migration real, porque a
+baseline final já contém todas as colunas correspondentes. A migration não
+altera schema nem dados de negócio.
