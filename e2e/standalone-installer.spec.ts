@@ -5,29 +5,29 @@ import { pathToFileURL } from "node:url";
 
 const installerUrl = pathToFileURL(resolve(process.cwd(), "docs/install/index.html")).href;
 
-const provisionerUrl = "https://smartzap-provisioner.thales2581.workers.dev/";
+const provisionerUrl = "https://instalar.escoladeautomacao.com/smartzap/";
 
 test.describe("entrada pública do provisionador", () => {
-  test("não coleta credenciais e aponta somente para o provisionador OAuth", async ({ page }) => {
+  test("não coleta credenciais e aponta para o seletor das duas modalidades", async ({ page }) => {
     const externalRequests: string[] = [];
     page.on("request", (request) => {
       if (!request.url().startsWith("file:")) externalRequests.push(request.url());
     });
 
     await page.goto(installerUrl);
-    await expect(page.getByRole("heading", { name: "Instale sem terminal, token de API ou GitHub Actions." })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Abrir instalador seguro/ })).toHaveAttribute("href", provisionerUrl);
+    await expect(page.getByRole("heading", { name: "Escolha o fork ou uma instalação rápida." })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Comparar formas de instalação/ })).toHaveAttribute("href", provisionerUrl);
     await expect(page.locator('input, button, form')).toHaveCount(0);
     await expect(page.locator(`a[href*="deploy.workers.cloudflare.com"]`)).toHaveCount(0);
     expect(externalRequests).toEqual([]);
   });
 
-  test("explica autorização, segredos efêmeros e plano antes da instalação", async ({ page }) => {
+  test("explica propriedade do código, versão fixa e setup", async ({ page }) => {
     await page.goto(installerUrl);
-    await expect(page.getByRole("heading", { name: "Autorize a conta" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Crie sua senha e seu cofre" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Confira e instale" })).toBeVisible();
-    await expect(page.getByText(/nunca pede sua senha da Cloudflare/i)).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Produção: crie seu fork" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Avaliação: use OAuth" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Conclua o /setup" })).toBeVisible();
+    await expect(page.getByText(/não inclui atualizações/i)).toBeVisible();
   });
 
   for (const width of [360, 390, 620, 768, 1440, 1920]) {

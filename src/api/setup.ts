@@ -113,7 +113,7 @@ async function setupState(env: Env) {
   } catch {
     databaseOk = false;
   }
-  const [meta, credentials, checks, approved, cronLastRun, vaultMetaCount, rotationInfo, installation, mediaOk, queuesOk, durableObjectsOk, rateLimitOk] = await Promise.all([
+  const [meta, credentials, checks, approved, cronLastRun, vaultMetaCount, rotationInfo, installation, releaseMetadata, mediaOk, queuesOk, durableObjectsOk, rateLimitOk] = await Promise.all([
     getMetaSecrets(env).catch(() => null),
     getCredentials(env).catch(() => null),
     env.DB.prepare("SELECT id,status,detail,checked_at FROM setup_checks ORDER BY id")
@@ -139,6 +139,17 @@ async function setupState(env: Env) {
       last_error: string | null;
       revision: number;
       started_at: string;
+      updated_at: string;
+    }>().catch(() => null),
+    env.DB.prepare(
+      "SELECT version,commit_sha,schema_version,channel,baseline_sha256,installed_at,updated_at FROM smartzap_release_metadata WHERE id='current'",
+    ).first<{
+      version: string;
+      commit_sha: string;
+      schema_version: string;
+      channel: string;
+      baseline_sha256: string;
+      installed_at: string;
       updated_at: string;
     }>().catch(() => null),
     env.MEDIA.head("__smartzap_setup_probe__").then(() => true).catch(() => false),
@@ -204,6 +215,15 @@ async function setupState(env: Env) {
     templates: { approved },
     checks: status,
     installation,
+    release: {
+      version: env.SMARTZAP_VERSION || releaseMetadata?.version || "não identificada",
+      commit: env.SMARTZAP_COMMIT || releaseMetadata?.commit_sha || "não identificado",
+      schemaVersion: env.SMARTZAP_SCHEMA_VERSION || releaseMetadata?.schema_version || "não identificado",
+      channel: env.SMARTZAP_RELEASE_CHANNEL || releaseMetadata?.channel || "não identificado",
+      baselineSha256: releaseMetadata?.baseline_sha256 ?? null,
+      installedAt: releaseMetadata?.installed_at ?? null,
+      updatedAt: releaseMetadata?.updated_at ?? null,
+    },
     required: env.SETUP_REQUIRED === "true",
     complete,
   };

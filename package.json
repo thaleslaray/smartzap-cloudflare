@@ -1,6 +1,6 @@
 {
   "name": "smartzap-cloudflare",
-  "version": "1.0.0",
+  "version": "1.0.0-rc.10",
   "description": "SmartZap instalável em uma conta Cloudflare própria",
   "main": "index.js",
   "type": "module",
@@ -27,7 +27,12 @@
     "test:watch": "vitest --config vitest.config.ts --max-workers=1",
     "types": "wrangler types worker-configuration.d.ts --include-env false",
     "e2e": "npm run db:migrate:e2e && npm run db:seed:e2e && playwright test",
-    "release:scan": "node scripts/qa-secret-scan.mjs --history"
+    "fork:deploy": "node scripts/fork-deploy.mjs",
+    "fork:preview": "node scripts/fork-deploy.mjs --staging",
+    "fork:rollback": "node scripts/fork-rollback.mjs",
+    "release:validate": "node scripts/validate-release-metadata.mjs",
+    "release:scan": "node scripts/qa-secret-scan.mjs --history",
+    "provisioner:check": "tsc -p provisioner/tsconfig.json"
   },
   "keywords": [],
   "author": "",

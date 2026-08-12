@@ -45,7 +45,7 @@ export function readWorkerName(source) {
 export function assertIsolatedResourceNames(source) {
   const parsed = JSON.parse(stripJsonComments(source));
   const workerName = readWorkerName(source);
-  if (!/^smartzap-[a-f0-9]{8}$/.test(workerName)) {
+  if (!/^smartzap-[a-f0-9]{8}(?:-staging)?$/.test(workerName)) {
     throw new Error("Use em Projeto / Worker o nome exclusivo gerado em /install (smartzap- + 8 caracteres). Nenhum recurso foi alterado.");
   }
 
@@ -85,7 +85,7 @@ export function assertIsolatedResourceNames(source) {
 }
 
 export function deriveRuntimeResourceNames(workerName) {
-  const match = /^smartzap-([a-f0-9]{8})$/.exec(workerName);
+  const match = /^smartzap-([a-f0-9]{8})(?:-staging)?$/.exec(workerName);
   if (!match) {
     throw new Error("Não foi possível preparar os recursos internos: use o nome exclusivo smartzap- + 8 caracteres gerado em /install.");
   }

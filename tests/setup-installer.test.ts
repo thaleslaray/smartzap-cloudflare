@@ -41,9 +41,20 @@ describe("instalação SmartZap", () => {
     expect(raw).not.toContain("test-token");
     expect(raw).not.toContain("dev-meta-secret");
     expect(raw).not.toContain(env.SMARTZAP_VAULT_KEY as string);
-    const data = JSON.parse(raw) as { infrastructure: Record<string, boolean>; vault: { configured: boolean } };
+    const data = JSON.parse(raw) as {
+      infrastructure: Record<string, boolean>;
+      vault: { configured: boolean };
+      release: { version: string; commit: string; schemaVersion: string; channel: string; baselineSha256: string | null };
+    };
     expect(data.infrastructure.database).toBe(true);
     expect(data.vault.configured).toBe(true);
+    expect(data.release).toEqual(expect.objectContaining({
+      version: expect.any(String),
+      commit: expect.any(String),
+      schemaVersion: expect.any(String),
+      channel: expect.any(String),
+    }));
+    expect(JSON.stringify(data.release)).not.toContain("dev-api-key");
   });
 
   it("cifra a configuração Meta antes de persistir no D1", async () => {

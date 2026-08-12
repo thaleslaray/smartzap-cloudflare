@@ -1,0 +1,67 @@
+name: Propor atualização oficial
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Tag oficial exata, por exemplo v1.2.3"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  propose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validar versão
+        shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || {
+            echo "Use uma tag SemVer exata. latest não é aceito." >&2
+            exit 1
+          }
+
+      - name: Checkout do fork
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Criar branch a partir da tag oficial
+        shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+          UPSTREAM_REPOSITORY: thaleslaray/smartzap-cloudflare
+        run: |
+          set -euo pipefail
+          git remote add upstream "https://github.com/${UPSTREAM_REPOSITORY}.git" 2>/dev/null || git remote set-url upstream "https://github.com/${UPSTREAM_REPOSITORY}.git"
+          git fetch --no-tags upstream "refs/tags/${VERSION}:refs/tags/${VERSION}"
+          git tag --verify "${VERSION}"
+          branch="sync/${VERSION}"
+          git switch --detach "${VERSION}"
+          git switch -C "$branch"
+          git push --force-with-lease origin "$branch"
+
+      - name: Abrir pull request sem merge automático
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          branch="sync/${VERSION}"
+          existing="$(gh pr list --head "$branch" --base main --state open --json number --jq '.[0].number // empty')"
+          if [ -z "$existing" ]; then
+            gh pr create \
+              --base main \
+              --head "$branch" \
+              --title "Atualizar SmartZap para ${VERSION}" \
+              --body "Atualização proposta a partir da tag oficial **${VERSION}**. Revise CHANGELOG, release/migrations.json, checksums, conflitos e rollback. Este workflow não faz merge, não migra D1 e não publica produção."
+          else
+            echo "PR #${existing} já está aberto."
+          fi

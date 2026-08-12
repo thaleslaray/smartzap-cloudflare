@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   assertInstallCanarySnapshot,
+  assertInstallHomologationMatrix,
   assertManifestIntegrity,
+  assessInstallHomologationMatrix,
   assessInstallCanarySnapshot,
   buildInstallCanaryManifest,
   fingerprintManifest,
@@ -116,5 +118,79 @@ describe("evidência do canário de instalação", () => {
     const residual = emptySnapshot();
     residual.durableObjects = [{ name: manifest().resources.durableObjects[0] }];
     expect(() => assertInstallCanarySnapshot({ phase: "cleanup", snapshot: residual, manifest: manifest() })).toThrow(/ainda existe/i);
+  });
+});
+
+function approvedReport(phase: "baseline" | "provisioned" | "setup-complete", fingerprint: string) {
+  return { phase, passed: true, manifestFingerprint: fingerprint, checks: [], failures: [] };
+}
+
+function matrixEntry(index: number, plan: "free" | "paid") {
+  const fingerprint = "f".repeat(64);
+  return {
+    accountFingerprintSha256: index.toString(16).padStart(64, "0"),
+    plan,
+    manifestFingerprint: fingerprint,
+    physical: true,
+    noCli: true,
+    noGithubActions: true,
+    reports: {
+      baseline: approvedReport("baseline", fingerprint),
+      provisioned: approvedReport("provisioned", fingerprint),
+      "setup-complete": approvedReport("setup-complete", fingerprint),
+    },
+  };
+}
+
+describe("matriz física de homologação", () => {
+  it("exige duas contas gratuitas, uma paga, contas distintas e todos os cenários", () => {
+    const matrix = {
+      schemaVersion: 1 as const,
+      installs: [matrixEntry(1, "free"), matrixEntry(2, "free"), matrixEntry(3, "paid")],
+      scenarios: {
+        collision: { passed: true },
+        interruptionResume: { passed: true },
+        cleanup: { passed: true },
+        metaReal: { passed: true },
+      },
+    };
+    expect(assertInstallHomologationMatrix(matrix).passed).toBe(true);
+  });
+
+  it("reprova reutilização da mesma conta ou ausência da segunda gratuita", () => {
+    const first = matrixEntry(1, "free");
+    const report = assessInstallHomologationMatrix({
+      schemaVersion: 1,
+      installs: [first, { ...matrixEntry(2, "paid"), accountFingerprintSha256: first.accountFingerprintSha256 }, matrixEntry(3, "paid")],
+      scenarios: {
+        collision: { passed: true },
+        interruptionResume: { passed: true },
+        cleanup: { passed: true },
+        metaReal: { passed: true },
+      },
+    });
+    expect(report.passed).toBe(false);
+    expect(report.failures.join(" ")).toMatch(/conta Cloudflare distinta/i);
+    expect(report.failures.join(" ")).toMatch(/Duas contas gratuitas/i);
+  });
+
+  it("reprova relatório sintético ou sem vínculo com a mesma release", () => {
+    const bad = matrixEntry(2, "free");
+    bad.physical = false;
+    bad.reports["setup-complete"].manifestFingerprint = "e".repeat(64);
+    const report = assessInstallHomologationMatrix({
+      schemaVersion: 1,
+      installs: [matrixEntry(1, "free"), bad, matrixEntry(3, "paid")],
+      scenarios: {
+        collision: { passed: true },
+        interruptionResume: { passed: false },
+        cleanup: { passed: true },
+        metaReal: { passed: true },
+      },
+    });
+    expect(report.passed).toBe(false);
+    expect(report.failures.join(" ")).toMatch(/interface real/i);
+    expect(report.failures.join(" ")).toMatch(/vinculado ao manifesto/i);
+    expect(report.failures.join(" ")).toMatch(/Interrupção e retomada/i);
   });
 });

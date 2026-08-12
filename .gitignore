@@ -1,4 +1,6 @@
 node_modules
+.smartzap/
+wrangler.fork.generated.json
 dist
 .DS_Store
 .claude/

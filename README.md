@@ -2,13 +2,32 @@
 
 WhatsApp oficial para campanhas, Inbox, contatos e templates, executado inteiramente na conta Cloudflare de quem instala.
 
-## Candidata técnica — homologação final
+## Escolha como instalar
 
-O provisionador OAuth está em homologação física. Ele pode ser usado nos ensaios
+### 1. Fork próprio — recomendado para produção
+
+O proprietário cria um fork real, conecta esse repositório ao Workers Builds e
+decide quando revisar e publicar atualizações. O SmartZap Community fornece
+releases e instruções, mas não opera, monitora nem atualiza instalações de
+terceiros.
+
+1. Abra **[Instalar com meu próprio código](https://instalar.escoladeautomacao.com/smartzap/fork/)**.
+2. Crie o fork no GitHub.
+3. Importe o fork no Workers Builds.
+4. Use `npm run fork:deploy` e cadastre os três Build secrets mostrados.
+5. Abra `/setup` e homologue a Meta.
+
+Consulte [instalação com fork](docs/FORK_INSTALLATION.md),
+[política de atualizações](UPDATE_POLICY.md), [suporte](SUPPORT.md) e
+[migrações/rollback](docs/MIGRATIONS_AND_ROLLBACK.md).
+
+### 2. Instalação rápida — versão fixa
+
+O provisionador OAuth atual continua disponível. Ele pode ser usado nos ensaios
 controlados registrados em `Auditoria.md`; a divulgação como instalação simples
 continua bloqueada até três instalações limpas aprovadas.
 
-1. Abra o **[instalador seguro do SmartZap](https://smartzap-provisioner.thales2581.workers.dev/)**.
+1. Abra a **[instalação rápida do SmartZap](https://instalar.escoladeautomacao.com/smartzap/quick/)**.
 2. Autorize a Cloudflare pelo OAuth oficial e escolha explicitamente a conta de destino.
 3. Defina sua senha administrativa; a chave do cofre é criada no navegador.
 4. Baixe o arquivo de recuperação e guarde-o em um gerenciador de senhas.
@@ -20,6 +39,12 @@ O instalador não pede senha da Cloudflare, API Token, CLI, GitHub Actions nem
 configuração manual de bindings. Tokens OAuth ficam cifrados no D1 do control
 plane, expiram em até 30 minutos e são apagados após instalação, desconexão ou
 limpeza de sessão abandonada.
+
+Essa modalidade não cria fork e não inclui atualização automática ou manutenção
+contínua. A responsabilidade permanece com o proprietário. Consulte
+[termos do provisionador](PROVISIONER_TERMS.md),
+[privacidade OAuth](OAUTH_PRIVACY.md) e
+[migração para fork](docs/MIGRATE_QUICK_TO_FORK.md).
 
 ## O que o provisionador cria na conta escolhida
 
@@ -106,6 +131,11 @@ npx tsc --noEmit
 npm run build
 npm run e2e
 ```
+
+O repositório público inclui três branches conceituais: `main` para produção do
+proprietário, `sync/vX.Y.Z` para receber uma tag oficial e `customer/*` para
+customizações. O workflow opcional abre somente o PR; nunca migra ou publica
+produção automaticamente.
 
 ## Variáveis e módulos opcionais
 

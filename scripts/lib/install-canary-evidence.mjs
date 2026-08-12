@@ -188,3 +188,74 @@ export function assertInstallCanarySnapshot(input) {
   if (!report.passed) throw new Error(`Canário ${report.phase} reprovado: ${report.failures.join("; ")}`);
   return report;
 }
+
+function matrixCheck(checks, id, passed, detail) {
+  checks.push({ id, passed: Boolean(passed), detail });
+}
+
+export function assessInstallHomologationMatrix(matrix) {
+  const checks = [];
+  const installs = Array.isArray(matrix?.installs) ? matrix.installs : [];
+  matrixCheck(checks, "matrix:schema", matrix?.schemaVersion === 1, "Matriz de homologação no schema 1");
+  matrixCheck(checks, "matrix:count", installs.length >= 3, `Pelo menos três instalações físicas; recebido ${installs.length}`);
+
+  const accountFingerprints = installs.map((entry) => String(entry?.accountFingerprintSha256 ?? ""));
+  matrixCheck(
+    checks,
+    "matrix:account-fingerprints",
+    accountFingerprints.every((value) => /^[a-f0-9]{64}$/.test(value)),
+    "Todas as contas identificadas somente por fingerprint SHA-256",
+  );
+  matrixCheck(
+    checks,
+    "matrix:distinct-accounts",
+    new Set(accountFingerprints).size === installs.length,
+    "Cada instalação pertence a uma conta Cloudflare distinta",
+  );
+
+  const freeCount = installs.filter((entry) => entry?.plan === "free").length;
+  const paidCount = installs.filter((entry) => entry?.plan === "paid").length;
+  matrixCheck(checks, "matrix:free", freeCount >= 2, `Duas contas gratuitas exigidas; recebido ${freeCount}`);
+  matrixCheck(checks, "matrix:paid", paidCount >= 1, `Uma conta paga exigida; recebido ${paidCount}`);
+
+  const releaseFingerprints = installs.map((entry) => String(entry?.manifestFingerprint ?? ""));
+  matrixCheck(
+    checks,
+    "matrix:same-release",
+    releaseFingerprints.length >= 3
+      && releaseFingerprints.every((value) => /^[a-f0-9]{64}$/.test(value))
+      && new Set(releaseFingerprints).size === 1,
+    "As três instalações usam a mesma release imutável",
+  );
+
+  for (const [index, entry] of installs.entries()) {
+    const label = `install:${index + 1}`;
+    matrixCheck(checks, `${label}:physical`, entry?.physical === true, "Execução física pela interface real");
+    matrixCheck(checks, `${label}:no-cli`, entry?.noCli === true, "Instalação sem CLI");
+    matrixCheck(checks, `${label}:no-actions`, entry?.noGithubActions === true, "Instalação sem GitHub Actions");
+    for (const phase of ["baseline", "provisioned", "setup-complete"]) {
+      const report = entry?.reports?.[phase];
+      matrixCheck(
+        checks,
+        `${label}:${phase}`,
+        report?.phase === phase && report?.passed === true && report?.manifestFingerprint === entry?.manifestFingerprint,
+        `${phase} aprovado e vinculado ao manifesto da instalação`,
+      );
+    }
+  }
+
+  const scenarios = matrix?.scenarios ?? {};
+  matrixCheck(checks, "scenario:collision", scenarios.collision?.passed === true, "Colisão física bloqueada sem sobrescrever recurso");
+  matrixCheck(checks, "scenario:resume", scenarios.interruptionResume?.passed === true, "Interrupção e retomada físicas sem duplicidade");
+  matrixCheck(checks, "scenario:cleanup", scenarios.cleanup?.passed === true, "Cleanup físico sem recurso residual");
+  matrixCheck(checks, "scenario:meta", scenarios.metaReal?.passed === true, "Meta real com sent → delivered → read");
+
+  const failures = checks.filter((check) => !check.passed).map((check) => check.detail);
+  return { schemaVersion: 1, passed: failures.length === 0, checks, failures };
+}
+
+export function assertInstallHomologationMatrix(matrix) {
+  const report = assessInstallHomologationMatrix(matrix);
+  if (!report.passed) throw new Error(`Matriz de homologação reprovada: ${report.failures.join("; ")}`);
+  return report;
+}

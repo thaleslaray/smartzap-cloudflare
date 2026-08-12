@@ -18,21 +18,21 @@ describe("entrada pública do provisionador", () => {
     expect(source).not.toContain("crypto.getRandomValues");
     expect(source).not.toContain("MASTER_PASSWORD=");
     expect(source).not.toContain("SMARTZAP_VAULT_KEY=");
-    expect(source).toContain("serão criadas somente no próximo passo");
+    expect(source).toContain("A senha e a chave do cofre são criadas no navegador");
   });
 
-  it("explica as três decisões antes da instalação", () => {
-    expect(source).toContain("Autorize a conta");
-    expect(source).toContain("Crie sua senha e seu cofre");
-    expect(source).toContain("Confira e instale");
-    expect(source).toContain("bloqueia qualquer colisão");
+  it("explica as duas modalidades e recomenda o fork para produção", () => {
+    expect(source).toContain("Código próprio recomendado");
+    expect(source).toContain("Produção: crie seu fork");
+    expect(source).toContain("Avaliação: use OAuth");
+    expect(source).toContain("versão fixa, sem manutenção contínua");
   });
 
-  it("aponta somente para o provisionador OAuth final", () => {
+  it("aponta para o seletor que preserva fork e instalação rápida", () => {
     expect(source).toContain('id="provisioner"');
-    expect(source).toContain('href="https://smartzap-provisioner.thales2581.workers.dev/"');
+    expect(source).toContain('href="https://instalar.escoladeautomacao.com/smartzap/"');
     expect(source).not.toContain("https://deploy.workers.cloudflare.com/?url=");
     expect(source).not.toContain("User API Token");
-    expect(source).not.toContain("GitHub App");
+    expect(source).toContain("fork");
   });
 });

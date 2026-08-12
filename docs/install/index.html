@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="dark" />
     <meta name="referrer" content="no-referrer" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; font-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; navigate-to https://smartzap-provisioner.thales2581.workers.dev" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; font-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; navigate-to https://instalar.escoladeautomacao.com" />
     <title>Instalar SmartZap com segurança</title>
     <style>
       :root { color-scheme: dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #080b0a; color: #f2f6f3; }
@@ -40,23 +40,23 @@
       </header>
 
       <section aria-labelledby="title">
-        <div class="eyebrow">Instalador oficial</div>
-        <h1 id="title">Instale sem terminal, token de API ou GitHub Actions.</h1>
-        <p class="muted">O provisionador usa o login oficial da Cloudflare, mostra tudo o que será criado e bloqueia qualquer colisão antes de alterar sua conta.</p>
+        <div class="eyebrow">Código próprio recomendado</div>
+        <h1 id="title">Escolha o fork ou uma instalação rápida.</h1>
+        <p class="muted">O fork deixa código e atualizações sob seu controle. A rota OAuth permanece disponível para uma versão fixa, sem manutenção contínua.</p>
       </section>
 
       <section class="card" aria-label="Como funciona">
         <ol>
-          <li><span class="number">1</span><div><h2>Autorize a conta</h2><p class="muted">Confira as permissões mínimas e escolha explicitamente a conta de destino.</p></div></li>
-          <li><span class="number">2</span><div><h2>Crie sua senha e seu cofre</h2><p class="muted">Os valores nascem no navegador e seguem uma única vez como secrets do novo Worker.</p></div></li>
-          <li><span class="number">3</span><div><h2>Confira e instale</h2><p class="muted">O plano cria D1, R2, filas, Workflows e o Worker somente quando tudo estiver seguro.</p></div></li>
+          <li><span class="number">1</span><div><h2>Produção: crie seu fork</h2><p class="muted">Seu GitHub recebe o código e a Cloudflare publica somente os pushes que você autorizar.</p></div></li>
+          <li><span class="number">2</span><div><h2>Avaliação: use OAuth</h2><p class="muted">O provisionador instala uma versão fixa sem Git, mas não inclui atualizações.</p></div></li>
+          <li><span class="number">3</span><div><h2>Conclua o /setup</h2><p class="muted">Nos dois modelos, valide infraestrutura, Meta, webhook, templates e mensagem real.</p></div></li>
         </ol>
       </section>
 
-      <a id="provisioner" class="primary" href="https://smartzap-provisioner.thales2581.workers.dev/">Abrir instalador seguro <span aria-hidden="true">↗</span></a>
-      <p class="muted">A senha administrativa e a chave do cofre serão criadas somente no próximo passo. O SmartZap nunca pede sua senha da Cloudflare.</p>
+      <a id="provisioner" class="primary" href="https://instalar.escoladeautomacao.com/smartzap/">Comparar formas de instalação <span aria-hidden="true">↗</span></a>
+      <p class="muted">Nenhuma modalidade promete manutenção gratuita ou atualização automática. A senha e a chave do cofre são criadas no navegador.</p>
 
-      <footer>SmartZap · instalação OAuth na conta escolhida pelo cliente.</footer>
+      <footer>SmartZap Community · open-source e autogerenciado.</footer>
     </main>
   </body>
 </html>

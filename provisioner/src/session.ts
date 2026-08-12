@@ -24,7 +24,7 @@ export async function createOAuthSession(env: ProvisionerEnv): Promise<NewOAuthS
     INSERT INTO oauth_sessions (id, state_hash, pkce_verifier_ciphertext, status, expires_at)
     VALUES (?, ?, ?, 'authorizing', ?)
   `).bind(sessionId, await sha256(state), verifierCiphertext, expiresAt).run();
-  return { sessionId, state, verifier, challenge, cookie: sessionCookie(sessionId, env.PUBLIC_ORIGIN.startsWith("https://")) };
+  return { sessionId, state, verifier, challenge, cookie: sessionCookie(sessionId, env.PUBLIC_ORIGIN.startsWith("https://"), cookiePath(env)) };
 }
 
 export async function consumeOAuthState(env: ProvisionerEnv, state: string): Promise<{ session: SessionRecord; verifier: string }> {
@@ -106,12 +106,12 @@ export async function cleanupExpiredOAuthSessions(env: ProvisionerEnv): Promise<
   return { found: result.results?.length || 0, remotelyRevoked, locallyCleared };
 }
 
-export function sessionCookie(sessionId: string, secure = true): string {
-  return `${COOKIE}=${encodeURIComponent(sessionId)}; Path=/; HttpOnly; ${secure ? "Secure; " : ""}SameSite=Lax; Max-Age=${SESSION_TTL_SECONDS}`;
+export function sessionCookie(sessionId: string, secure = true, path = "/"): string {
+  return `${COOKIE}=${encodeURIComponent(sessionId)}; Path=${path}; HttpOnly; ${secure ? "Secure; " : ""}SameSite=Lax; Max-Age=${SESSION_TTL_SECONDS}`;
 }
 
-export function clearSessionCookie(secure = true): string {
-  return `${COOKIE}=; Path=/; HttpOnly; ${secure ? "Secure; " : ""}SameSite=Lax; Max-Age=0`;
+export function clearSessionCookie(secure = true, path = "/"): string {
+  return `${COOKIE}=; Path=${path}; HttpOnly; ${secure ? "Secure; " : ""}SameSite=Lax; Max-Age=0`;
 }
 
 export function assertSameOrigin(request: Request, env: ProvisionerEnv): void {
@@ -137,4 +137,9 @@ function tokenAad(sessionId: string): string {
 
 function sqliteTimestamp(timestamp: number): string {
   return new Date(timestamp).toISOString().replace("T", " ").replace(/\.\d{3}Z$/, "");
+}
+
+function cookiePath(env: ProvisionerEnv): string {
+  const pathname = new URL(env.PUBLIC_ORIGIN).pathname;
+  return pathname === "/" ? "/" : `/${pathname.split("/").filter(Boolean).join("/")}`;
 }

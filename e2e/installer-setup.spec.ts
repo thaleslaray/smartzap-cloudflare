@@ -30,6 +30,7 @@ function setupFixture(overrides: Record<string, unknown> = {}) {
     templates: { approved: 0 },
     checks: {},
     installation: { status: "configuring", last_step: "infrastructure", last_error: null, revision: 1 },
+    release: { version: "1.0.0-rc.1", commit: "abc123def456", schemaVersion: "1", channel: "rc", baselineSha256: null, installedAt: null, updatedAt: null },
   };
   return {
     ...base,
@@ -50,14 +51,18 @@ async function mockSetupStatus(page: Page, state: () => Record<string, unknown>)
   }));
 }
 
-test("entrada interna encaminha ao provisionador OAuth sem coletar segredos", async ({ page }) => {
+test("entrada interna separa fork e instalação rápida sem coletar segredos", async ({ page }) => {
   const requests: string[] = [];
   page.on("request", (request) => requests.push(`${request.url()}\n${request.postData() || ""}`));
   await page.goto("/install");
-  await expect(page.getByRole("heading", { name: "Instale sem terminal, token de API ou GitHub Actions." })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Abrir instalador seguro" })).toHaveAttribute(
+  await expect(page.getByRole("heading", { name: "Escolha quem controla o código do seu SmartZap." })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Criar meu SmartZap com fork" })).toHaveAttribute(
     "href",
-    "https://smartzap-provisioner.thales2581.workers.dev/",
+    "https://instalar.escoladeautomacao.com/smartzap/fork",
+  );
+  await expect(page.getByRole("link", { name: "Usar instalação rápida" })).toHaveAttribute(
+    "href",
+    "https://instalar.escoladeautomacao.com/smartzap/quick",
   );
   await expect(page.locator('input, button, form')).toHaveCount(0);
   await expect(page.locator('a[href*="deploy.workers.cloudflare.com"]')).toHaveCount(0);

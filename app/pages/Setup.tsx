@@ -27,6 +27,15 @@ type SetupStatus = {
   templates: { approved: number };
   checks: Record<string, SetupCheck>;
   installation: { status: "configuring" | "ready" | "failed"; last_step: string; last_error: string | null; revision: number } | null;
+  release?: {
+    version: string;
+    commit: string;
+    schemaVersion: string;
+    channel: string;
+    baselineSha256: string | null;
+    installedAt: string | null;
+    updatedAt: string | null;
+  };
   required: boolean;
   complete: boolean;
 };
@@ -115,6 +124,15 @@ export default function Setup() {
   if (!status.data) return <PageError message={errorMessage(pageError) ?? undefined} onRetry={() => status.refetch()} />;
 
   const data = status.data;
+  const release = data.release ?? {
+    version: "não identificada",
+    commit: "não identificado",
+    schemaVersion: "não identificado",
+    channel: "não identificado",
+    baselineSha256: null,
+    installedAt: null,
+    updatedAt: null,
+  };
   const missingInfrastructure = requiredInfrastructure.filter(({ key }) => data.infrastructure[key] !== true);
   const infraReady = missingInfrastructure.length === 0;
   const metaCheck = data.checks.meta_credentials;
@@ -156,6 +174,12 @@ export default function Setup() {
         title="Configuração inicial"
         subtitle="Siga os três passos. Seu progresso é salvo e esta tela verifica as confirmações automaticamente."
       />
+      <div className="flex flex-wrap gap-x-5 gap-y-2 rounded-xl border border-white/10 bg-white/[0.025] px-4 py-3 text-xs text-zinc-500" aria-label="Identidade da versão instalada">
+        <span><strong className="text-zinc-300">Versão</strong> {release.version}</span>
+        <span><strong className="text-zinc-300">Canal</strong> {release.channel}</span>
+        <span><strong className="text-zinc-300">Schema</strong> {release.schemaVersion}</span>
+        <span title={release.commit}><strong className="text-zinc-300">Commit</strong> {release.commit.slice(0, 12)}</span>
+      </div>
       {pageError && <PageError message={errorMessage(pageError) ?? undefined} onRetry={() => status.refetch()} />}
 
       {data.installation?.status === "failed" && (

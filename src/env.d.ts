@@ -23,6 +23,11 @@ interface SmartZapEnv {
   AI_SEARCH: unknown;
   ENVIRONMENT: string;
   META_GRAPH_VERSION: string;
+  /** Identidade imutável da release instalada, exibida no diagnóstico e no setup. */
+  SMARTZAP_VERSION?: string;
+  SMARTZAP_COMMIT?: string;
+  SMARTZAP_SCHEMA_VERSION?: string;
+  SMARTZAP_RELEASE_CHANNEL?: string;
   META_APP_ID?: string;
   META_EXPECTED_PHONE_ID?: string;
   META_EXPECTED_WABA_ID?: string;

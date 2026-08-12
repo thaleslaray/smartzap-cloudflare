@@ -77,3 +77,34 @@ export function fingerprintManifest(manifest: InstallCanaryManifest | Record<str
 export function assertManifestIntegrity(manifest: InstallCanaryManifest): InstallCanaryManifest;
 export function assessInstallCanarySnapshot(input: { phase: CanaryReport["phase"]; snapshot: CanarySnapshot; manifest: InstallCanaryManifest }): CanaryReport;
 export function assertInstallCanarySnapshot(input: { phase: CanaryReport["phase"]; snapshot: CanarySnapshot; manifest: InstallCanaryManifest }): CanaryReport;
+
+export interface InstallHomologationEntry {
+  accountFingerprintSha256: string;
+  plan: "free" | "paid";
+  manifestFingerprint: string;
+  physical: boolean;
+  noCli: boolean;
+  noGithubActions: boolean;
+  reports: Record<"baseline" | "provisioned" | "setup-complete", CanaryReport>;
+}
+
+export interface InstallHomologationMatrix {
+  schemaVersion: 1;
+  installs: InstallHomologationEntry[];
+  scenarios: {
+    collision: { passed: boolean };
+    interruptionResume: { passed: boolean };
+    cleanup: { passed: boolean };
+    metaReal: { passed: boolean };
+  };
+}
+
+export interface InstallHomologationReport {
+  schemaVersion: 1;
+  passed: boolean;
+  checks: CanaryCheck[];
+  failures: string[];
+}
+
+export function assessInstallHomologationMatrix(matrix: InstallHomologationMatrix): InstallHomologationReport;
+export function assertInstallHomologationMatrix(matrix: InstallHomologationMatrix): InstallHomologationReport;

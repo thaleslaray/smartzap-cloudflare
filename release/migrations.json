@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "baseline": "provisioner/baseline/0001_fresh_install.sql",
+  "migrations": [
+    {
+      "file": "0001_fresh_install.sql",
+      "sha256": "e7065515f6cce1e6a60009e7e563d1708ba791082c02b52a88b9bf14ae202b07",
+      "fromSchema": 0,
+      "toSchema": 1,
+      "compatibleWithPreviousCode": false,
+      "downtimeRequired": false,
+      "destructive": false,
+      "prechecks": ["D1 vazio ou reservado pelo mesmo SMARTZAP_INSTALL_ID"],
+      "postchecks": ["baseline aplicada", "ledger d1_migrations presente", "smartzap_release_metadata presente"],
+      "recovery": "Excluir somente os recursos da instalação incompleta ou restaurar o bookmark anterior do D1"
+    }
+  ]
+}

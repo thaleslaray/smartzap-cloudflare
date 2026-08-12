@@ -4,9 +4,11 @@ import { decryptJson, encryptJson, randomBase64Url, sha256 } from "../provisione
 import { buildPlan, deriveNames } from "../provisioner/src/plan";
 import { loadRelease } from "../provisioner/src/release";
 import type { ProvisionerEnv, SmartZapReleaseManifest } from "../provisioner/src/types";
+import { forkInstallerHtml, installationChooserHtml } from "../provisioner/src/fork-ui";
 import { installerHtml } from "../provisioner/src/ui";
+import provisionerWorker, { publicError } from "../provisioner/src/index";
 import { initializeDatabase, planInstallation } from "../provisioner/src/engine";
-import { cleanupExpiredOAuthSessions } from "../provisioner/src/session";
+import { cleanupExpiredOAuthSessions, clearSessionCookie, sessionCookie } from "../provisioner/src/session";
 
 const release: SmartZapReleaseManifest = {
   schemaVersion: 2,
@@ -319,6 +321,22 @@ describe("baseline final do D1", () => {
 });
 
 describe("interface de instalação", () => {
+  it("publica o guia canônico no domínio raiz em Markdown puro", async () => {
+    const env = { PUBLIC_ORIGIN: "https://instalar.escoladeautomacao.com/smartzap" } as ProvisionerEnv;
+    const response = await provisionerWorker.fetch(new Request("https://instalar.escoladeautomacao.com/guia.md"), env);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Content-Type")).toBe("text/markdown; charset=utf-8");
+    expect(response.headers.get("Content-Disposition")).toBe('inline; filename="guia.md"');
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
+    await expect(response.text()).resolves.toContain("# Guia completo: instaladores de sistemas na Cloudflare por OAuth");
+
+    const head = await provisionerWorker.fetch(new Request("https://instalar.escoladeautomacao.com/guia.md", { method: "HEAD" }), env);
+    expect(head.status).toBe(200);
+    expect(head.headers.get("Content-Type")).toBe("text/markdown; charset=utf-8");
+    await expect(head.text()).resolves.toBe("");
+  });
+
   it("gera os segredos no navegador e só envia no clique final", () => {
     const html = installerHtml();
     expect(html).toContain("crypto.getRandomValues");
@@ -343,6 +361,49 @@ describe("interface de instalação", () => {
     expect(html).toContain('option.value="manual"');
     expect(html).toContain('option.textContent="Informar Account ID"');
     expect(html).toContain('id="account-id" maxlength="32"');
-    expect(html).toContain('await json("/api/account"');
+    expect(html).toContain('await json(API_BASE+"api/account"');
+  });
+
+  it("mantém OAuth, APIs e sessão dentro da rota do produto", () => {
+    const html = installerHtml();
+    expect(html).toContain('href="./oauth/start"');
+    expect(html).toContain('json(API_BASE+"api/session")');
+    expect(html).toContain('json(API_BASE+"api/plan"');
+    expect(html).toContain('json(API_BASE+"api/install"');
+    expect(sessionCookie("sessao", true, "/smartzap")).toContain("Path=/smartzap;");
+    expect(clearSessionCookie(true, "/smartzap")).toContain("Path=/smartzap;");
+  });
+
+  it("explica a ativação obrigatória do R2 e oferece retomada na conta correta", () => {
+    const response = publicError(new CloudflareApiError(403, 10042, "Please enable R2 through the Cloudflare Dashboard."));
+    expect(response).toEqual(expect.objectContaining({ code: "R2_SUBSCRIPTION_REQUIRED" }));
+    expect(response.error).toContain("meio de pagamento");
+    expect(response.error).not.toContain("Please enable R2");
+    const html = installerHtml();
+    expect(html).toContain("Ativar R2 na Cloudflare");
+    expect(html).toContain('"https://dash.cloudflare.com/"+session.accountId+"/r2/overview"');
+    expect(html).toContain('error.code=data.code');
+  });
+
+  it("separa o fork recomendado da instalação OAuth fixa sem remover o motor atual", async () => {
+    const chooser = installationChooserHtml();
+    expect(chooser).toContain('href="./fork/"');
+    expect(chooser).toContain('href="./quick/"');
+    expect(chooser.indexOf("Meu próprio código")).toBeLessThan(chooser.indexOf("Instalação rápida"));
+
+    const fork = forkInstallerHtml();
+    expect(fork).toContain("/smartzap-cloudflare/fork");
+    expect(fork).toContain("npm run fork:deploy");
+    expect(fork).toContain("SMARTZAP_INSTALL_ID");
+    expect(fork).toContain("crypto.getRandomValues");
+    expect(fork).not.toContain("localStorage");
+
+    const env = { PUBLIC_ORIGIN: "https://instalar.escoladeautomacao.com/smartzap" } as ProvisionerEnv;
+    const root = await provisionerWorker.fetch(new Request("https://instalar.escoladeautomacao.com/smartzap/"), env);
+    expect(await root.text()).toContain("Meu próprio código");
+    const quick = await provisionerWorker.fetch(new Request("https://instalar.escoladeautomacao.com/smartzap/quick/"), env);
+    expect(await quick.text()).toContain("instalação rápida");
+    const forkRoute = await provisionerWorker.fetch(new Request("https://instalar.escoladeautomacao.com/smartzap/fork/"), env);
+    expect(await forkRoute.text()).toContain("O SmartZap passa a ser seu");
   });
 });

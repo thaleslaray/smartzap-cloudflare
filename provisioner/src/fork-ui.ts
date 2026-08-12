@@ -1,0 +1,56 @@
+const PUBLIC_REPOSITORY = "https://github.com/thaleslaray/smartzap-cloudflare";
+
+export function installationChooserHtml(): string {
+  return pageShell("Escolha como instalar o SmartZap", `
+    <div class="eyebrow">SmartZap · instalação</div>
+    <h1>Seu código, sua Cloudflare, sua decisão.</h1>
+    <p class="lead">Os dois caminhos continuam disponíveis. Para produção, recomendamos o fork: você recebe o código e controla as atualizações. A instalação rápida mantém uma versão fixa e não altera seu GitHub.</p>
+    <div class="routes">
+      <article class="card recommended">
+        <span class="badge">Recomendado</span><h2>Meu próprio código</h2>
+        <p>Cria um fork real no seu GitHub, conecta o repositório ao Workers Builds e mantém você no controle de deploys, customizações e atualizações.</p>
+        <ul><li>Você é dono do repositório</li><li>Atualizações chegam por pull request opcional</li><li>Nenhum merge ou deploy automático</li></ul>
+        <a class="button primary" href="./fork/">Instalar com meu fork →</a>
+      </article>
+      <article class="card">
+        <span class="badge secondary">Versão fixa</span><h2>Instalação rápida</h2>
+        <p>Usa o provisionador OAuth existente. É mais curta, mas instala um artefato fechado em uma versão específica e não cria repositório para manutenção.</p>
+        <ul><li>Sem GitHub ou terminal</li><li>Sem atualização automática</li><li>Migração para fork disponível depois</li></ul>
+        <a class="button outline" href="./quick/">Usar instalação rápida</a>
+      </article>
+    </div>
+    <p class="legal">Nos dois modelos, os recursos e os dados ficam na conta Cloudflare escolhida pelo titular.</p>`);
+}
+
+export function forkInstallerHtml(): string {
+  return pageShell("Instalar SmartZap com seu próprio fork", `
+    <a class="back" href="../">← Comparar formas de instalação</a>
+    <div class="eyebrow">Modelo recomendado · fork-first</div>
+    <h1>O SmartZap passa a ser seu.</h1>
+    <p class="lead">Você cria um fork verdadeiro vinculado ao repositório oficial, conecta o seu fork à Cloudflare e decide quando aceitar atualizações. O SmartZap nunca faz merge nem publica em produção por você.</p>
+    <section class="card steps" aria-labelledby="fork-title"><h2 id="fork-title">Roteiro de instalação</h2><ol>
+      <li><span>1</span><div><strong>Crie o fork no GitHub</strong><p>Entre na conta que será proprietária do código e confirme o fork do repositório oficial.</p><a class="button primary" href="${PUBLIC_REPOSITORY}/fork" target="_blank" rel="noopener noreferrer">Criar meu fork no GitHub ↗</a></div></li>
+      <li><span>2</span><div><strong>Gere o acesso local</strong><p>Defina sua senha. A chave AES-256 e o identificador são gerados neste navegador, sem envio ao SmartZap.</p>
+        <label for="password">Senha administrativa</label><input id="password" type="password" minlength="14" autocomplete="new-password" placeholder="No mínimo 14 caracteres">
+        <label for="vault">Chave do cofre</label><input id="vault" readonly autocomplete="off">
+        <label for="install-id">Identificador</label><input id="install-id" readonly autocomplete="off">
+        <div class="actions"><button class="button outline" id="regenerate" type="button">Gerar outros valores</button><button class="button outline" id="download" type="button">Baixar recuperação</button></div>
+      </div></li>
+      <li><span>3</span><div><strong>Importe o seu fork no Workers Builds</strong><p>Na Cloudflare, escolha <em>Import a repository</em>, selecione o fork recém-criado e use as configurações abaixo.</p><a class="button primary" href="https://dash.cloudflare.com/?to=/:account/workers-and-pages/create" target="_blank" rel="noopener noreferrer">Abrir Workers &amp; Pages ↗</a>
+        <dl><dt>Build command</dt><dd><code>npm ci &amp;&amp; npm run build</code><button data-copy="npm ci && npm run build">Copiar</button></dd><dt>Deploy command</dt><dd><code>npm run fork:deploy</code><button data-copy="npm run fork:deploy">Copiar</button></dd><dt>Non-production deploy</dt><dd><code>npm run fork:preview</code><button data-copy="npm run fork:preview">Copiar</button></dd></dl>
+      </div></li>
+      <li><span>4</span><div><strong>Cadastre três Build secrets</strong><p>Marque os valores como <strong>encrypted</strong>. Eles são usados pelo bootstrap para criar os secrets do Worker e não são persistidos no repositório.</p>
+        <dl><dt>SMARTZAP_INSTALL_ID</dt><dd><code id="copy-install-id"></code><button data-copy-id="install-id">Copiar</button></dd><dt>MASTER_PASSWORD</dt><dd><code>valor definido acima</code><button data-copy-id="password">Copiar</button></dd><dt>SMARTZAP_VAULT_KEY</dt><dd><code id="copy-vault"></code><button data-copy-id="vault">Copiar</button></dd></dl>
+      </div></li>
+      <li><span>5</span><div><strong>Conclua o <code>/setup</code></strong><p>Depois do primeiro deploy, abra a URL do Worker. O assistente valida infraestrutura, Meta, webhook, templates, Queue e a progressão real <code>sent → delivered → read</code>.</p></div></li>
+    </ol></section>
+    <section class="notice"><strong>Responsabilidade sem ambiguidade</strong><p>Seu fork não recebe mudanças sozinho. O workflow opcional apenas abre uma branch e um pull request de atualização; você revisa conflitos, migrações e rollback antes do merge.</p><p><a href="${PUBLIC_REPOSITORY}/blob/main/UPDATE_POLICY.md" target="_blank" rel="noopener noreferrer">Política de atualizações</a> · <a href="${PUBLIC_REPOSITORY}/blob/main/SUPPORT.md" target="_blank" rel="noopener noreferrer">Escopo de suporte</a></p></section>
+    <div id="status" class="status" role="status" aria-live="polite">Nada foi enviado ou armazenado por esta página.</div>
+    <script>(()=>{const $=id=>document.getElementById(id);const b64=b=>btoa(String.fromCharCode(...b)).replace(/\\+/g,"-").replace(/\\//g,"_").replace(/=+$/g,"");const hex=b=>[...b].map(v=>v.toString(16).padStart(2,"0")).join("");function generate(){const key=new Uint8Array(32),id=new Uint8Array(4);crypto.getRandomValues(key);crypto.getRandomValues(id);$("vault").value=b64(key);$("install-id").value="smartzap-"+hex(id);$("copy-vault").textContent=$("vault").value;$("copy-install-id").textContent=$("install-id").value}function status(m,e=false){$("status").textContent=m;$("status").classList.toggle("error",e)}async function copy(value){await navigator.clipboard.writeText(value);status("Valor copiado. Ele continua somente neste navegador e na sua área de transferência.")}document.querySelectorAll("[data-copy]").forEach(b=>b.onclick=()=>copy(b.dataset.copy));document.querySelectorAll("[data-copy-id]").forEach(b=>b.onclick=()=>copy($(b.dataset.copyId).value));$("regenerate").onclick=generate;$("download").onclick=()=>{try{if($("password").value.length<14)throw new Error("Defina uma senha com pelo menos 14 caracteres antes de baixar a recuperação.");const payload={produto:"SmartZap",modelo:"fork",criadoEm:new Date().toISOString(),installId:$("install-id").value,masterPassword:$("password").value,vaultKey:$("vault").value};const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="smartzap-fork-recuperacao.json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);status("Arquivo baixado. Guarde-o em um gerenciador de senhas.")}catch(e){status(e.message,true)}};generate()})()</script>`);
+}
+
+function pageShell(title: string, body: string): string {
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><meta name="referrer" content="no-referrer"><title>${title}</title><style>
+  :root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#f4f7f5;background:#08110e;line-height:1.5}*{box-sizing:border-box}body{margin:0;min-width:320px;min-height:100vh;background:radial-gradient(circle at 82% 0,#143a2c 0,transparent 34rem),#08110e}main{width:min(1040px,calc(100% - 32px));margin:auto;padding:56px 0 80px}.eyebrow{color:#7ef2bb;font-size:.78rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase}.back{display:inline-block;margin-bottom:32px;color:#aab8b1}h1{font-size:clamp(2.4rem,7vw,5rem);line-height:.95;letter-spacing:-.06em;margin:18px 0;max-width:850px}h2{font-size:1.5rem;margin:12px 0}p{color:#aab8b1}.lead{font-size:1.08rem;max-width:780px}.routes{display:grid;grid-template-columns:1.15fr .85fr;gap:18px;margin-top:34px}.card,.notice{border:1px solid #294139;border-radius:24px;background:rgba(15,27,22,.9);padding:28px}.recommended{box-shadow:0 22px 90px #102e2266;border-color:#4e8e72}.badge{display:inline-flex;padding:5px 10px;border-radius:999px;background:#164632;color:#8ff6bd;font-size:.75rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em}.badge.secondary{background:#222c28;color:#b7c3bc}.card ul{padding-left:20px;color:#c9d3cd}.button{display:inline-flex;align-items:center;justify-content:center;min-height:48px;border-radius:999px;padding:0 20px;font:inherit;font-weight:800;text-decoration:none;cursor:pointer}.primary{background:#7ef2bb;color:#07120d;border:0}.outline{background:#14241e;color:#e1eae5;border:1px solid #3a594d}.routes .button{margin-top:16px}.legal{font-size:.85rem;margin-top:18px}.steps{margin-top:32px}.steps ol{list-style:none;margin:0;padding:0}.steps li{display:grid;grid-template-columns:38px minmax(0,1fr);gap:16px;padding:24px 0;border-bottom:1px solid #294139}.steps li:last-child{border:0}.steps li>span{display:grid;place-items:center;width:36px;height:36px;border:1px solid #4e8e72;border-radius:50%;color:#7ef2bb}.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}label{display:block;margin:14px 0 7px;font-weight:700}input{width:100%;min-height:48px;padding:0 13px;border:1px solid #355146;border-radius:12px;background:#09120f;color:#f4f7f5;font:inherit}dl{margin:18px 0 0}dt{margin-top:12px;color:#91a097;font-size:.8rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em}dd{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:5px 0;padding:10px 12px;border:1px solid #294139;border-radius:11px;background:#08110e;overflow-wrap:anywhere}dd button{border:0;background:transparent;color:#7ef2bb;cursor:pointer}.notice,.status{margin-top:18px}.status{padding:14px;border:1px solid #294139;border-radius:14px;color:#9db0a6}.status.error{color:#ffb3bb;border-color:#75323b}a{color:#8ff6bd}a:focus-visible,button:focus-visible,input:focus-visible{outline:3px solid white;outline-offset:3px}@media(max-width:760px){main{padding-top:32px}.routes{grid-template-columns:1fr}.card{padding:21px}.steps li{grid-template-columns:1fr}.steps li>span{margin-bottom:-5px}dd{align-items:flex-start;flex-direction:column}.button{width:100%}}
+  </style></head><body><main>${body}</main></body></html>`;
+}
