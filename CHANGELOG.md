@@ -5,6 +5,15 @@ versionamento segue SemVer.
 
 ## [Unreleased]
 
+## [1.0.0-rc.16] - 2026-08-12
+
+### Corrigido
+
+- inclui no Git os módulos de validação de migrations e de assinatura usados
+  pelos entrypoints públicos;
+- o contrato da distribuição agora reprova a release quando qualquer módulo
+  transitivo do deploy, rollback ou verificação estiver ausente.
+
 ## [1.0.0-rc.15] - 2026-08-12
 
 ### Adicionado
