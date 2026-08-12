@@ -62,7 +62,7 @@
   },
   "dependencies": {
     "@xyflow/react": "^12.11.2",
-    "hono": "4.13.0",
+    "hono": "4.13.1",
     "libphonenumber-js": "^1.13.8",
     "papaparse": "^5.5.4",
     "pdfjs-dist": "^6.2.108",
