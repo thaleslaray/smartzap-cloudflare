@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-rc.36] - 2026-08-13
+
+- Vincula a identidade imutável da release ao diagnóstico do staging e exige o SHA exato do commit no comando de publicação.
+- Substitui a `rc.35`, reprovada no staging porque `/setup` não identificava versão, commit, schema e canal.
+
 ## [1.0.0-rc.35] - 2026-08-13
 
 - Preserva explicitamente no staging o Cron de reconciliação a cada 15 minutos e exige a chave do cofre como secret antes da publicação.
