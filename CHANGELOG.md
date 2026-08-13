@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-rc.37] - 2026-08-13
+
+- Isola a matriz responsiva de Projetos/Fábrica em um processo WebKit próprio, sem retry e sem ampliar timeout, após a reprodução dedicada passar 30/30 vezes.
+- Substitui a `rc.36`, cuja matriz integral foi reprovada por um timeout de navegação após mais de 60 cenários WebKit sequenciais.
+
 ## [1.0.0-rc.36] - 2026-08-13
 
 - Vincula a identidade imutável da release ao diagnóstico do staging e exige o SHA exato do commit no comando de publicação.

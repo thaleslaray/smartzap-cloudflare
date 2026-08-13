@@ -28,8 +28,11 @@ const nonSmokeSpecs = readdirSync(resolve(root, "e2e"))
   .map((file) => `e2e/${file}`)
   .sort();
 const templateProjectsSpec = "e2e/template-projects.spec.ts";
+const templateProjectsResponsiveSpec =
+  "e2e/template-projects-responsive.spec.ts";
 const webkitFeatureSpecs = nonSmokeSpecs.filter(
-  (file) => file !== templateProjectsSpec,
+  (file) =>
+    file !== templateProjectsSpec && file !== templateProjectsResponsiveSpec,
 );
 
 const matrix = {
@@ -99,6 +102,11 @@ const matrix = {
     // sequenciais neste runtime. Manter Projetos/Fábrica em outro processo
     // conserva a cobertura integral sem retry nem falso timeout no login.
     { label: "webkit-features", project: "webkit", files: webkitFeatureSpecs },
+    {
+      label: "webkit-template-projects-responsive",
+      project: "webkit",
+      files: [templateProjectsResponsiveSpec],
+    },
     {
       label: "webkit-template-projects",
       project: "webkit",
