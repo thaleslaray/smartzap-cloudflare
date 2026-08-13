@@ -1,6 +1,11 @@
 # Changelog
 
-## 1.0.0-rc.33
+## [1.0.0-rc.34] - 2026-08-13
+
+- Corrige o formato canônico do changelog exigido pelo gerador de propostas de atualização.
+- Substitui a `rc.33`, reprovada antes do deploy porque suas notas não podiam ser extraídas automaticamente.
+
+## [1.0.0-rc.33] - 2026-08-13
 
 - Consolida CAPI/CTWA, reconciliação de conversões, cofre cifrado e assistente `/setup` no runtime candidato.
 - Separa o manifesto público genérico do manifesto interno de produção para impedir regressão de bindings e credenciais.
