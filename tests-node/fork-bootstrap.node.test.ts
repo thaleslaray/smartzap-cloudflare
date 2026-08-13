@@ -37,19 +37,12 @@ describe("bootstrap fork-first", () => {
       release: { version: "1.2.3-rc.1", commit: "abc123", schemaVersion: "7", channel: "rc" },
     });
     const parsed = JSON.parse(source);
-    expect(parsed.name).toBe("smartzap-12ab34cd");
+    expect(parsed.name).toBe("smartzap-12ab34cd-staging");
     expect(parsed.d1_databases[0]).toEqual(expect.objectContaining({ database_name: "smartzap-12ab34cd-staging-db", database_id: expect.any(String) }));
     expect(parsed.r2_buckets[0].bucket_name).toBe("smartzap-12ab34cd-staging-media");
     expect(parsed.workflows.map((item: { name: string }) => item.name)).toEqual(["smartzap-12ab34cd-staging-campaign-send", "smartzap-12ab34cd-staging-setup-health"]);
     expect(parsed.vars).toEqual(expect.objectContaining({ ENVIRONMENT: "staging", SMARTZAP_VERSION: "1.2.3-rc.1", SMARTZAP_COMMIT: "abc123", SMARTZAP_SCHEMA_VERSION: "7" }));
-    expect(parsed.env.staging).toEqual(expect.objectContaining({
-      d1_databases: parsed.d1_databases,
-      r2_buckets: parsed.r2_buckets,
-      queues: parsed.queues,
-      workflows: parsed.workflows,
-      vars: parsed.vars,
-    }));
-    expect(parsed.env.staging.name).toBeUndefined();
+    expect(parsed.env).toBeUndefined();
   });
 
   it("lê respostas D1 sem depender de IDs fixos", () => {

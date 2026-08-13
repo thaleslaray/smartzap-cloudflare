@@ -13,9 +13,31 @@ export function classifyWorkersBuildBranch(rawBranch) {
   return { branch, action: "validate-only", reason: "branch não autorizada para deploy" };
 }
 
-export function workersBuildCommandForBranch(rawBranch) {
+export function expectedWorkerForAction(baseInstallId, action) {
+  const base = String(baseInstallId || "").trim().toLowerCase();
+  if (!/^smartzap-[a-f0-9]{8}$/.test(base)) {
+    throw new Error("SMARTZAP_INSTALL_ID ausente ou inválido no Workers Builds.");
+  }
+  return action === "staging" ? `${base}-staging` : base;
+}
+
+export function workersBuildCommandForBranch(rawBranch, options = {}) {
   const policy = classifyWorkersBuildBranch(rawBranch);
-  if (policy.action === "production") return { ...policy, args: [] };
-  if (policy.action === "staging") return { ...policy, args: ["--staging"] };
+  if (policy.action === "production" || policy.action === "staging") {
+    const expectedWorker = expectedWorkerForAction(options.baseInstallId, policy.action);
+    const connectedWorker = String(options.connectedWorkerName || "").trim().toLowerCase();
+    if (!connectedWorker) {
+      throw new Error("WRANGLER_CI_OVERRIDE_NAME ausente. O build não está vinculado a um Worker Cloudflare identificável.");
+    }
+    if (connectedWorker !== expectedWorker) {
+      return {
+        ...policy,
+        action: "validate-only",
+        args: null,
+        reason: `branch ${policy.branch} pertence a ${expectedWorker}, mas este build está conectado a ${connectedWorker}`,
+      };
+    }
+    return { ...policy, workerName: expectedWorker, args: policy.action === "staging" ? ["--staging"] : [] };
+  }
   return { ...policy, args: null };
 }

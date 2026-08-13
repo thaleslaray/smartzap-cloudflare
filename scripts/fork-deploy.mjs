@@ -208,8 +208,7 @@ function deploy() {
     if (process.env.WRANGLER_CI_OVERRIDE_NAME && process.env.WRANGLER_CI_OVERRIDE_NAME !== workerName) {
       console.log(`Override de nome do Workers Builds neutralizado; alvo autorizado: ${workerName}.`);
     }
-    const deployTarget = staging ? ["--env", "staging"] : ["--name", workerName];
-    runWrangler(["deploy", ...deployTarget, "--config", configPath, "--secrets-file", secretPath, "--keep-vars", "--message", `SmartZap ${version} (${commit.slice(0, 12)})`, "--tag", version.replace(/[^a-zA-Z0-9_-]/g, "-")], {
+    runWrangler(["deploy", "--name", workerName, "--config", configPath, "--secrets-file", secretPath, "--keep-vars", "--message", `SmartZap ${version} (${commit.slice(0, 12)})`, "--tag", version.replace(/[^a-zA-Z0-9_-]/g, "-")], {
       visible: true,
       environment: { WRANGLER_OUTPUT_FILE_PATH: outputPath },
     });

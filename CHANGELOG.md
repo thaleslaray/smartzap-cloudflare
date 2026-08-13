@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.0-rc.30
+
+- Separa fisicamente os projetos Workers Builds de produção e staging.
+- Exige correspondência entre branch, `SMARTZAP_INSTALL_ID` e Worker conectado antes de qualquer mutação Cloudflare.
+- Transforma branch enviada ao projeto errado em validação sem deploy, impedindo que staging alcance produção.
+- Remove a tentativa incompatível de publicar o Worker `-staging` pelo token conectado ao Worker de produção.
+
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o
 versionamento segue SemVer.
 

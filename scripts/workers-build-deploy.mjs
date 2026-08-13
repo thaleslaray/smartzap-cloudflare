@@ -3,7 +3,10 @@ import { resolve } from "node:path";
 import { workersBuildCommandForBranch } from "./lib/workers-build-policy.mjs";
 
 const root = resolve(import.meta.dirname, "..");
-const policy = workersBuildCommandForBranch(process.env.WORKERS_CI_BRANCH);
+const policy = workersBuildCommandForBranch(process.env.WORKERS_CI_BRANCH, {
+  baseInstallId: process.env.SMARTZAP_INSTALL_ID,
+  connectedWorkerName: process.env.WRANGLER_CI_OVERRIDE_NAME,
+});
 
 if (policy.action === "validate-only") {
   console.log(`Branch ${policy.branch}: ${policy.reason}. Build validado sem criar, migrar ou publicar recursos Cloudflare.`);
@@ -12,8 +15,8 @@ if (policy.action === "validate-only") {
 
 const script = resolve(root, "scripts", "fork-deploy.mjs");
 console.log(policy.action === "production"
-  ? "Branch main confirmada: iniciando deploy de produção autogerenciado."
-  : `Branch ${policy.branch} confirmada: iniciando staging físico isolado.`);
+  ? `Branch main e Worker ${policy.workerName} confirmados: iniciando deploy de produção autogerenciado.`
+  : `Branch ${policy.branch} e Worker ${policy.workerName} confirmados: iniciando staging físico isolado.`);
 execFileSync(process.execPath, [script, ...policy.args], {
   cwd: root,
   env: process.env,
