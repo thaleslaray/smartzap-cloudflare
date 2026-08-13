@@ -54,6 +54,7 @@ jobs:
         shell: bash
         env:
           VERSION: ${{ steps.release.outputs.version }}
+          UPSTREAM_OWNER: thaleslaray
           UPSTREAM_REPOSITORY: thaleslaray/smartzap-cloudflare
         run: |
           set -euo pipefail
@@ -67,10 +68,19 @@ jobs:
             exit 1
           }
           git -c gpg.format=ssh -c gpg.ssh.allowedSignersFile="$allowed_signers" tag --verify "${VERSION}"
-          branch="sync/${VERSION}"
+          branch="release/${VERSION}"
+          candidate_sha="$(git rev-list -n 1 "${VERSION}")"
+          remote_sha="$(git ls-remote upstream "refs/heads/${branch}" | awk 'NR == 1 { print $1 }')"
+          test -n "$remote_sha" || {
+            echo "Branch oficial ${branch} ausente no upstream." >&2
+            exit 1
+          }
+          test "$remote_sha" = "$candidate_sha" || {
+            echo "Branch oficial ${branch} não aponta para a tag assinada ${VERSION}." >&2
+            exit 1
+          }
           git switch --detach "${VERSION}"
-          git switch -C "$branch"
-          git push --force-with-lease origin "$branch"
+          echo "SMARTZAP_UPDATE_HEAD=${UPSTREAM_OWNER}:${branch}" >> "$GITHUB_ENV"
 
       - name: Materializar changelog, migrations e incompatibilidades
         if: steps.release.outputs.available == 'true'
@@ -106,12 +116,12 @@ jobs:
           VERSION: ${{ steps.release.outputs.version }}
         run: |
           set -euo pipefail
-          branch="sync/${VERSION}"
-          existing="$(gh pr list --head "$branch" --base main --state open --json number --jq '.[0].number // empty')"
+          existing="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$SMARTZAP_UPDATE_HEAD" --base main --state open --json number --jq '.[0].number // empty')"
           if [ -z "$existing" ]; then
             gh pr create \
+              --repo "$GITHUB_REPOSITORY" \
               --base main \
-              --head "$branch" \
+              --head "$SMARTZAP_UPDATE_HEAD" \
               --title "Atualizar SmartZap para ${VERSION}" \
               --body-file "${RUNNER_TEMP}/smartzap-update-pr.md"
           else

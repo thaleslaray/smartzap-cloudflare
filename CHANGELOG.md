@@ -5,6 +5,23 @@ versionamento segue SemVer.
 
 ## [Unreleased]
 
+## [1.0.0-rc.26] - 2026-08-13
+
+### Corrigido
+
+- o atualizador deixa de tentar enviar arquivos de workflow com o token padrão
+  do GitHub Actions, operação recusada pelo GitHub por exigir permissão
+  específica de `Workflows` que o `GITHUB_TOKEN` não concede;
+- cada release publica uma branch oficial `release/vX.Y.Z`, obrigatoriamente no
+  mesmo SHA da tag assinada, e o fork abre um PR cruzado a partir dessa branch;
+- o cliente continua sem PAT, sem GitHub App adicional, sem merge automático e
+  sem qualquer publicação acionada pelo workflow de proposta.
+
+### Operação
+
+- a `rc.26` não altera runtime nem schema D1; ela substitui o transporte da
+  proposta de atualização após a `rc.25` reprovar com segurança no canário real.
+
 ## [1.0.0-rc.25] - 2026-08-13
 
 ### Segurança

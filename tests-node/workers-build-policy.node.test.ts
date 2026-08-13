@@ -42,6 +42,16 @@ describe("corpo auditável do PR de atualização", () => {
     );
   });
 
+  it("abre PR cruzado da branch oficial sem tentar reescrever workflows no fork", () => {
+    const workflow = readFileSync(resolve(".github/workflows/upstream-sync.yml"), "utf8");
+    expect(workflow).toContain('branch="release/${VERSION}"');
+    expect(workflow).toContain('git ls-remote upstream "refs/heads/${branch}"');
+    expect(workflow).toContain('test "$remote_sha" = "$candidate_sha"');
+    expect(workflow).toContain('SMARTZAP_UPDATE_HEAD=${UPSTREAM_OWNER}:${branch}');
+    expect(workflow).toContain('--head "$SMARTZAP_UPDATE_HEAD"');
+    expect(workflow).not.toMatch(/git push.*origin.*sync\//);
+  });
+
   it("detecta stable diariamente, aceita tag manual e nunca publica no workflow", () => {
     const workflow = readFileSync(resolve(".github/workflows/upstream-sync.yml"), "utf8");
     expect(workflow).toContain("schedule:");
