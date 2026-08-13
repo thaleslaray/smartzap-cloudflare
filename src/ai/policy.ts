@@ -32,6 +32,18 @@ export function automationPolicyDecision(
     /\b(?:atendimento|suporte) humano\b/,
     /\bquero (?:um )?atendente\b/,
   ].some((pattern) => pattern.test(text));
+  const asksForSecretDisclosure = [
+    /\b(?:mostre|mostrar|revele|revelar|exiba|exibir|forneca|fornecer|passe|passar)\b.*\b(?:token|tokens|senha|senhas|segredo|segredos|credencial|credenciais|chave da api|api key)\b/,
+    /\b(?:diga|informe|envie)\b.*\b(?:o|a|os|as)\b.*\b(?:token|tokens|senha|senhas|segredo|segredos|credencial|credenciais|chave da api|api key)\b/,
+  ].some((pattern) => pattern.test(text));
+  if (asksForSecretDisclosure) {
+    return {
+      text:
+        "Não posso divulgar tokens, senhas, chaves de API, credenciais ou outros segredos do sistema. Esses dados devem permanecer protegidos e acessíveis somente a responsáveis autorizados.",
+      handoffReason: null,
+    };
+  }
+
   const asksForBulkDispatch = [
     /\b(?:lista|base)\b.*\b(?:contatos?|clientes?|leads?)\b.*\b(?:disparar|enviar|mandar|campanha)\b/,
     /\b(?:disparar|enviar|mandar|campanha)\b.*\b(?:todos?|toda|lista|base|contatos?|clientes?|leads?)\b/,

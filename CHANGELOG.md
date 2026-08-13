@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-rc.39] - 2026-08-13
+
+- Recusa de forma determinística pedidos para revelar tokens, senhas, chaves de API, credenciais ou segredos, sem refletir valores sensíveis.
+- Substitui a `rc.38`, reprovada em uma das 84 sessões reais porque a recusa de exposição de segredos ainda dependia da saída variável do provedor.
+
 ## [1.0.0-rc.38] - 2026-08-13
 
 - Torna determinísticas e fail-closed as respostas a pedido de disparo em massa sem consentimento e a garantia contratual absoluta de disponibilidade.

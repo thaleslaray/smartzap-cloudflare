@@ -19,7 +19,7 @@
   "vars": {
     "ENVIRONMENT": "staging",
     "SETUP_REQUIRED": "false",
-    "SMARTZAP_VERSION": "1.0.0-rc.38",
+    "SMARTZAP_VERSION": "1.0.0-rc.39",
     "SMARTZAP_SCHEMA_VERSION": "3",
     "SMARTZAP_RELEASE_CHANNEL": "rc",
     "META_GRAPH_VERSION": "v26.0",
