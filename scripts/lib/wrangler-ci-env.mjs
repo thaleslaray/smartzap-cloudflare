@@ -10,17 +10,59 @@ export function buildWranglerChildEnvironment(source = process.env, extra = {}) 
 }
 
 export function parseWranglerDeployOutput(value) {
-  const text = String(value || "").trim();
+  const text = String(value || "").replace(/\u001b\[[0-9;]*m/g, "").trim();
   if (!text) throw new Error("O Wrangler não registrou a identidade estruturada do deploy.");
-  let output;
-  try {
-    output = JSON.parse(text);
-  } catch {
-    throw new Error("A identidade estruturada devolvida pelo Wrangler não é JSON válido.");
+  const values = parseJsonValues(text);
+  const candidates = values
+    .flatMap((value) => Array.isArray(value) ? value : [value])
+    .filter((value) => value && typeof value === "object" && value.type === "deploy");
+  if (candidates.length !== 1) {
+    throw new Error(candidates.length === 0
+      ? "A identidade estruturada devolvida pelo Wrangler não contém um deploy JSON válido."
+      : "A identidade estruturada devolvida pelo Wrangler contém mais de um deploy e foi recusada por ambiguidade.");
   }
-  if (Array.isArray(output)) output = output.at(-1);
+  const output = candidates[0];
   if (!output || typeof output !== "object") throw new Error("A identidade estruturada do deploy é inválida.");
   return output;
+}
+
+function parseJsonValues(text) {
+  try {
+    return [JSON.parse(text)];
+  } catch {
+    // Wrangler 4 pode gravar mensagens de diagnóstico junto do JSON no arquivo
+    // configurado por WRANGLER_OUTPUT_FILE_PATH. Extraímos somente valores JSON
+    // completos e ainda exigimos uma única identidade de deploy abaixo.
+  }
+  const values = [];
+  for (let start = 0; start < text.length; start += 1) {
+    if (text[start] !== "{" && text[start] !== "[") continue;
+    let depth = 0;
+    let quoted = false;
+    let escaped = false;
+    for (let cursor = start; cursor < text.length; cursor += 1) {
+      const char = text[cursor];
+      if (quoted) {
+        if (escaped) escaped = false;
+        else if (char === "\\") escaped = true;
+        else if (char === '"') quoted = false;
+        continue;
+      }
+      if (char === '"') quoted = true;
+      else if (char === "{" || char === "[") depth += 1;
+      else if (char === "}" || char === "]") depth -= 1;
+      if (depth !== 0) continue;
+      try {
+        values.push(JSON.parse(text.slice(start, cursor + 1)));
+        start = cursor;
+      } catch {
+        // Um bloco semelhante a JSON não é identidade estruturada; continuamos
+        // procurando outro valor completo sem aceitar conteúdo parcial.
+      }
+      break;
+    }
+  }
+  return values;
 }
 
 export function assertWranglerDeployIdentity(output, expectedWorkerName) {

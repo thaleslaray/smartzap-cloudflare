@@ -40,6 +40,32 @@ describe("isolamento do nome do Worker no Workers Builds", () => {
     expect(assertWranglerDeployIdentity(output, "smartzap-12ab34cd-staging").worker_name).toBe("smartzap-12ab34cd-staging");
   });
 
+  it("aceita o JSON único quando o Wrangler mistura diagnóstico no arquivo estruturado", () => {
+    const identity = {
+      type: "deploy",
+      version: 1,
+      worker_name: "smartzap-12ab34cd-staging",
+      worker_name_overridden: false,
+      version_id: "11111111-1111-1111-1111-111111111111",
+      targets: ["https://example.workers.dev"],
+    };
+    const output = parseWranglerDeployOutput(`Wrangler diagnostic {not-json}\n${JSON.stringify(identity)}\ntelemetry finished`);
+    expect(output).toEqual(identity);
+  });
+
+  it("recusa saída sem deploy ou com duas identidades possíveis", () => {
+    const identity = {
+      type: "deploy",
+      version: 1,
+      worker_name: "smartzap-12ab34cd-staging",
+      worker_name_overridden: false,
+      version_id: "11111111-1111-1111-1111-111111111111",
+      targets: ["https://example.workers.dev"],
+    };
+    expect(() => parseWranglerDeployOutput('{"type":"telemetry"}')).toThrow(/não contém um deploy JSON válido/);
+    expect(() => parseWranglerDeployOutput(`${JSON.stringify(identity)}\n${JSON.stringify(identity)}`)).toThrow(/ambiguidade/);
+  });
+
   it("reprova nome divergente, override e resposta incompleta", () => {
     const valid = {
       type: "deploy",
@@ -52,6 +78,6 @@ describe("isolamento do nome do Worker no Workers Builds", () => {
     expect(() => assertWranglerDeployIdentity({ ...valid, worker_name: "smartzap-producao" }, valid.worker_name)).toThrow(/publicou smartzap-producao/);
     expect(() => assertWranglerDeployIdentity({ ...valid, worker_name_overridden: true }, valid.worker_name)).toThrow(/sobrescreveu/);
     expect(() => assertWranglerDeployIdentity({ ...valid, targets: [] }, valid.worker_name)).toThrow(/versão e destino/);
-    expect(() => parseWranglerDeployOutput("não-json")).toThrow(/não é JSON válido/);
+    expect(() => parseWranglerDeployOutput("não-json")).toThrow(/não contém um deploy JSON válido/);
   });
 });

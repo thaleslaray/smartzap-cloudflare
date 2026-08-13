@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.0-rc.32
+
+- Aceita a identidade JSON única de deploy quando o Wrangler 4 acrescenta diagnóstico ao arquivo de saída estruturada.
+- Mantém a validação fechada: ausência de deploy, múltiplas identidades, Worker divergente ou override continuam reprovando a instalação.
+
 ## 1.0.0-rc.31
 
 - Torna a retomada do instalador idempotente quando consumidores de Queue já pertencem ao mesmo Worker.
