@@ -89,6 +89,57 @@ export function parseQueueNames(output) {
     .filter(Boolean);
 }
 
+export function queueConsumerSpecs(names) {
+  return [
+    {
+      queue: names.webhookQueue,
+      batchSize: 50,
+      batchTimeout: 2,
+      maxRetries: 5,
+      deadLetterQueue: names.webhookDlq,
+    },
+    {
+      queue: names.automationQueue,
+      batchSize: 10,
+      batchTimeout: 2,
+      maxRetries: 3,
+      deadLetterQueue: names.automationDlq,
+    },
+    {
+      queue: names.conversionQueue,
+      batchSize: 10,
+      batchTimeout: 2,
+      maxRetries: 5,
+    },
+  ];
+}
+
+export function parseQueueConsumers(output) {
+  const parsed = JSON.parse(String(output));
+  if (!Array.isArray(parsed)) throw new Error("A listagem de consumidores da Queue não retornou uma coleção.");
+  return parsed.map((consumer) => ({
+    id: String(consumer?.consumer_id || consumer?.id || ""),
+    type: String(consumer?.type || ""),
+    script: String(consumer?.script || consumer?.script_name || consumer?.service || ""),
+    deadLetterQueue: consumer?.dead_letter_queue ? String(consumer.dead_letter_queue) : undefined,
+    settings: consumer?.settings && typeof consumer.settings === "object" ? consumer.settings : {},
+  }));
+}
+
+export function assertOwnedQueueConsumer(queueName, consumers, workerName) {
+  if (!Array.isArray(consumers)) throw new Error(`Consumidores inválidos para ${queueName}.`);
+  if (consumers.length === 0) return null;
+  if (consumers.length !== 1) {
+    throw new Error(`A Queue ${queueName} possui ${consumers.length} consumidores; a retomada foi interrompida sem alterá-los.`);
+  }
+  const consumer = consumers[0];
+  if (consumer.type !== "worker" || consumer.script !== workerName) {
+    const owner = consumer.script || consumer.type || "desconhecido";
+    throw new Error(`A Queue ${queueName} já pertence ao consumidor ${owner}; a retomada foi interrompida sem alterá-lo.`);
+  }
+  return consumer;
+}
+
 export function classifyForkResources({ database, buckets, queues, names }) {
   const requiredQueues = [
     names.webhookQueue,

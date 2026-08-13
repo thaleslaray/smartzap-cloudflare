@@ -10,7 +10,10 @@ import {
   deploymentId,
   deploymentResourceNames,
   parseD1Databases,
+  parseQueueConsumers,
   parseQueueNames,
+  queueConsumerSpecs,
+  assertOwnedQueueConsumer,
 } from "./lib/fork-bootstrap.mjs";
 import { buildRollbackCheckpoint, isMissingWorkerError, parseActiveDeploymentVersion, parseTimeTravelBookmark } from "./lib/fork-release.mjs";
 import { assertSchemaTransition, validateForkMigrationManifest } from "./lib/fork-migrations.mjs";
@@ -117,6 +120,51 @@ function ensureR2AndQueues(inventory) {
   for (const queue of inventory.requiredQueues) if (!existingQueues.has(queue)) runWrangler(["queues", "create", queue], { visible: true });
 }
 
+function inspectOwnedQueueConsumers() {
+  return queueConsumerSpecs(names).map((spec) => {
+    const consumers = parseQueueConsumers(runWrangler(["queues", "consumer", "list", spec.queue, "--json"]));
+    return { spec, consumer: assertOwnedQueueConsumer(spec.queue, consumers, workerName) };
+  });
+}
+
+function detachOwnedQueueConsumers(reconciliation) {
+  for (const { spec, consumer } of reconciliation) {
+    if (!consumer) continue;
+    console.log(`Retomada idempotente: removendo temporariamente o consumidor próprio de ${spec.queue}.`);
+    runWrangler(["queues", "consumer", "worker", "remove", spec.queue, workerName], { visible: true });
+  }
+}
+
+function addQueueConsumer(spec) {
+  const args = [
+    "queues", "consumer", "worker", "add", spec.queue, workerName,
+    "--batch-size", String(spec.batchSize),
+    "--batch-timeout", String(spec.batchTimeout),
+    "--message-retries", String(spec.maxRetries),
+  ];
+  if (spec.deadLetterQueue) args.push("--dead-letter-queue", spec.deadLetterQueue);
+  runWrangler(args, { visible: true });
+}
+
+function restoreQueueConsumersAfterFailure() {
+  const failures = [];
+  for (const spec of queueConsumerSpecs(names)) {
+    try {
+      const consumers = parseQueueConsumers(runWrangler(["queues", "consumer", "list", spec.queue, "--json"]));
+      const consumer = assertOwnedQueueConsumer(spec.queue, consumers, workerName);
+      if (!consumer) {
+        console.error(`Recuperação: restaurando consumidor de ${spec.queue} após falha no deploy.`);
+        addQueueConsumer(spec);
+      }
+    } catch (error) {
+      failures.push(`${spec.queue}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(`Não foi possível restaurar todos os consumidores após a falha: ${failures.join(" | ")}`);
+  }
+}
+
 function writeMigrationSet() {
   const baseline = readFileSync(resolve(root, "provisioner", "baseline", "0001_fresh_install.sql"), "utf8");
   const baselineHash = createHash("sha256").update(baseline).digest("hex");
@@ -208,10 +256,17 @@ function deploy() {
     if (process.env.WRANGLER_CI_OVERRIDE_NAME && process.env.WRANGLER_CI_OVERRIDE_NAME !== workerName) {
       console.log(`Override de nome do Workers Builds neutralizado; alvo autorizado: ${workerName}.`);
     }
-    runWrangler(["deploy", "--name", workerName, "--config", configPath, "--secrets-file", secretPath, "--keep-vars", "--message", `SmartZap ${version} (${commit.slice(0, 12)})`, "--tag", version.replace(/[^a-zA-Z0-9_-]/g, "-")], {
-      visible: true,
-      environment: { WRANGLER_OUTPUT_FILE_PATH: outputPath },
-    });
+    const consumers = inspectOwnedQueueConsumers();
+    try {
+      detachOwnedQueueConsumers(consumers);
+      runWrangler(["deploy", "--name", workerName, "--config", configPath, "--secrets-file", secretPath, "--keep-vars", "--message", `SmartZap ${version} (${commit.slice(0, 12)})`, "--tag", version.replace(/[^a-zA-Z0-9_-]/g, "-")], {
+        visible: true,
+        environment: { WRANGLER_OUTPUT_FILE_PATH: outputPath },
+      });
+    } catch (error) {
+      restoreQueueConsumersAfterFailure();
+      throw error;
+    }
     const deployed = assertWranglerDeployIdentity(parseWranglerDeployOutput(readFileSync(outputPath, "utf8")), workerName);
     console.log(`Identidade do deploy confirmada: ${deployed.worker_name} @ ${deployed.version_id}.`);
   } finally {

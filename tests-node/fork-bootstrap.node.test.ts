@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildForkWrangler, classifyForkResources, deploymentId, deploymentResourceNames, parseCreatedD1Id, parseD1Databases, parseQueueNames, parseR2BucketNames } from "../scripts/lib/fork-bootstrap.mjs";
+import { assertOwnedQueueConsumer, buildForkWrangler, classifyForkResources, deploymentId, deploymentResourceNames, parseCreatedD1Id, parseD1Databases, parseQueueConsumers, parseQueueNames, parseR2BucketNames, queueConsumerSpecs } from "../scripts/lib/fork-bootstrap.mjs";
 import { assertRollbackCheckpoint, buildRollbackCheckpoint, isMissingWorkerError, parseActiveDeploymentVersion, parseTimeTravelBookmark } from "../scripts/lib/fork-release.mjs";
 import { assertSchemaTransition, validateForkMigrationManifest } from "../scripts/lib/fork-migrations.mjs";
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -64,6 +64,26 @@ describe("bootstrap fork-first", () => {
       "└────┴────────────────────────────────────┴────┘",
     ].join("\n");
     expect(parseQueueNames(table)).toEqual(["smartzap-12ab34cd-meta-webhooks", "smartzap-12ab34cd-meta-conversions"]);
+  });
+
+  it("retoma consumidores de Queue somente quando pertencem ao Worker esperado", () => {
+    const names = deploymentResourceNames("smartzap-12ab34cd-staging");
+    expect(queueConsumerSpecs(names)).toEqual([
+      expect.objectContaining({ queue: names.webhookQueue, batchSize: 50, deadLetterQueue: names.webhookDlq }),
+      expect.objectContaining({ queue: names.automationQueue, maxRetries: 3, deadLetterQueue: names.automationDlq }),
+      expect.objectContaining({ queue: names.conversionQueue, maxRetries: 5 }),
+    ]);
+    const consumers = parseQueueConsumers(JSON.stringify([{
+      consumer_id: "consumer-1",
+      type: "worker",
+      script: names.worker,
+      settings: { batch_size: 50, max_retries: 5, max_wait_time_ms: 2000 },
+      dead_letter_queue: names.webhookDlq,
+    }]));
+    expect(assertOwnedQueueConsumer(names.webhookQueue, consumers, names.worker)).toEqual(expect.objectContaining({ id: "consumer-1", script: names.worker }));
+    expect(assertOwnedQueueConsumer(names.webhookQueue, [], names.worker)).toBeNull();
+    expect(() => assertOwnedQueueConsumer(names.webhookQueue, [{ ...consumers[0], script: "outro-worker" }], names.worker)).toThrow(/outro-worker/);
+    expect(() => assertOwnedQueueConsumer(names.webhookQueue, [{ ...consumers[0], type: "http_pull", script: "" }], names.worker)).toThrow(/http_pull/);
   });
 
   it("bloqueia R2 ou Queue órfã antes de criar um D1", () => {

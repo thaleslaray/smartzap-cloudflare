@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.0-rc.31
+
+- Torna a retomada do instalador idempotente quando consumidores de Queue já pertencem ao mesmo Worker.
+- Interrompe sem alteração se qualquer Queue pertencer a outro Worker ou a um consumidor HTTP.
+- Remove temporariamente apenas consumidores próprios antes do deploy e os restaura se o deploy falhar.
+
 ## 1.0.0-rc.30
 
 - Separa fisicamente os projetos Workers Builds de produção e staging.
