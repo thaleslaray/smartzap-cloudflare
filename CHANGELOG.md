@@ -5,6 +5,21 @@ versionamento segue SemVer.
 
 ## [Unreleased]
 
+## [1.0.0-rc.25] - 2026-08-13
+
+### Segurança
+
+- o workflow congela a âncora de confiança já aprovada no fork em um arquivo
+  temporário antes de buscar a tag candidata, tornando explícito que nenhuma
+  chave entregue pela atualização participa da verificação da própria tag;
+- o contrato automatizado comprova a ordem `copiar âncora -> buscar tag ->
+  verificar assinatura` e recusa regressão para âncora extraída da candidata.
+
+### Operação
+
+- a `rc.25` não altera runtime, dependências de produção nem schema D1 da
+  `rc.24`; ela endurece e torna auditável o mecanismo de proposta de atualização.
+
 ## [1.0.0-rc.24] - 2026-08-12
 
 ### Segurança

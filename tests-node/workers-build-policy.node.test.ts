@@ -32,11 +32,14 @@ describe("política fail-closed do Workers Builds", () => {
 });
 
 describe("corpo auditável do PR de atualização", () => {
-  it("verifica a tag somente com a âncora de confiança já aprovada no fork", () => {
+  it("congela a âncora aprovada no fork antes de buscar a atualização", () => {
     const workflow = readFileSync(resolve(".github/workflows/upstream-sync.yml"), "utf8");
-    expect(workflow).toContain("test -s release/allowed_signers");
-    expect(workflow).toMatch(/allowedSignersFile=release\/allowed_signers/);
+    expect(workflow).toContain('cp release/allowed_signers "$allowed_signers"');
+    expect(workflow).toMatch(/allowedSignersFile="\$allowed_signers"/);
     expect(workflow).not.toContain('git show "${VERSION}:release/allowed_signers"');
+    expect(workflow.indexOf('cp release/allowed_signers "$allowed_signers"')).toBeLessThan(
+      workflow.indexOf('git fetch --no-tags upstream'),
+    );
   });
 
   it("detecta stable diariamente, aceita tag manual e nunca publica no workflow", () => {
