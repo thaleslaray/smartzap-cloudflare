@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildForkWrangler, classifyForkResources, deploymentId, deploymentResourceNames, parseCreatedD1Id, parseD1Databases, parseQueueNames, parseR2BucketNames } from "../scripts/lib/fork-bootstrap.mjs";
-import { assertRollbackCheckpoint, buildRollbackCheckpoint, parseActiveDeploymentVersion, parseTimeTravelBookmark } from "../scripts/lib/fork-release.mjs";
+import { assertRollbackCheckpoint, buildRollbackCheckpoint, isMissingWorkerError, parseActiveDeploymentVersion, parseTimeTravelBookmark } from "../scripts/lib/fork-release.mjs";
 import { assertSchemaTransition, validateForkMigrationManifest } from "../scripts/lib/fork-migrations.mjs";
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -82,6 +82,16 @@ describe("bootstrap fork-first", () => {
     expect(assertRollbackCheckpoint(checkpoint, "smartzap-12ab34cd")).toEqual(expect.objectContaining({ bookmark, versionId }));
     expect(JSON.stringify(checkpoint)).not.toMatch(/password|vault|token/i);
     expect(() => assertRollbackCheckpoint(checkpoint, "smartzap-deadbeef")).toThrow(/não pertence/);
+  });
+
+  it("distingue uma instalação retomável sem Worker de falhas reais da Cloudflare", () => {
+    expect(isMissingWorkerError({
+      stderr: "Worker does not exist [code: 10007]",
+      message: "Command failed: wrangler deployments list",
+    })).toBe(true);
+    expect(isMissingWorkerError({ stderr: "Worker does not exist" })).toBe(false);
+    expect(isMissingWorkerError({ stderr: "Authentication error [code: 10000]" })).toBe(false);
+    expect(isMissingWorkerError(new Error("network timeout"))).toBe(false);
   });
 
   it("valida a cadeia real de migration e bloqueia checksum divergente antes do deploy", () => {

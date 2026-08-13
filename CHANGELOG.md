@@ -5,6 +5,17 @@ versionamento segue SemVer.
 
 ## [Unreleased]
 
+## [1.0.0-rc.28] - 2026-08-13
+
+### Corrigido
+
+- retoma com segurança uma instalação inicial interrompida quando o D1 já
+  existe, mas o Worker isolado ainda não foi criado;
+- aceita exclusivamente `Worker does not exist [code: 10007]` como ausência de
+  runtime anterior, mantendo qualquer outra falha como bloqueante;
+- evita criar bookmark ou checkpoint D1 quando não existe versão anterior do
+  Worker e neutraliza também no rollback o override de nome do Workers Builds.
+
 ## [1.0.0-rc.27] - 2026-08-13
 
 ### Segurança

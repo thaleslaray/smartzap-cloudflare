@@ -12,7 +12,7 @@ import {
   parseD1Databases,
   parseQueueNames,
 } from "./lib/fork-bootstrap.mjs";
-import { buildRollbackCheckpoint, parseActiveDeploymentVersion, parseTimeTravelBookmark } from "./lib/fork-release.mjs";
+import { buildRollbackCheckpoint, isMissingWorkerError, parseActiveDeploymentVersion, parseTimeTravelBookmark } from "./lib/fork-release.mjs";
 import { assertSchemaTransition, validateForkMigrationManifest } from "./lib/fork-migrations.mjs";
 import { INSTALL_GUARD_TABLE, parseWranglerRows } from "./lib/deploy-safety.mjs";
 import { assertSafeDeployArtifact } from "./lib/artifact-safety.mjs";
@@ -150,8 +150,15 @@ function captureRollbackCheckpoint(d1Created) {
     channel: currentRow.channel,
   };
   if (current.version === version && current.commit === commit && String(current.schemaVersion) === schemaVersion) return null;
+  let versionId;
+  try {
+    versionId = parseActiveDeploymentVersion(runWrangler(["deployments", "list", "--name", workerName, "--json"]));
+  } catch (error) {
+    if (!isMissingWorkerError(error)) throw error;
+    console.log(`Retomada segura: ${workerName} ainda não possui runtime; não há versão anterior para checkpoint.`);
+    return null;
+  }
   const bookmark = parseTimeTravelBookmark(runWrangler(["d1", "time-travel", "info", names.database, "--json"]));
-  const versionId = parseActiveDeploymentVersion(runWrangler(["deployments", "list", "--name", workerName, "--json"]));
   const checkpoint = buildRollbackCheckpoint({ workerName, databaseName: names.database, bookmark, versionId, fromRelease: current, toRelease: release });
   mkdirSync(checkpointsDirectory, { recursive: true });
   const checkpointPath = join(checkpointsDirectory, `${workerName}-${Date.now()}.json`);

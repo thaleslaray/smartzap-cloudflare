@@ -11,6 +11,7 @@ export interface RollbackCheckpoint {
 
 export function parseTimeTravelBookmark(output: string): string;
 export function parseActiveDeploymentVersion(output: string): string;
+export function isMissingWorkerError(error: unknown): boolean;
 export function buildRollbackCheckpoint(input: {
   workerName: string;
   databaseName: string;
