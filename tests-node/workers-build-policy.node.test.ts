@@ -29,6 +29,14 @@ describe("política fail-closed do Workers Builds", () => {
   it("falha fechada quando a Cloudflare não informa a branch", () => {
     expect(() => classifyWorkersBuildBranch("")).toThrow(/WORKERS_CI_BRANCH ausente/);
   });
+
+  it("neutraliza o override de nome do Workers Builds e exige a identidade pós-deploy", () => {
+    const deploy = readFileSync(resolve("scripts/fork-deploy.mjs"), "utf8");
+    expect(deploy).toContain("buildWranglerChildEnvironment");
+    expect(deploy).toContain('"--name", workerName');
+    expect(deploy).toContain("WRANGLER_OUTPUT_FILE_PATH");
+    expect(deploy).toContain("assertWranglerDeployIdentity");
+  });
 });
 
 describe("corpo auditável do PR de atualização", () => {

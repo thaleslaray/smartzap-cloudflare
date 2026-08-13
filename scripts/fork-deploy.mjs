@@ -16,6 +16,11 @@ import { buildRollbackCheckpoint, parseActiveDeploymentVersion, parseTimeTravelB
 import { assertSchemaTransition, validateForkMigrationManifest } from "./lib/fork-migrations.mjs";
 import { INSTALL_GUARD_TABLE, parseWranglerRows } from "./lib/deploy-safety.mjs";
 import { assertSafeDeployArtifact } from "./lib/artifact-safety.mjs";
+import {
+  assertWranglerDeployIdentity,
+  buildWranglerChildEnvironment,
+  parseWranglerDeployOutput,
+} from "./lib/wrangler-ci-env.mjs";
 
 const root = process.cwd();
 const staging = process.argv.includes("--staging");
@@ -40,7 +45,7 @@ function runWrangler(args, options = {}) {
   return execFileSync(process.platform === "win32" ? "npx.cmd" : "npx", ["wrangler", ...args], {
     cwd: root,
     encoding: "utf8",
-    env: { ...process.env, CI: "1" },
+    env: buildWranglerChildEnvironment(process.env, options.environment),
     stdio: options.visible ? ["ignore", "inherit", "inherit"] : ["ignore", "pipe", "pipe"],
   });
 }
@@ -187,14 +192,24 @@ function applyMigrations() {
 function deploy() {
   assertSafeDeployArtifact(resolve(root, "dist"));
   const secretPath = join(tmpdir(), `smartzap-secrets-${crypto.randomUUID()}.json`);
+  const outputPath = join(tmpdir(), `smartzap-deploy-${crypto.randomUUID()}.json`);
   try {
     const secretValues = Object.fromEntries(
       ["MASTER_PASSWORD", "SMARTZAP_VAULT_KEY"].map((name) => [name, process.env[name]]),
     );
     writeFileSync(secretPath, JSON.stringify(secretValues), { mode: 0o600 });
-    runWrangler(["deploy", "--config", configPath, "--secrets-file", secretPath, "--keep-vars", "--message", `SmartZap ${version} (${commit.slice(0, 12)})`, "--tag", version.replace(/[^a-zA-Z0-9_-]/g, "-")], { visible: true });
+    if (process.env.WRANGLER_CI_OVERRIDE_NAME && process.env.WRANGLER_CI_OVERRIDE_NAME !== workerName) {
+      console.log(`Override de nome do Workers Builds neutralizado; alvo autorizado: ${workerName}.`);
+    }
+    runWrangler(["deploy", "--name", workerName, "--config", configPath, "--secrets-file", secretPath, "--keep-vars", "--message", `SmartZap ${version} (${commit.slice(0, 12)})`, "--tag", version.replace(/[^a-zA-Z0-9_-]/g, "-")], {
+      visible: true,
+      environment: { WRANGLER_OUTPUT_FILE_PATH: outputPath },
+    });
+    const deployed = assertWranglerDeployIdentity(parseWranglerDeployOutput(readFileSync(outputPath, "utf8")), workerName);
+    console.log(`Identidade do deploy confirmada: ${deployed.worker_name} @ ${deployed.version_id}.`);
   } finally {
     rmSync(secretPath, { force: true });
+    rmSync(outputPath, { force: true });
   }
 }
 

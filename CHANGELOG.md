@@ -5,6 +5,23 @@ versionamento segue SemVer.
 
 ## [Unreleased]
 
+## [1.0.0-rc.27] - 2026-08-13
+
+### Segurança
+
+- neutraliza `WRANGLER_CI_OVERRIDE_NAME`, variável injetada pelo Workers Builds
+  que podia substituir o nome isolado de staging pelo nome do Worker conectado;
+- passa `--name` explicitamente ao Wrangler e exige a confirmação estruturada
+  pós-deploy do nome, da versão e do destino exatos antes de aceitar a publicação.
+
+### Operação
+
+- a `rc.26` foi reprovada no canário físico porque o staging foi publicado
+  temporariamente sobre o Worker conectado; produção recebeu rollback imediato
+  para a `rc.24` e a proposta da `rc.26` não será integrada;
+- a `rc.27` só pode avançar após criar um Worker físico de staging separado e
+  comprovar que a versão ativa de produção não mudou.
+
 ## [1.0.0-rc.26] - 2026-08-13
 
 ### Corrigido
