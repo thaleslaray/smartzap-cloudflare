@@ -365,7 +365,7 @@ export function buildWorkerMetadata(input: {
     compatibility_flags: release.compatibilityFlags,
     annotations: { "workers/message": `SmartZap ${release.version}`, "workers/tag": release.version },
     ...(assetsJwt ? { assets: { jwt: assetsJwt, config: { not_found_handling: "single-page-application", run_worker_first: ["/api/*", "/webhook"] } } } : {}),
-    bindings: workerBindings(names, databaseId, secrets),
+    bindings: workerBindings(names, databaseId, secrets, release),
     migrations: {
       new_tag: "v1",
       new_sqlite_classes: ["RealtimeHub", "PhoneThrottle"],
@@ -373,7 +373,12 @@ export function buildWorkerMetadata(input: {
   };
 }
 
-function workerBindings(names: InstallationNames, databaseId: string, secrets: { masterPassword: string; vaultKey: string }): unknown[] {
+function workerBindings(
+  names: InstallationNames,
+  databaseId: string,
+  secrets: { masterPassword: string; vaultKey: string },
+  release: SmartZapReleaseManifest,
+): unknown[] {
   const vars: Record<string, string> = {
     ENVIRONMENT: "production",
     SETUP_REQUIRED: "true",
@@ -390,6 +395,10 @@ function workerBindings(names: InstallationNames, databaseId: string, secrets: {
     INBOX_AUTOMATION_ENABLED: "false",
     AUTOMATION_QUEUE_NAME: names.automationQueue,
     CAPI_QUEUE_NAME: names.conversionQueue,
+    SMARTZAP_VERSION: release.version,
+    SMARTZAP_COMMIT: release.commitSha,
+    SMARTZAP_SCHEMA_VERSION: String(release.databaseSchemaVersion),
+    SMARTZAP_RELEASE_CHANNEL: release.channel,
   };
   return [
     ...Object.entries(vars).map(([name, text]) => ({ name, type: "plain_text", text })),

@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-rc.41] - 2026-08-13
+
+- Vincula a instalação rápida à identidade imutável da release no manifesto, nos bindings do Worker e no ledger D1 exibido pelo `/setup`.
+- Substitui a `rc.40`, reprovada na homologação física porque versão, commit, schema e canal apareciam como não identificados após o provisionamento.
+
 ## [1.0.0-rc.40] - 2026-08-13
 
 - Corrige a leitura interna dos artefatos imutáveis quando o provisionador é publicado sob a subrota `/smartzap`, preservando checksum e rollback integral.

@@ -13,6 +13,9 @@ import { cleanupExpiredOAuthSessions, clearSessionCookie, sessionCookie } from "
 const release: SmartZapReleaseManifest = {
   schemaVersion: 2,
   version: "test",
+  commitSha: "a".repeat(40),
+  channel: "rc",
+  databaseSchemaVersion: 3,
   createdAt: "2026-08-11T00:00:00Z",
   compatibilityDate: "2026-08-11",
   compatibilityFlags: ["nodejs_compat"],
@@ -191,6 +194,12 @@ describe("cliente Cloudflare", () => {
       new_sqlite_classes: ["RealtimeHub", "PhoneThrottle"],
     });
     expect(Array.isArray(metadata.migrations)).toBe(false);
+    expect(metadata.bindings).toEqual(expect.arrayContaining([
+      { name: "SMARTZAP_VERSION", type: "plain_text", text: "test" },
+      { name: "SMARTZAP_COMMIT", type: "plain_text", text: "a".repeat(40) },
+      { name: "SMARTZAP_SCHEMA_VERSION", type: "plain_text", text: "3" },
+      { name: "SMARTZAP_RELEASE_CHANNEL", type: "plain_text", text: "rc" },
+    ]));
   });
 
   it("faz o bootstrap dos Durable Objects por deploy não versionado", async () => {
@@ -302,6 +311,11 @@ describe("baseline final do D1", () => {
         sql: "INSERT INTO smartzap_install_migrations(name,sha256) VALUES (?, ?)",
         params: ["0001_fresh_install.sql", "d".repeat(64)],
       },
+      { sql: expect.stringContaining("CREATE TABLE IF NOT EXISTS smartzap_release_metadata") },
+      {
+        sql: expect.stringContaining("INSERT INTO smartzap_release_metadata"),
+        params: ["test", "a".repeat(40), "3", "rc", "c".repeat(64)],
+      },
     ]]);
     expect(queries).toHaveLength(1);
   });
@@ -329,7 +343,7 @@ describe("interface de instalação", () => {
     expect(response.headers.get("Content-Disposition")).toBe('inline; filename="guia.md"');
     expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
     expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
-    await expect(response.text()).resolves.toContain("# Guia completo: instaladores de sistemas na Cloudflare por OAuth");
+    await expect(response.text()).resolves.toContain("# Guia completo: instalar sistemas na Cloudflare");
 
     const head = await provisionerWorker.fetch(new Request("https://instalar.escoladeautomacao.com/guia.md", { method: "HEAD" }), env);
     expect(head.status).toBe(200);

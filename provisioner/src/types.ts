@@ -88,6 +88,9 @@ export interface ReleaseBaseline {
 export interface SmartZapReleaseManifest {
   schemaVersion: 2;
   version: string;
+  commitSha: string;
+  channel: "stable" | "rc" | "beta";
+  databaseSchemaVersion: number;
   createdAt: string;
   compatibilityDate: string;
   compatibilityFlags: string[];

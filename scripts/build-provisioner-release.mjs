@@ -66,9 +66,15 @@ baseline.statementsSha256 = digest(Buffer.from(JSON.stringify(baseline.statement
 
 const pkg = JSON.parse(await readFile(path.join(repo, "package.json"), "utf8"));
 const config = parseWrangler(await readFile(path.join(repo, "wrangler.jsonc"), "utf8"));
+const migrationManifest = JSON.parse(await readFile(path.join(repo, "release", "migrations.json"), "utf8"));
+const commitSha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repo, encoding: "utf8" }).trim();
+const channel = pkg.version.includes("-rc.") ? "rc" : pkg.version.includes("-beta.") ? "beta" : "stable";
 const manifest = {
   schemaVersion: 2,
   version: pkg.version,
+  commitSha,
+  channel,
+  databaseSchemaVersion: migrationManifest.schemaVersion,
   createdAt: new Date().toISOString(),
   compatibilityDate: config.compatibility_date,
   compatibilityFlags: config.compatibility_flags || [],

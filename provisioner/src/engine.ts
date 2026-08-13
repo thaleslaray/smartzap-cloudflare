@@ -203,6 +203,7 @@ export async function initializeDatabase(api: CloudflareApi, databaseId: string,
         sql: "INSERT INTO smartzap_install_migrations(name,sha256) VALUES (?, ?)",
         params: [release.baseline.name, release.baseline.statementsSha256],
       },
+      ...releaseMetadataStatements(release),
     ]);
   } else {
     const existing = await api.queryD1(
@@ -226,6 +227,44 @@ export async function initializeDatabase(api: CloudflareApi, databaseId: string,
       { sql: "INSERT INTO smartzap_install_migrations (name, sha256) VALUES (?, ?)", params: [migration.name, migration.statementsSha256] },
     ]);
   }
+  if (ledgerExists)
+    await api.batchD1(databaseId, releaseMetadataStatements(release));
+}
+
+function releaseMetadataStatements(release: SmartZapReleaseManifest): Array<{ sql: string; params?: unknown[] }> {
+  return [
+    {
+      sql: `CREATE TABLE IF NOT EXISTS smartzap_release_metadata (
+        id TEXT PRIMARY KEY,
+        version TEXT NOT NULL,
+        commit_sha TEXT NOT NULL,
+        schema_version TEXT NOT NULL,
+        channel TEXT NOT NULL,
+        baseline_sha256 TEXT NOT NULL,
+        installed_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+    },
+    {
+      sql: `INSERT INTO smartzap_release_metadata
+        (id,version,commit_sha,schema_version,channel,baseline_sha256)
+        VALUES ('current',?,?,?,?,?)
+        ON CONFLICT(id) DO UPDATE SET
+          version=excluded.version,
+          commit_sha=excluded.commit_sha,
+          schema_version=excluded.schema_version,
+          channel=excluded.channel,
+          baseline_sha256=excluded.baseline_sha256,
+          updated_at=datetime('now')`,
+      params: [
+        release.version,
+        release.commitSha,
+        String(release.databaseSchemaVersion),
+        release.channel,
+        release.baseline.sha256,
+      ],
+    },
+  ];
 }
 
 function extractFirstNumber(value: unknown, key: string): number {

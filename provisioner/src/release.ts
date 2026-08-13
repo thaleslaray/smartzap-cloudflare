@@ -13,7 +13,10 @@ export async function loadRelease(env: ProvisionerEnv): Promise<{ manifest: Smar
   if (env.SMARTZAP_RELEASE_MANIFEST_SHA256 && await sha256(text) !== env.SMARTZAP_RELEASE_MANIFEST_SHA256)
     throw new Error("Checksum do manifesto da release não confere");
   const manifest = JSON.parse(text) as SmartZapReleaseManifest;
-  if (manifest.schemaVersion !== 2 || !manifest.version || !manifest.main?.sha256 || !Array.isArray(manifest.modules)
+  if (manifest.schemaVersion !== 2 || !manifest.version || !/^[0-9a-f]{40}$/.test(manifest.commitSha)
+    || !["stable", "rc", "beta"].includes(manifest.channel)
+    || !Number.isSafeInteger(manifest.databaseSchemaVersion) || manifest.databaseSchemaVersion < 1
+    || !manifest.main?.sha256 || !Array.isArray(manifest.modules)
     || !manifest.baseline?.sha256 || !manifest.baseline?.statementsSha256 || !Array.isArray(manifest.baseline.statements)
     || !Array.isArray(manifest.upgrades))
     throw new Error("Manifesto da release incompatível");

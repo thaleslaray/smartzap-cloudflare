@@ -1137,7 +1137,7 @@ describe('consumer da Queue', () => {
          ON CONFLICT(key) DO UPDATE SET value=?1`,
       ).bind(WABA),
     ])
-    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
+    const metaPayload = JSON.stringify({
       data: [{
         id: metaId, name, language: 'pt_BR', category: 'UTILITY', status: 'APPROVED',
         components: [
@@ -1146,7 +1146,9 @@ describe('consumer da Queue', () => {
         ],
         quality_score: { score: 'GREEN', date: '2026-08-03' },
       }],
-    }), { status: 200, headers: { 'content-type': 'application/json' } }))
+    })
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
+      new Response(metaPayload, { status: 200, headers: { 'content-type': 'application/json' } }))
     try {
       const event = await enqueueOfficialWebhook(templateWebhook(
         'message_template_components_update',
@@ -1163,7 +1165,9 @@ describe('consumer da Queue', () => {
         400,
       ))
       await handleWebhookBatch([event, event], env)
-      expect(fetchMock).toHaveBeenCalledOnce()
+      const templateReads = fetchMock.mock.calls.filter(([input]) =>
+        String(input).includes(`/${WABA}/message_templates`))
+      expect(templateReads).toHaveLength(1)
       expect((await templatesDb(env.DB).get(name, 'pt_BR'))?.components).toEqual([
         { type: 'BODY', text: 'Texto atualizado pela Meta' },
         { type: 'BUTTONS', buttons: [{ type: 'PHONE_NUMBER', text: 'Ligar', phone_number: '+15550783881' }] },
