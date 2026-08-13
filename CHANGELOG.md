@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.0-rc.42] - 2026-08-13
+
+### Corrigido
+
+- A atualização de forks antigos agora usa uma branch-ponte oficial com o mesmo
+  conteúdo da tag assinada e histórico compatível com o `main` do cliente.
+- O workflow recusa a proposta se a árvore da ponte divergir da release ou se
+  ela não compartilhar o histórico do fork, sem publicar ou fazer merge.
+
 ## [1.0.0-rc.41] - 2026-08-13
 
 - Vincula a instalação rápida à identidade imutável da release no manifesto, nos bindings do Worker e no ledger D1 exibido pelo `/setup`.

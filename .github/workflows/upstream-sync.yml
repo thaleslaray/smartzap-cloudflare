@@ -68,15 +68,22 @@ jobs:
             exit 1
           }
           git -c gpg.format=ssh -c gpg.ssh.allowedSignersFile="$allowed_signers" tag --verify "${VERSION}"
-          branch="release/${VERSION}"
+          branch="bridge/${VERSION}"
           candidate_sha="$(git rev-list -n 1 "${VERSION}")"
           remote_sha="$(git ls-remote upstream "refs/heads/${branch}" | awk 'NR == 1 { print $1 }')"
           test -n "$remote_sha" || {
-            echo "Branch oficial ${branch} ausente no upstream." >&2
+            echo "Branch-ponte oficial ${branch} ausente no upstream." >&2
             exit 1
           }
-          test "$remote_sha" = "$candidate_sha" || {
-            echo "Branch oficial ${branch} não aponta para a tag assinada ${VERSION}." >&2
+          git fetch --no-tags upstream "refs/heads/${branch}:refs/remotes/upstream/${branch}"
+          candidate_tree="$(git show -s --format=%T "$candidate_sha")"
+          bridge_tree="$(git show -s --format=%T "$remote_sha")"
+          test "$bridge_tree" = "$candidate_tree" || {
+            echo "Branch-ponte ${branch} não possui a árvore exata da tag assinada ${VERSION}." >&2
+            exit 1
+          }
+          git merge-base --is-ancestor origin/main "$remote_sha" || {
+            echo "Branch-ponte ${branch} não compartilha o histórico do main deste fork." >&2
             exit 1
           }
           git switch --detach "${VERSION}"

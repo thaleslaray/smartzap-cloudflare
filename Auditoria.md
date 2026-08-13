@@ -2644,3 +2644,17 @@ Cada rodada deve registrar:
 - **Correção candidata:** a `rc.41` acrescenta `commitSha`, `channel` e `databaseSchemaVersion` ao manifesto; valida os campos antes de provisionar; injeta `SMARTZAP_VERSION`, `SMARTZAP_COMMIT`, `SMARTZAP_SCHEMA_VERSION` e `SMARTZAP_RELEASE_CHANNEL` no Worker; e cria/atualiza de forma idempotente o ledger `smartzap_release_metadata` tanto em instalação nova quanto em retomada.
 - **Testes automáticos da correção:** suíte integral de código **924/924**; segurança focal **167/167**; provisionador **26/26**; webhook **41/41**; contratos **219/219**; preflight aprovado com catálogo válido, TypeScript, build, política de CI, manifesto, auditoria de dependências, `git diff --check` e scanner de **1.006 arquivos** sem segredo. A matriz E2E aprovada da mesma árvore cobre Chromium, Firefox e WebKit e as larguras 360, 390, 620, 768, 1440 e 1920, com zero falha inesperada, retry ou flaky.
 - **Limite da evidência:** os testes provam a correção no pacote candidato, mas ainda não provam o novo deploy físico. `INST-02` continua `corrigida — reteste pendente`, `INST-QUICK-01` continua `em teste` e `INST-06` continua `em teste` até a `rc.41` ser instalada com identidade exata e concluir Meta real em contas distintas.
+### Continuação — defeito de atualização do fork e branch-ponte — 13/08/2026
+
+- Ambiente: fork físico `thalex/smartzap-cloudflare` e release pública rc.41.
+- Jornada afetada: `UPD-01`.
+- Reprodução: o workflow validou assinatura, metadados, tipos, testes e build,
+  mas o GitHub recusou a criação do PR com `Resource not accessible by
+  integration`. A tentativa de PR cruzado da rc.41 também foi recusada porque
+  a baseline Git final não compartilhava histórico com o `main` do fork antigo.
+- Causa: permissões limitadas do `GITHUB_TOKEN` para criar PR e ruptura
+  intencional de histórico ao consolidar a baseline pública.
+- Correção candidata: branch-ponte oficial `bridge/vX.Y.Z`, cuja árvore precisa
+  ser idêntica à tag assinada e cujo histórico precisa incluir o `main` do fork.
+  O workflow apenas abre a proposta; não faz merge nem deploy.
+- Estado: correção implementada na candidata rc.42; reteste físico pendente.
