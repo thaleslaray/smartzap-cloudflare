@@ -1,6 +1,6 @@
 {
   "name": "smartzap-cf",
-  "version": "1.0.0-rc.34",
+  "version": "1.0.0-rc.35",
   "description": "",
   "main": "index.js",
   "type": "module",

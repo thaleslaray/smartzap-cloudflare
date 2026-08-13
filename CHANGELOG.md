@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-rc.35] - 2026-08-13
+
+- Preserva explicitamente no staging o Cron de reconciliação a cada 15 minutos e exige a chave do cofre como secret antes da publicação.
+- Substitui a `rc.34`, reprovada no preflight antes do deploy por não declarar o gatilho agendado.
+
 ## [1.0.0-rc.34] - 2026-08-13
 
 - Corrige o formato canônico do changelog exigido pelo gerador de propostas de atualização.
