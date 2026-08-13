@@ -5,6 +5,17 @@ versionamento segue SemVer.
 
 ## [Unreleased]
 
+## [1.0.0-rc.29] - 2026-08-13
+
+### Corrigido
+
+- modela o canário físico como Wrangler Environment oficial do Worker-base e
+  publica com `--env staging`, conforme a restrição de nome do Workers Builds;
+- mantém D1, R2, Queues, Workflows e variáveis integralmente isolados no bloco
+  `env.staging`, enquanto valida o Worker final `smartzap-<id>-staging`;
+- evita qualquer tentativa de publicar um nome arbitrário a partir do projeto
+  Cloudflare conectado ao Worker de produção.
+
 ## [1.0.0-rc.28] - 2026-08-13
 
 ### Corrigido

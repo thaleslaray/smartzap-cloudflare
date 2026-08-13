@@ -29,6 +29,8 @@ export function deploymentResourceNames(workerName) {
 export function buildForkWrangler(source, { workerName, databaseId, migrationsDir, release }) {
   const parsed = JSON.parse(stripJsonComments(source));
   const names = deploymentResourceNames(workerName);
+  const staging = workerName.endsWith("-staging");
+  const baseWorkerName = staging ? workerName.slice(0, -"-staging".length) : workerName;
   parsed.name = workerName;
   delete parsed.ai_search_namespaces;
   parsed.d1_databases = [{ binding: "DB", database_name: names.database, database_id: databaseId, migrations_dir: migrationsDir }];
@@ -59,7 +61,18 @@ export function buildForkWrangler(source, { workerName, databaseId, migrationsDi
     SMARTZAP_SCHEMA_VERSION: release.schemaVersion,
     SMARTZAP_RELEASE_CHANNEL: release.channel,
   };
-  return prepareIsolatedDeploymentConfig(`${JSON.stringify(parsed, null, 2)}\n`).source;
+  const isolated = JSON.parse(prepareIsolatedDeploymentConfig(`${JSON.stringify(parsed, null, 2)}\n`).source);
+  if (staging) {
+    isolated.name = baseWorkerName;
+    const environment = structuredClone(isolated);
+    delete environment.$schema;
+    delete environment.name;
+    delete environment.env;
+    isolated.env = { staging: environment };
+  } else {
+    delete isolated.env;
+  }
+  return `${JSON.stringify(isolated, null, 2)}\n`;
 }
 
 export function parseD1Databases(output) {
