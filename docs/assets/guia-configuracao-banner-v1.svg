@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="220" viewBox="0 0 1200 220" role="img" aria-label="Guia de Configuração — Clique aqui">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0b1220"/>
+      <stop offset="55%" stop-color="#111827"/>
+      <stop offset="100%" stop-color="#0b1220"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <!-- Card background -->
+  <rect x="30" y="30" rx="22" ry="22" width="1140" height="160" fill="url(#bg)" filter="url(#shadow)"/>
+
+  <!-- Left label -->
+  <rect x="70" y="70" rx="16" ry="16" width="660" height="80" fill="#0f172a" stroke="#1f2937" stroke-width="2"/>
+  <text x="100" y="122" font-family="ui-sans-serif, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial" font-size="34" font-weight="900" fill="#e5e7eb" letter-spacing="1">
+    GUIA DE CONFIGURAÇÃO
+  </text>
+
+  <!-- Right CTA button -->
+  <rect x="760" y="70" rx="16" ry="16" width="370" height="80" fill="#22c55e"/>
+  <text x="945" y="122" text-anchor="middle" font-family="ui-sans-serif, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial" font-size="40" font-weight="900" fill="#052e16" letter-spacing="2">
+    CLIQUE AQUI
+  </text>
+
+</svg>

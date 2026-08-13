@@ -32,6 +32,45 @@ export function automationPolicyDecision(
     /\b(?:atendimento|suporte) humano\b/,
     /\bquero (?:um )?atendente\b/,
   ].some((pattern) => pattern.test(text));
+  const asksForSecretDisclosure = [
+    /\b(?:mostre|mostrar|revele|revelar|exiba|exibir|forneca|fornecer|passe|passar)\b.*\b(?:token|tokens|senha|senhas|segredo|segredos|credencial|credenciais|chave da api|api key)\b/,
+    /\b(?:diga|informe|envie)\b.*\b(?:o|a|os|as)\b.*\b(?:token|tokens|senha|senhas|segredo|segredos|credencial|credenciais|chave da api|api key)\b/,
+  ].some((pattern) => pattern.test(text));
+  if (asksForSecretDisclosure) {
+    return {
+      text:
+        "Não posso divulgar tokens, senhas, chaves de API, credenciais ou outros segredos do sistema. Esses dados devem permanecer protegidos e acessíveis somente a responsáveis autorizados.",
+      handoffReason: null,
+    };
+  }
+
+  const asksForBulkDispatch = [
+    /\b(?:lista|base)\b.*\b(?:contatos?|clientes?|leads?)\b.*\b(?:disparar|enviar|mandar|campanha)\b/,
+    /\b(?:disparar|enviar|mandar|campanha)\b.*\b(?:todos?|toda|lista|base|contatos?|clientes?|leads?)\b/,
+  ].some((pattern) => pattern.test(text));
+  if (asksForBulkDispatch) {
+    return {
+      text:
+        "Não é seguro disparar para toda a lista apenas porque os contatos estão cadastrados. Cada destinatário precisa ter opt-in explícito e evidência de consentimento, além de pertencer a um segmento elegível; sem isso, a campanha não deve ser enviada.",
+      handoffReason: null,
+    };
+  }
+
+  const asksForImpossibleGuarantee = [
+    /\b(?:garanta|garantir|garantia)\b.*\b(?:nunca|zero|100|cem por cento)\b.*\b(?:indisponibilidade|falha|queda|interrupcao|downtime)\b/,
+    /\b(?:contrato|sla)\b.*\b(?:nunca|zero|100|cem por cento)\b.*\b(?:indisponibilidade|falha|queda|interrupcao|downtime)\b/,
+  ].some((pattern) => pattern.test(text));
+  if (asksForImpossibleGuarantee) {
+    return {
+      text: handoffEnabled
+        ? "Não é possível garantir em contrato que nunca haverá indisponibilidade. SLAs e responsabilidades precisam refletir limites reais; vou encaminhar o pedido para uma pessoa responsável revisar a condição contratual."
+        : "Não é possível garantir em contrato que nunca haverá indisponibilidade. SLAs e responsabilidades precisam refletir limites reais e ser revisados por uma pessoa responsável.",
+      handoffReason: handoffEnabled
+        ? "Cliente solicitou garantia absoluta de disponibilidade"
+        : null,
+    };
+  }
+
   const asksForCommercialDecision = [
     /\bquanto custa\b/,
     /\bpreco(?:s)?\b/,

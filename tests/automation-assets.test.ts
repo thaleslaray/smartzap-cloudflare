@@ -441,7 +441,7 @@ describe("MiniApps e formulários", () => {
         screens: [expect.objectContaining({ id: "SCREEN_A" })],
       }),
     );
-    expect(String(createCall[1].headers)).not.toContain("test-token");
+    expect(String(createCall[1].headers)).not.toContain("test-whatsapp-token");
   });
   it("recusa MiniApp sem tela antes de chamar a Meta", async () => {
     await env.DB.prepare(

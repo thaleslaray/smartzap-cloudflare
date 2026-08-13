@@ -92,8 +92,8 @@ describe("reconciliação de conversões Meta", () => {
       force: true,
       now: NOW,
       fetcher: async (input, init) => {
-        expect(String(input)).not.toContain("test-token");
-        expect(init?.headers).toEqual({ authorization: "Bearer test-token" });
+        expect(String(input)).not.toContain("test-whatsapp-token");
+        expect(init?.headers).toEqual({ authorization: "Bearer test-whatsapp-token" });
         return insightsResponse();
       },
     });
@@ -121,7 +121,7 @@ describe("reconciliação de conversões Meta", () => {
        JOIN conversion_ad_insights i ON i.run_id=r.id
        WHERE r.id=?1`,
     ).bind(result.runId).first();
-    expect(JSON.stringify(persisted)).not.toContain("test-token");
+    expect(JSON.stringify(persisted)).not.toContain("test-whatsapp-token");
     expect(JSON.stringify(persisted)).not.toContain("clid-");
 
     const response = await SELF.fetch("https://x.com/api/conversions/reconciliation?days=30", {

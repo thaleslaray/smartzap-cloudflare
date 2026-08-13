@@ -3,22 +3,38 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { execFileSync } from "node:child_process";
 import { afterEach, describe, expect, it } from "vitest";
-import { classifyWorkersBuildBranch, workersBuildCommandForBranch } from "../scripts/lib/workers-build-policy.mjs";
+import { classifyWorkersBuildBranch, expectedWorkerForAction, workersBuildCommandForBranch } from "../scripts/lib/workers-build-policy.mjs";
+
+const build = (branch: string, connectedWorkerName: string) => workersBuildCommandForBranch(branch, {
+  baseInstallId: "smartzap-12ab34cd",
+  connectedWorkerName,
+});
 
 const temporaryDirectories: string[] = [];
 afterEach(() => temporaryDirectories.splice(0).forEach((directory) => rmSync(directory, { recursive: true, force: true })));
 
 describe("política fail-closed do Workers Builds", () => {
   it("autoriza produção exclusivamente em main", () => {
-    expect(workersBuildCommandForBranch("main")).toEqual({ branch: "main", action: "production", args: [] });
+    expect(build("main", "smartzap-12ab34cd")).toEqual({ branch: "main", action: "production", workerName: "smartzap-12ab34cd", args: [] });
   });
 
   it("autoriza recursos físicos de staging somente em staging/*", () => {
-    expect(workersBuildCommandForBranch("staging/rc-19")).toEqual({ branch: "staging/rc-19", action: "staging", args: ["--staging"] });
+    expect(build("staging/rc-19", "smartzap-12ab34cd-staging")).toEqual({ branch: "staging/rc-19", action: "staging", workerName: "smartzap-12ab34cd-staging", args: ["--staging"] });
+  });
+
+  it("impede staging no token de produção e produção no token de staging", () => {
+    expect(build("staging/rc-19", "smartzap-12ab34cd")).toEqual(expect.objectContaining({ action: "validate-only", args: null, reason: expect.stringContaining("smartzap-12ab34cd-staging") }));
+    expect(build("main", "smartzap-12ab34cd-staging")).toEqual(expect.objectContaining({ action: "validate-only", args: null, reason: expect.stringContaining("smartzap-12ab34cd") }));
+  });
+
+  it("falha fechada sem identidade do Worker conectado", () => {
+    expect(() => build("main", "")).toThrow(/WRANGLER_CI_OVERRIDE_NAME ausente/);
+    expect(() => workersBuildCommandForBranch("main", { baseInstallId: "inválido", connectedWorkerName: "smartzap-12ab34cd" })).toThrow(/SMARTZAP_INSTALL_ID/);
+    expect(expectedWorkerForAction("smartzap-12ab34cd", "staging")).toBe("smartzap-12ab34cd-staging");
   });
 
   it("uma proposta sync/* nunca recebe comando de deploy", () => {
-    expect(workersBuildCommandForBranch("sync/v1.0.0-rc.19")).toEqual(expect.objectContaining({ action: "validate-only", args: null }));
+    expect(build("sync/v1.0.0-rc.19", "smartzap-12ab34cd")).toEqual(expect.objectContaining({ action: "validate-only", args: null }));
   });
 
   it("customizações e branches desconhecidas validam sem deploy", () => {
@@ -28,6 +44,19 @@ describe("política fail-closed do Workers Builds", () => {
 
   it("falha fechada quando a Cloudflare não informa a branch", () => {
     expect(() => classifyWorkersBuildBranch("")).toThrow(/WORKERS_CI_BRANCH ausente/);
+  });
+
+  it("branches sem deploy não dependem de secrets nem da identidade do Worker", () => {
+    expect(workersBuildCommandForBranch("feature/read-only")).toEqual(expect.objectContaining({ action: "validate-only", args: null }));
+  });
+
+  it("neutraliza o override de nome do Workers Builds e exige a identidade pós-deploy", () => {
+    const deploy = readFileSync(resolve("scripts/fork-deploy.mjs"), "utf8");
+    expect(deploy).toContain("buildWranglerChildEnvironment");
+    expect(deploy).toContain('"--name", workerName');
+    expect(deploy).not.toContain('["--env", "staging"]');
+    expect(deploy).toContain("WRANGLER_OUTPUT_FILE_PATH");
+    expect(deploy).toContain("assertWranglerDeployIdentity");
   });
 });
 
@@ -42,11 +71,13 @@ describe("corpo auditável do PR de atualização", () => {
     );
   });
 
-  it("abre PR cruzado da branch oficial sem tentar reescrever workflows no fork", () => {
+  it("abre PR cruzado de uma ponte auditável sem tentar reescrever workflows no fork", () => {
     const workflow = readFileSync(resolve(".github/workflows/upstream-sync.yml"), "utf8");
-    expect(workflow).toContain('branch="release/${VERSION}"');
+    expect(workflow).toContain('branch="bridge/${VERSION}"');
     expect(workflow).toContain('git ls-remote upstream "refs/heads/${branch}"');
-    expect(workflow).toContain('test "$remote_sha" = "$candidate_sha"');
+    expect(workflow).toContain('candidate_tree="$(git show -s --format=%T "$candidate_sha")"');
+    expect(workflow).toContain('test "$bridge_tree" = "$candidate_tree"');
+    expect(workflow).toContain('git merge-base --is-ancestor origin/main "$remote_sha"');
     expect(workflow).toContain('SMARTZAP_UPDATE_HEAD=${UPSTREAM_OWNER}:${branch}');
     expect(workflow).toContain('--head "$SMARTZAP_UPDATE_HEAD"');
     expect(workflow).not.toMatch(/git push.*origin.*sync\//);

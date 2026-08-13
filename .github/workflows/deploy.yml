@@ -1,0 +1,302 @@
+name: Qualidade e promoção
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      deploy_production:
+        description: "Publicar em produção depois de staging e de todos os gates?"
+        required: true
+        default: "false"
+        type: choice
+        options: ["false", "true"]
+      recovery_deployment:
+        description: "Permitir recuperação se a produção atual já estiver indisponível?"
+        required: true
+        default: "false"
+        type: choice
+        options: ["false", "true"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-promotion-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Gate determinístico
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      QA_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium webkit
+      - run: npm run qa:all
+      - name: Guardar evidências
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: qa-deterministico-${{ github.run_id }}-${{ github.run_attempt }}
+          path: qa/reports/
+          if-no-files-found: ignore
+          retention-days: 21
+
+  preview:
+    name: Cloudflare preview isolado
+    needs: quality
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: preview
+    concurrency:
+      group: smartzap-shared-preview
+      cancel-in-progress: true
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      QA_API_KEY: ${{ secrets.SMARTZAP_API_KEY_PREVIEW }}
+      QA_BASE_URL: https://smartzap-cf-preview.thales2581.workers.dev
+      QA_REMOTE_BASE_URL: https://smartzap-cf-preview.thales2581.workers.dev
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - name: Migrar D1 exclusivo de preview
+        run: npx wrangler d1 migrations apply smartzap-preview --config config/wrangler.preview.jsonc --remote
+      - name: Publicar o código do PR sem tocar staging ou produção
+        run: npx wrangler deploy --config config/wrangler.preview.jsonc
+      - name: Aguardar health e autenticação estabilizarem
+        run: node scripts/qa-wait-remote-ready.mjs
+      - name: Smoke real no Worker de preview
+        env:
+          QA_REPORT_DIR: qa/reports/preview-ui-${{ github.run_id }}-${{ github.run_attempt }}
+        run: npx playwright test e2e/qa-remote-smoke.spec.ts --project chromium --retries=0
+      - name: Guardar evidências do preview
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: qa-preview-${{ github.run_id }}-${{ github.run_attempt }}
+          path: qa/reports/
+          if-no-files-found: ignore
+          retention-days: 21
+
+  staging:
+    name: Cloudflare staging
+    needs: quality
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: staging
+    concurrency:
+      group: smartzap-staging-mutating
+      cancel-in-progress: false
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      QA_API_KEY: ${{ secrets.SMARTZAP_API_KEY_STAGING }}
+      QA_BASE_URL: https://smartzap-cf-staging.thales2581.workers.dev
+      QA_REMOTE_BASE_URL: https://smartzap-cf-staging.thales2581.workers.dev
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - name: Migrar D1 de staging
+        run: npx wrangler d1 migrations apply smartzap-staging --config config/wrangler.staging.jsonc --remote
+      - name: Publicar versão em staging
+        run: npx wrangler deploy --config config/wrangler.staging.jsonc
+      - name: Aguardar health e assets do Worker publicado
+        run: node scripts/qa-wait-remote-ready.mjs
+      - name: Smoke autenticado e somente leitura
+        env:
+          QA_REPORT_DIR: qa/reports/staging-ui-${{ github.run_id }}-${{ github.run_attempt }}
+        run: npx playwright test e2e/qa-remote-smoke.spec.ts --project chromium --retries=0
+      - name: 84 sessões reais de IA no Workers AI
+        env:
+          QA_AI_MODE: staging
+          QA_REPORT_DIR: qa/reports/staging-ai-${{ github.run_id }}-${{ github.run_attempt }}
+        run: npm run qa:ai
+      - name: Limpar e provar zero resíduo
+        if: always()
+        env:
+          QA_CLEANUP_MODE: staging
+          QA_CLEANUP_SWEEP: "1"
+          QA_REPORT_DIR: qa/reports/staging-cleanup-${{ github.run_id }}-${{ github.run_attempt }}
+        run: npm run qa:cleanup
+      - name: Guardar evidências de staging
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: qa-staging-${{ github.run_id }}-${{ github.run_attempt }}
+          path: qa/reports/
+          if-no-files-found: ignore
+          retention-days: 21
+
+  monitor:
+    name: Observador Cloudflare do soak
+    needs: staging
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: staging
+    concurrency:
+      group: smartzap-qa-monitor-deploy
+      cancel-in-progress: true
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      MONITOR_RELEASE_SHA: ${{ github.sha }}
+      MONITOR_URL: https://smartzap-qa-monitor.thales2581.workers.dev
+      MONITOR_RECOVERY_MODE: ${{ inputs.recovery_deployment || 'false' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Publicar observador isolado
+        run: npx wrangler deploy --config config/wrangler.monitor.jsonc --var MONITOR_RELEASE_SHA:${MONITOR_RELEASE_SHA}
+      - name: Aguardar primeira prova do Cron de cinco minutos
+        run: |
+          node --input-type=module - <<'NODE'
+          const baseUrl = process.env.MONITOR_URL;
+          const expectedRelease = process.env.MONITOR_RELEASE_SHA;
+          const recoveryMode = process.env.MONITOR_RECOVERY_MODE === "true";
+          for (let attempt = 1; attempt <= 36; attempt++) {
+            const [healthResponse, statusResponse] = await Promise.all([
+              fetch(`${baseUrl}/health?ci=${Date.now()}`).catch(() => null),
+              fetch(`${baseUrl}/status?ci=${Date.now()}`).catch(() => null),
+            ]);
+            const health = healthResponse?.ok
+              ? await healthResponse.json().catch(() => null)
+              : null;
+            const status = statusResponse?.ok
+              ? await statusResponse.json().catch(() => null)
+              : null;
+            const checks = Array.isArray(status?.checks) ? status.checks : [];
+            const expectedTargets = new Set([
+              "staging-health",
+              "staging-shell",
+              "production-health",
+              "production-shell",
+            ]);
+            const observedTargets = new Set(
+              checks.map((check) => check.targetId),
+            );
+            const complete =
+              expectedTargets.size === observedTargets.size &&
+              [...expectedTargets].every((target) =>
+                observedTargets.has(target),
+              );
+            const stagingPassed = ["staging-health", "staging-shell"].every(
+              (target) =>
+                checks.some(
+                  (check) =>
+                    check.targetId === target && check.status === "passed",
+                ),
+            );
+            const allPassed =
+              status?.status === "passed" &&
+              checks.every((check) => check.status === "passed");
+            if (
+              health?.ok === true &&
+              health?.releaseSha === expectedRelease &&
+              status?.releaseSha === expectedRelease &&
+              complete &&
+              (allPassed || (recoveryMode && stagingPassed))
+            ) {
+              if (recoveryMode && !allPassed) {
+                console.warn(
+                  "Modo de recuperação: staging está saudável e a indisponibilidade prévia de produção não bloqueará a correção.",
+                );
+              }
+              console.log(
+                `Cron observado para ${status.scheduledTime}: ${checks.length} provas read-only.`,
+              );
+              process.exit(0);
+            }
+            await new Promise((resolve) => setTimeout(resolve, 30_000));
+          }
+          throw new Error("O observador não produziu uma prova atual em 18 minutos");
+          NODE
+
+  production:
+    name: Produção — aprovação manual
+    needs: [staging, monitor]
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy_production == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    concurrency:
+      group: smartzap-production-deploy
+      cancel-in-progress: false
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Migrar D1 de produção
+        run: npx wrangler d1 migrations apply smartzap --remote
+      - name: Publicar produção
+        run: npx wrangler deploy
+      - name: Aguardar health e shell de produção após publicação
+        env:
+          PRODUCTION_URL: https://smartzap-cf.thales2581.workers.dev
+        run: |
+          node --input-type=module - <<'NODE'
+          const baseUrl = process.env.PRODUCTION_URL;
+          for (let attempt = 1; attempt <= 18; attempt++) {
+            const [healthResponse, shellResponse] = await Promise.all([
+              fetch(`${baseUrl}/api/health?ci=${Date.now()}`).catch(() => null),
+              fetch(`${baseUrl}/?ci=${Date.now()}`).catch(() => null),
+            ]);
+            const health = healthResponse?.ok
+              ? await healthResponse.json().catch(() => null)
+              : null;
+            const shell = shellResponse?.ok
+              ? await shellResponse.text().catch(() => "")
+              : "";
+            if (
+              health?.ok === true &&
+              shellResponse?.headers
+                .get("content-type")
+                ?.includes("text/html") &&
+              shell.includes('id="root"')
+            ) {
+              console.log("Produção saudável após a publicação.");
+              process.exit(0);
+            }
+            await new Promise((resolve) => setTimeout(resolve, 5_000));
+          }
+          throw new Error(
+            "Produção não apresentou health e shell válidos em 90 segundos",
+          );
+          NODE

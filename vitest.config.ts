@@ -23,7 +23,7 @@ export default defineConfig({
           QA_STAGING_MUTATION_API_KEY: 'dev-mutation-key',
           META_APP_SECRET: 'dev-meta-secret',
           META_VERIFY_TOKEN: 'dev-verify',
-          WHATSAPP_TOKEN: 'test-token',
+          WHATSAPP_TOKEN: 'test-whatsapp-token',
           TURNSTILE_SECRET: '',
           TURNSTILE_SITE_KEY: '',
           ENVIRONMENT: 'test',

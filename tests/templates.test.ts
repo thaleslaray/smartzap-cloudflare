@@ -28,18 +28,18 @@ describe('credentials', () => {
 
   it('salva, normaliza, consulta e remove o contato de teste', async () => {
     const saved = await SELF.fetch('https://x.com/api/settings/test-contact', {
-      method: 'PUT', headers: AUTH, body: JSON.stringify({ name: 'Teste', phone: '55 (11) 99999-9999' }),
+      method: 'PUT', headers: AUTH, body: JSON.stringify({ name: 'Teste', phone: '55 (21) 98221-9966' }),
     })
     expect(saved.status).toBe(200)
-    expect(await saved.json()).toEqual({ contact: { name: 'Teste', phone: '+5511999999999' } })
+    expect(await saved.json()).toEqual({ contact: { name: 'Teste', phone: '+5521982219966' } })
     const ensured = await SELF.fetch('https://x.com/api/settings/test-contact/ensure', {
       method: 'POST', headers: AUTH,
     })
     expect(ensured.status).toBe(200)
-    const recipient = await contactsDb(env.DB).getByPhone('+5511999999999')
+    const recipient = await contactsDb(env.DB).getByPhone('+5521982219966')
     expect(recipient?.status).toBe('opt_in')
     const read = await SELF.fetch('https://x.com/api/settings/test-contact', { headers: AUTH })
-    expect(await read.json()).toEqual({ contact: { name: 'Teste', phone: '+5511999999999' } })
+    expect(await read.json()).toEqual({ contact: { name: 'Teste', phone: '+5521982219966' } })
     expect((await SELF.fetch('https://x.com/api/settings/test-contact', { method: 'DELETE', headers: AUTH })).status).toBe(200)
     const empty = await SELF.fetch('https://x.com/api/settings/test-contact', { headers: AUTH })
     expect(await empty.json()).toEqual({ contact: null })
@@ -47,10 +47,10 @@ describe('credentials', () => {
 
   it('token vem do secret e identificadores do D1 refletem mudanças imediatamente', async () => {
     await settingsDb(env.DB).set('whatsapp_phone_id', 'db-phone')
-    const configuredEnv = { ...env, WHATSAPP_TOKEN: 'tok-test' }
+    const configuredEnv = { ...env, WHATSAPP_TOKEN: 'tok-secret-binding' }
     const creds = await getCredentials(configuredEnv)
     expect(creds?.phoneId).toBe('db-phone')
-    expect(creds?.token).toBe('tok-test')
+    expect(creds?.token).toBe('tok-secret-binding')
     await settingsDb(env.DB).set('whatsapp_phone_id', 'db-phone-novo')
     expect((await getCredentials(configuredEnv))?.phoneId).toBe('db-phone-novo')
   })
@@ -250,7 +250,7 @@ describe('rascunhos de template', () => {
               type: 'URL', text: 'Abrir pedido',
               url: 'https://example.com/pedido/{{1}}', example: ['pedido-123'],
             },
-            { type: 'PHONE_NUMBER', text: 'Ligar', phone_number: '+5511999999999' },
+            { type: 'PHONE_NUMBER', text: 'Ligar', phone_number: '+5521982219966' },
           ],
         },
       ]

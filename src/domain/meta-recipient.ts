@@ -30,3 +30,4 @@ export function recipientAuditKey(recipient: ContactRecipient): string {
     ? recipient
     : recipient.userId ?? recipient.parentUserId ?? "";
 }
+

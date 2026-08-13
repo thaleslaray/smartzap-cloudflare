@@ -25,7 +25,7 @@ const card = (overrides: Partial<PricingRateCard> = {}): PricingRateCard => ({
 
 describe("Pricing V2", () => {
   it("deriva país e mercado pelo E.164", () => {
-    expect(countryFromE164("+5511999999999")).toEqual({ countryIso: "BR", market: "Brazil" });
+    expect(countryFromE164("+5521982219966")).toEqual({ countryIso: "BR", market: "Brazil" });
     expect(countryFromE164("telefone-inválido")).toBeNull();
   });
 
@@ -33,7 +33,7 @@ describe("Pricing V2", () => {
     expect(normalizePricingCategory("qualquer")).toBeNull();
     const result = estimateCampaignCost({
       category: "qualquer",
-      phones: ["+5511999999999"],
+      phones: ["+5521982219966"],
       rateCards: [card()],
     });
     expect(result.state).toBe("unavailable");
@@ -43,7 +43,7 @@ describe("Pricing V2", () => {
   it("calcula por país usando rate card vigente", () => {
     const result = estimateCampaignCost({
       category: "MARKETING",
-      phones: ["+5511999999999", "+5521999999999"],
+      phones: ["+5521982219966", "+5521999999999"],
       rateCards: [card()],
       at: "2026-07-16",
       monthlyVolumeByMarket: { Brazil: 0 },
@@ -62,7 +62,7 @@ describe("Pricing V2", () => {
     ]) {
       const result = estimateCampaignCost({
         category: "MARKETING",
-        phones: ["+5511999999999"],
+        phones: ["+5521982219966"],
         rateCards,
         at: "2026-07-16",
       });
@@ -74,14 +74,14 @@ describe("Pricing V2", () => {
   it("utility dentro da janela e free entry point resultam em zero", () => {
     expect(estimateCampaignCost({
       category: "UTILITY",
-      phones: ["+5511999999999"],
+      phones: ["+5521982219966"],
       rateCards: [card({ category: "UTILITY", unitPrice: 0.035 })],
       at: "2026-07-16",
       serviceWindowOpen: true,
     }).amount).toBe(0);
     expect(estimateCampaignCost({
       category: "MARKETING",
-      phones: ["+5511999999999"],
+      phones: ["+5521982219966"],
       rateCards: [card()],
       freeEntryPointOpen: true,
     }).amount).toBe(0);
@@ -91,7 +91,7 @@ describe("Pricing V2", () => {
     for (const category of ["UTILITY", "SERVICE"] as const) {
       const result = estimateCampaignCost({
         category,
-        phones: ["+5511999999999"],
+        phones: ["+5521982219966"],
         rateCards: [card({
           category,
           effectiveFrom: "2026-10-01",
@@ -108,7 +108,7 @@ describe("Pricing V2", () => {
   it("mantém a janela gratuita de 72 horas após 01/10/2026", () => {
     const result = estimateCampaignCost({
       category: "SERVICE",
-      phones: ["+5511999999999"],
+      phones: ["+5521982219966"],
       rateCards: [card({
         category: "SERVICE",
         effectiveFrom: "2026-10-01",
@@ -123,7 +123,7 @@ describe("Pricing V2", () => {
   it("não mistura moedas em uma única estimativa", () => {
     const result = estimateCampaignCost({
       category: "MARKETING",
-      phones: ["+5511999999999", "+14155552671"],
+      phones: ["+5521982219966", "+14155552671"],
       rateCards: [
         card(),
         card({ market: "Other", countryIso: "US", currency: "USD", unitPrice: 0.025 }),
@@ -136,7 +136,7 @@ describe("Pricing V2", () => {
   it("seleciona tier compatível com volume mensal", () => {
     const result = estimateCampaignCost({
       category: "UTILITY",
-      phones: ["+5511999999999"],
+      phones: ["+5521982219966"],
       rateCards: [
         card({ category: "UTILITY", unitPrice: 0.035, tierFrom: 0, tierTo: 999 }),
         card({ category: "UTILITY", unitPrice: 0.03, tierFrom: 1000 }),
@@ -150,7 +150,7 @@ describe("Pricing V2", () => {
   it("marca confiança baixa quando tier ainda não foi confirmado", () => {
     const result = estimateCampaignCost({
       category: "MARKETING",
-      phones: ["+5511999999999"],
+      phones: ["+5521982219966"],
       rateCards: [card()],
     });
     expect(result.confidence).toBe("low");

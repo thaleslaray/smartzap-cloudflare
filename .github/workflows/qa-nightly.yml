@@ -1,0 +1,144 @@
+name: QA noturna e soak
+
+on:
+  schedule:
+    - cron: "15 12 * * *"
+  workflow_dispatch:
+    inputs:
+      run_meta_canary:
+        description: "Executar canário Meta completo (exige callback dedicado ao staging)?"
+        required: true
+        default: "false"
+        type: choice
+        options: ["false", "true"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qa-nightly-soak
+  cancel-in-progress: false
+
+jobs:
+  full-matrix:
+    name: Matriz local completa
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium firefox webkit
+      - run: npm run qa:preflight
+      - run: npm run qa:unit
+      - run: npm run qa:contract
+      - run: npm run qa:e2e:matrix
+      - run: npm run qa:visual
+      - name: Guardar evidências
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: qa-noturna-${{ github.run_id }}-${{ github.run_attempt }}
+          path: qa/reports/
+          if-no-files-found: ignore
+          retention-days: 21
+
+  staging-soak:
+    name: Soak no Cloudflare staging
+    needs: full-matrix
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: staging
+    concurrency:
+      group: smartzap-staging-mutating
+      cancel-in-progress: false
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      QA_API_KEY: ${{ secrets.SMARTZAP_API_KEY_STAGING }}
+      QA_BASE_URL: https://smartzap-cf-staging.thales2581.workers.dev
+      QA_REMOTE_BASE_URL: https://smartzap-cf-staging.thales2581.workers.dev
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Interface remota somente leitura
+        env:
+          QA_REPORT_DIR: qa/reports/nightly-ui-${{ github.run_id }}-${{ github.run_attempt }}
+        run: npx playwright test e2e/qa-remote-smoke.spec.ts --project chromium --retries=0
+      - name: Evals reais do Workers AI
+        env:
+          QA_AI_MODE: staging
+          QA_REPORT_DIR: qa/reports/nightly-ai-${{ github.run_id }}-${{ github.run_attempt }}
+        run: npm run qa:ai
+      - name: Limpar e provar zero resíduo
+        if: always()
+        env:
+          QA_CLEANUP_MODE: staging
+          QA_CLEANUP_SWEEP: "1"
+          QA_REPORT_DIR: qa/reports/nightly-cleanup-${{ github.run_id }}-${{ github.run_attempt }}
+        run: npm run qa:cleanup
+      - name: Guardar evidências de soak
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: qa-soak-staging-${{ github.run_id }}-${{ github.run_attempt }}
+          path: qa/reports/
+          if-no-files-found: ignore
+          retention-days: 21
+
+  meta-canary:
+    name: Canário Meta oficial
+    needs: staging-soak
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.run_meta_canary == 'true') ||
+      (github.event_name == 'schedule' && vars.STAGING_META_CANARY_ENABLED == 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: staging
+    concurrency:
+      group: smartzap-staging-mutating
+      cancel-in-progress: false
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      QA_API_KEY: ${{ secrets.SMARTZAP_API_KEY_STAGING }}
+      QA_META_ALLOWLIST: ${{ secrets.PILOT_RECIPIENT_ALLOWLIST }}
+      QA_ALLOW_REAL_META: "1"
+      QA_META_SEND_COUNT: "1"
+      QA_BASE_URL: https://smartzap-cf-staging.thales2581.workers.dev
+      QA_REPORT_DIR: qa/reports/meta-canary-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Direcionar callback Meta para staging durante o canário
+        env:
+          QA_META_CALLBACK_TARGET: staging
+          QA_REPORT_DIR: qa/reports/meta-callback-${{ github.run_id }}-${{ github.run_attempt }}
+        run: node scripts/qa-meta-callback-switch.mjs
+      - run: npm run qa:meta:canary
+      - name: Restaurar callback Meta em produção
+        if: always()
+        env:
+          QA_META_CALLBACK_TARGET: production
+          QA_REPORT_DIR: qa/reports/meta-callback-restore-${{ github.run_id }}-${{ github.run_attempt }}
+        run: node scripts/qa-meta-callback-switch.mjs
+      - name: Guardar evidências do canário
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: qa-meta-canary-${{ github.run_id }}-${{ github.run_attempt }}
+          path: qa/reports/
+          if-no-files-found: ignore
+          retention-days: 21

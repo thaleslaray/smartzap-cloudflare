@@ -1,0 +1,289 @@
+{
+  "schemaVersion": 1,
+  "catalog": "jornada.md",
+  "policy": {
+    "P0": {
+      "requiredEvidence": ["automated", "cleanup"],
+      "allowFlaky": false,
+      "minimumPassRate": 1
+    },
+    "P1": {
+      "requiredEvidence": ["automated"],
+      "allowFlaky": false,
+      "minimumPassRate": 1
+    },
+    "P2": {
+      "requiredEvidence": ["catalogued"],
+      "allowFlaky": false,
+      "minimumPassRate": 0
+    }
+  },
+  "areas": {
+    "AUTH": {
+      "risk": "P0",
+      "owners": ["auth"],
+      "tests": ["tests/auth.test.ts", "e2e/smoke.spec.ts"],
+      "evidence": ["api", "ui", "security"],
+      "invalidatedBy": ["src/api/auth.ts", "src/middleware/auth.ts", "app/pages/Login.tsx"]
+    },
+    "LEG": {
+      "risk": "P0",
+      "owners": ["privacy"],
+      "tests": ["e2e/legal-public.spec.ts"],
+      "evidence": ["public-ui", "responsive", "accessibility", "no-auth"],
+      "invalidatedBy": ["app/App.tsx", "app/pages/Legal.tsx", "e2e/legal-public.spec.ts"]
+    },
+    "INST": {
+      "risk": "P0",
+      "owners": ["cloudflare-installer", "security"],
+      "tests": ["tests/vault.test.ts", "tests/setup-installer.test.ts", "tests-node/deploy-safety.node.test.ts", "tests-node/install-canary-evidence.node.test.ts", "tests-node/route-inventory.node.test.ts", "tests-node/standalone-installer.node.test.ts", "tests-node/fork-bootstrap.node.test.ts", "tests-node/provisioner.node.test.ts", "e2e/installer-setup.spec.ts", "e2e/standalone-installer.spec.ts", "scripts/qa-install-canary-evidence.mjs", "scripts/qa-secret-scan.mjs", "scripts/validate-release-metadata.mjs"],
+      "evidence": ["local-secret-generation", "encrypted-vault", "deploy-dry-run", "immutable-release", "tag-pinned-deploy", "true-github-fork", "workers-builds", "update-pull-request", "migration-rollback", "ui", "responsive", "accessibility", "clean-account-install", "history-secret-scan", "durable-object-cleanup", "cleanup"],
+      "invalidatedBy": ["app/pages/Installer.tsx", "app/pages/Setup.tsx", "src/api/setup.ts", "src/security", "src/whatsapp/credentials.ts", "migrations/0049_secret_vault_and_setup.sql", "migrations/0050_installer_state_and_vault_rotation.sql", "migrations/0051_vault_rotation_recovery.sql", "wrangler.jsonc", "package.json", ".dev.vars.example", "README.md", "provisioner/src/index.ts", "provisioner/src/fork-ui.ts", "provisioner/src/ui.ts", "scripts/fork-deploy.mjs", "scripts/lib/fork-bootstrap.mjs", "scripts/lib/deploy-safety.mjs", "scripts/lib/install-canary-evidence.mjs", "scripts/build-public-release.mjs", "scripts/prepare-public-deploy.mjs", "scripts/qa-install-canary-evidence.mjs", "scripts/qa-secret-scan.mjs", "scripts/validate-release-metadata.mjs", "release/migrations.json", "fork-migrations", ".github/workflows/upstream-sync.yml", "e2e/installer-setup.spec.ts", "e2e/standalone-installer.spec.ts"]
+    },
+    "UPD": {
+      "risk": "P0",
+      "owners": ["release-maintenance"],
+      "tests": ["tests-node/fork-update-scenarios.node.test.ts", "tests-node/github-fork.node.test.ts", "tests-node/fork-bootstrap.node.test.ts", "scripts/qa-fork-update-scenarios.mjs", "scripts/generate-update-pr-body.mjs"],
+      "evidence": ["signed-release", "update-pull-request", "customization-preserved", "conflict-detected", "workers-builds", "rollback", "cleanup"],
+      "invalidatedBy": [".github/workflows/upstream-sync.yml", "scripts/generate-update-pr-body.mjs", "scripts/qa-fork-update-scenarios.mjs", "scripts/lib/github-fork.mjs", "scripts/lib/fork-release.mjs", "CHANGELOG.md", "UPDATE_POLICY.md"]
+    },
+    "MIG": {
+      "risk": "P0",
+      "owners": ["database-migrations", "release-maintenance"],
+      "tests": ["tests-node/fork-bootstrap.node.test.ts", "tests-node/fork-update-scenarios.node.test.ts", "scripts/fork-deploy.mjs", "scripts/fork-rollback.mjs"],
+      "evidence": ["baseline", "migration", "idempotency", "failure-atomicity", "schema-postcheck", "cleanup"],
+      "invalidatedBy": ["migrations", "fork-migrations", "provisioner/baseline", "release/migrations.json", "scripts/lib/fork-migrations.mjs", "scripts/fork-deploy.mjs"]
+    },
+    "ROLLBACK": {
+      "risk": "P0",
+      "owners": ["operations", "release-maintenance"],
+      "tests": ["tests-node/fork-bootstrap.node.test.ts", "tests-node/fork-update-scenarios.node.test.ts", "scripts/fork-rollback.mjs", "scripts/qa-rollback-drill.mjs"],
+      "evidence": ["worker-version", "d1-bookmark", "restore", "health", "under-ten-minutes", "cleanup"],
+      "invalidatedBy": ["scripts/fork-rollback.mjs", "scripts/qa-rollback-drill.mjs", "scripts/lib/fork-release.mjs", "scripts/lib/fork-migrations.mjs", "release/migrations.json", "fork-migrations"]
+    },
+    "DASH": {
+      "risk": "P1",
+      "owners": ["dashboard"],
+      "tests": ["tests/reconcile.test.ts", "e2e/smoke.spec.ts"],
+      "evidence": ["api", "ui", "responsive"],
+      "invalidatedBy": ["src/api/dashboard.ts", "app/pages/Dashboard.tsx", "app/hooks/useDashboard.ts"]
+    },
+    "DES": {
+      "risk": "P2",
+      "owners": ["design"],
+      "tests": ["e2e/design-preview.spec.ts"],
+      "evidence": ["ui", "visual"],
+      "invalidatedBy": ["app/index.css", "app/components/ui.tsx", "app/pages/DesignPreview.tsx"]
+    },
+    "NAV": {
+      "risk": "P1",
+      "owners": ["shell"],
+      "tests": ["e2e/shell-retirement-pwa.spec.ts", "e2e/smoke.spec.ts"],
+      "evidence": ["ui", "keyboard", "responsive"],
+      "invalidatedBy": ["app/App.tsx", "app/components/Shell.tsx"]
+    },
+    "ONB": {
+      "risk": "P1",
+      "owners": ["onboarding"],
+      "tests": ["e2e/shell-retirement-pwa.spec.ts"],
+      "evidence": ["ui", "state"],
+      "invalidatedBy": ["app/components/Onboarding.tsx", "app/pages/Dashboard.tsx", "app/pages/Settings.tsx"]
+    },
+    "PWA": {
+      "risk": "P1",
+      "owners": ["pwa"],
+      "tests": ["e2e/shell-retirement-pwa.spec.ts"],
+      "evidence": ["ui", "manifest", "service-worker"],
+      "invalidatedBy": ["app/components/PwaManager.tsx", "public/manifest.webmanifest", "public/sw.js"]
+    },
+    "CNT": {
+      "risk": "P1",
+      "owners": ["contacts"],
+      "tests": ["tests/contacts.test.ts", "tests/contact-profile.test.ts", "tests/domain/csv-import.test.ts", "e2e/smoke.spec.ts"],
+      "evidence": ["api", "ui", "responsive", "cleanup"],
+      "invalidatedBy": ["src/api/contacts.ts", "src/db/contacts.ts", "app/pages/Contacts.tsx"]
+    },
+    "SEG": {
+      "risk": "P1",
+      "owners": ["segments"],
+      "tests": ["tests/segments.test.ts", "tests/segments-api.test.ts", "tests/audience-geography.test.ts", "e2e/smoke.spec.ts"],
+      "evidence": ["api", "ui", "data"],
+      "invalidatedBy": ["src/api/segments.ts", "src/domain/segments.ts", "app/pages/CampaignNew.tsx"]
+    },
+    "TMP": {
+      "risk": "P1",
+      "owners": ["templates"],
+      "tests": ["tests/templates.test.ts", "tests/template-render.test.ts", "tests/template-variables.test.ts", "tests/template-validation.test.ts", "tests/template-factory.test.ts", "tests/webhook.test.ts", "e2e/template-draft-editor.spec.ts", "e2e/template-lifecycle.spec.ts"],
+      "evidence": ["api", "ui", "meta-contract", "signed-webhook", "provider-real"],
+      "invalidatedBy": ["src/api/templates.ts", "src/api/webhook.ts", "src/queue/webhook-consumer.ts", "src/db/templates.ts", "src/domain/template.ts", "shared/template-validation.ts", "app/pages/Templates.tsx", "app/pages/TemplateDraft.tsx"]
+    },
+    "PRJ": {
+      "risk": "P1",
+      "owners": ["template-projects"],
+      "tests": ["tests/automation-assets.test.ts", "e2e/template-draft-editor.spec.ts"],
+      "evidence": ["api", "ui", "persistence"],
+      "invalidatedBy": ["src/api/automation-assets.ts", "app/pages/TemplateProject.tsx", "app/pages/TemplateProjectNew.tsx"]
+    },
+    "CMP": {
+      "risk": "P0",
+      "owners": ["campaigns"],
+      "tests": ["tests/campaigns.test.ts", "tests/campaign-status.test.ts", "tests/workflow.test.ts", "tests/pilot.test.ts", "e2e/smoke.spec.ts"],
+      "evidence": ["api", "ui", "workflow", "meta-canary", "cleanup"],
+      "invalidatedBy": ["src/api/campaigns.ts", "src/db/campaigns.ts", "src/workflows/CampaignSendWorkflow.ts", "app/pages/CampaignNew.tsx", "app/pages/Campaigns.tsx", "app/pages/CampaignDetail.tsx"]
+    },
+    "PRC": {
+      "risk": "P1",
+      "owners": ["pricing"],
+      "tests": ["tests/pricing.test.ts", "tests/pricing-analytics.test.ts", "tests/domain/pricing.test.ts", "tests/exchange-rate.test.ts"],
+      "evidence": ["api", "calculation", "fallback"],
+      "invalidatedBy": ["src/api/pricing.ts", "src/db/pricing.ts", "src/domain/pricing.ts", "src/domain/exchange-rate.ts"]
+    },
+    "INB": {
+      "risk": "P0",
+      "owners": ["inbox"],
+      "tests": ["tests/conversation-send.test.ts", "tests/inbox-operations.test.ts", "tests/automation.test.ts", "e2e/smoke.spec.ts"],
+      "evidence": ["api", "ui", "realtime", "meta-canary", "cleanup"],
+      "invalidatedBy": ["src/api/conversations.ts", "src/db/conversations.ts", "src/db/conversation-sends.ts", "app/pages/Inbox.tsx"]
+    },
+    "ATD": {
+      "risk": "P1",
+      "owners": ["attendants"],
+      "tests": ["tests/attendant-portal.test.ts", "e2e/smoke.spec.ts"],
+      "evidence": ["api", "ui", "authorization"],
+      "invalidatedBy": ["src/api/attendants.ts", "src/api/attendant-portal.ts", "app/pages/Attendants.tsx", "app/pages/AttendantPortal.tsx"]
+    },
+    "KNO": {
+      "risk": "P1",
+      "owners": ["knowledge"],
+      "tests": ["tests/knowledge.test.ts", "tests/knowledge-api.test.ts"],
+      "evidence": ["api", "indexing", "search"],
+      "invalidatedBy": ["src/api/knowledge.ts", "src/knowledge/indexing.ts", "src/knowledge/service.ts", "app/pages/Knowledge.tsx"]
+    },
+    "AI": {
+      "risk": "P0",
+      "owners": ["ai"],
+      "tests": ["tests/ai.test.ts", "tests/agents.test.ts", "tests/automation.test.ts", "tests/flow-generator.test.ts", "tests/template-factory.test.ts"],
+      "evidence": ["contract", "evals", "safety", "handoff", "trace"],
+      "invalidatedBy": ["src/ai/automation.ts", "src/ai/drafts.ts", "src/ai/flow-generator.ts", "src/api/agents.ts", "app/pages/AICenter.tsx", "app/pages/AIAgents.tsx"]
+    },
+    "WHK": {
+      "risk": "P0",
+      "owners": ["real-channel-lab"],
+      "tests": ["tests/webhook.test.ts", "tests/whatsapp.test.ts", "tests/automation.test.ts"],
+      "evidence": ["meta-canary", "multi-turn", "inbox", "cleanup"],
+      "invalidatedBy": ["src/api/webhook.ts", "src/queue/webhook-consumer.ts", "src/ai/automation.ts", "src/whatsapp/client.ts"]
+    },
+    "CTWA": {
+      "risk": "P0",
+      "owners": ["meta-attribution"],
+      "tests": ["tests/webhook.test.ts", "tests/conversions.test.ts", "e2e/conversions-ctwa.spec.ts"],
+      "evidence": ["signed-webhook", "idempotency", "privacy", "ui", "provider-real", "cleanup"],
+      "invalidatedBy": ["src/api/webhook.ts", "src/queue/webhook-consumer.ts", "src/db/conversions.ts", "src/domain/conversions.ts", "app/pages/Inbox.tsx", "e2e/conversions-ctwa.spec.ts"]
+    },
+    "CAPI": {
+      "risk": "P0",
+      "owners": ["meta-conversions"],
+      "tests": ["tests/conversions.test.ts", "tests/whatsapp-conversions.test.ts", "tests/infrastructure-usage.test.ts", "e2e/conversions-ctwa.spec.ts"],
+      "evidence": ["api", "ui", "outbox", "queue", "provider-real", "rollback", "cleanup"],
+      "invalidatedBy": ["src/api/conversions.ts", "src/db/conversions.ts", "src/domain/conversions.ts", "src/queue/conversion-consumer.ts", "src/whatsapp/conversions.ts", "app/hooks/useConversions.ts", "app/pages/ConversionsAnalytics.tsx", "app/pages/MetaDiagnostics.tsx", "migrations/0046_ctwa_conversions.sql", "migrations/0047_conversion_corrections.sql", "wrangler.jsonc", "config"]
+    },
+    "MINI": {
+      "risk": "P1",
+      "owners": ["miniapps"],
+      "tests": ["tests/flow-endpoint.test.ts", "tests/flow-generator.test.ts", "tests/domain/flow-json-matrix.test.ts", "tests/domain/miniapps-functional-matrix.test.ts", "tests/automation-assets.test.ts", "e2e/flow-component-matrix.spec.ts", "e2e/flow-editor-parity.spec.ts", "e2e/flow-template-modal.spec.ts", "scripts/qa-miniapps-meta-canary.mjs"],
+      "evidence": ["api", "ui", "flow-json", "meta-contract", "provider-real", "cleanup"],
+      "invalidatedBy": ["src/api/flow-endpoint.ts", "src/api/automation-assets.ts", "src/domain/flow-definition.ts", "src/domain/flow-validation.ts", "src/whatsapp/flows.ts", "app/lib/flow-templates.ts", "app/pages/FlowBuilder.tsx", "app/pages/FlowBuilderHome.tsx", "qa/miniapps-functional-matrix.json"]
+    },
+    "FORM": {
+      "risk": "P1",
+      "owners": ["forms"],
+      "tests": ["tests/automation-assets.test.ts", "tests/flow-endpoint.test.ts", "e2e/smoke.spec.ts"],
+      "evidence": ["api", "ui", "consent", "persistence"],
+      "invalidatedBy": ["src/api/automation-assets.ts", "app/pages/Forms.tsx", "app/pages/PublicForm.tsx", "app/pages/Submissions.tsx"]
+    },
+    "SET": {
+      "risk": "P0",
+      "owners": ["settings"],
+      "tests": ["tests/health.test.ts", "tests/infrastructure-usage.test.ts", "tests/templates.test.ts", "tests/whatsapp.test.ts", "tests-node/meta-health.node.test.ts", "e2e/smoke.spec.ts", "e2e/qa-remote-meta-diagnostics.spec.ts"],
+      "evidence": ["api", "ui", "secrets-redacted", "provider-health"],
+      "invalidatedBy": ["src/api/settings.ts", "src/whatsapp/credentials.ts", "src/whatsapp/health.ts", "app/lib/meta-health.ts", "app/pages/Settings.tsx", "app/pages/MetaDiagnostics.tsx"]
+    },
+    "META": {
+      "risk": "P0",
+      "owners": ["meta"],
+      "tests": ["tests/webhook.test.ts", "tests/whatsapp.test.ts", "tests/conversation-send.test.ts", "tests/reconcile-status-events.test.ts", "tests-node/meta-bsuid-homologation.node.test.ts", "scripts/qa-meta-bsuid.mjs"],
+      "evidence": ["contract", "meta-canary", "official-username-only-webhook", "strict-bsuid-send", "timeline", "idempotency", "cleanup"],
+      "invalidatedBy": ["src/api/webhook.ts", "src/api/conversations.ts", "src/queue/webhook-consumer.ts", "src/domain/meta-recipient.ts", "src/whatsapp/client.ts", "src/whatsapp/health.ts", "scripts/qa-meta-bsuid.mjs", "scripts/lib/meta-bsuid-homologation.mjs"]
+    },
+    "CAL": {
+      "risk": "P2",
+      "owners": ["calendar"],
+      "tests": ["tests/google-calendar.test.ts"],
+      "evidence": ["contract", "oauth-consent", "provider-real", "encrypted-flow", "cleanup"],
+      "invalidatedBy": ["src/api/google-calendar.ts", "src/integrations/google-calendar.ts"]
+    },
+    "WEB": {
+      "risk": "P0",
+      "owners": ["webhooks"],
+      "tests": ["tests/webhook.test.ts", "tests/reconcile-status-events.test.ts"],
+      "evidence": ["contract", "signature", "idempotency", "replay", "queue"],
+      "invalidatedBy": ["src/api/webhook.ts", "src/queue/webhook-consumer.ts", "src/whatsapp/webhook-verify.ts"]
+    },
+    "SEC": {
+      "risk": "P0",
+      "owners": ["security"],
+      "tests": ["tests/auth.test.ts", "tests/error-handling.test.ts", "tests/domain/redaction.test.ts", "tests/workflows-retired.test.ts"],
+      "evidence": ["automated", "security-scan", "secrets-redacted"],
+      "invalidatedBy": ["src/middleware/auth.ts", "src/middleware/security.ts", "src/domain/redaction.ts", "src/api/router.ts"]
+    },
+    "RSP": {
+      "risk": "P1",
+      "owners": ["responsive"],
+      "tests": ["e2e/smoke.spec.ts", "e2e/design-preview.spec.ts"],
+      "evidence": ["ui", "viewport-matrix", "overflow"],
+      "invalidatedBy": ["app/index.css", "app/components/Shell.tsx", "app/pages"]
+    },
+    "A11Y": {
+      "risk": "P1",
+      "owners": ["accessibility"],
+      "tests": ["e2e/smoke.spec.ts"],
+      "evidence": ["axe", "keyboard", "focus", "zoom"],
+      "invalidatedBy": ["app/components", "app/pages", "app/index.css"]
+    },
+    "ERR": {
+      "risk": "P1",
+      "owners": ["resilience"],
+      "tests": ["tests/error-handling.test.ts", "e2e/smoke.spec.ts"],
+      "evidence": ["api", "ui", "recovery"],
+      "invalidatedBy": ["src/api/router.ts", "app/components/ErrorBoundary.tsx", "app/lib/api.ts"]
+    },
+    "OPS": {
+      "risk": "P0",
+      "owners": ["operations"],
+      "tests": ["tests/health.test.ts", "tests/cleanup.test.ts", "tests/reconcile.test.ts", "tests/infrastructure-usage.test.ts", "tests/qa-monitor.test.ts"],
+      "evidence": ["health", "queue", "cron", "cleanup", "rollback", "external-monitor"],
+      "invalidatedBy": ["src/index.ts", "src/cron", "src/queue", "src/qa-monitor.ts", "wrangler.jsonc", "config/wrangler.monitor.jsonc", ".github/workflows"]
+    },
+    "QA": {
+      "risk": "P0",
+      "owners": ["quality-control"],
+      "tests": ["scripts/qa-validate.mjs", "scripts/qa-production-certification.mjs", "scripts/qa-manual-accessibility.mjs", "scripts/qa-release-risk.mjs", "scripts/qa-soak-finalize.mjs", "scripts/qa-meta-bsuid.mjs", "tests/qa-monitor.test.ts", "tests-node/qa-staging-auth.node.test.ts", "tests-node/qa-remote-auth.node.test.ts", "tests-node/meta-canary-recipients.node.test.ts", "tests-node/meta-bsuid-homologation.node.test.ts", "tests-node/ai-human-calibration.node.test.ts", "tests-node/manual-accessibility.node.test.ts", "tests-node/release-risk.node.test.ts", "tests-node/soak-consolidation.node.test.ts", "tests-node/production-certification.node.test.ts"],
+      "evidence": ["report", "run-id", "gate", "cleanup", "soak-monitor", "official-bsuid-homologation", "blind-human-calibration", "signed-manual-accessibility", "signed-release-risk", "production-certification"],
+      "invalidatedBy": ["qa", "scripts/qa-runner.mjs", "scripts/qa-ci-policy.mjs", "scripts/qa-ai-human-calibration.mjs", "scripts/qa-manual-accessibility.mjs", "scripts/qa-release-risk.mjs", "scripts/qa-soak-finalize.mjs", "scripts/qa-production-certification.mjs", "scripts/qa-meta-canary.mjs", "scripts/qa-meta-bsuid.mjs", "scripts/qa-meta-callback-switch.mjs", "scripts/qa-meta-app-callback-switch.mjs", "scripts/qa-remote-health.mjs", "scripts/qa-wait-remote-ready.mjs", "scripts/lib/ai-human-calibration.mjs", "scripts/lib/meta-bsuid-homologation.mjs", "scripts/lib/manual-accessibility.mjs", "scripts/lib/release-risk.mjs", "scripts/lib/soak-consolidation.mjs", "scripts/lib/production-certification.mjs", "scripts/lib/qa-staging-auth.mjs", "scripts/lib/qa-remote-auth.mjs", "scripts/lib/meta-canary-recipients.mjs", "src/qa-monitor.ts", "config/wrangler.monitor.jsonc", "package.json", "playwright.config.ts", "vitest.config.ts", ".github/workflows"]
+    },
+    "WFL": {
+      "risk": "P2",
+      "owners": ["retired-workflows"],
+      "tests": ["tests/workflows-retired.test.ts"],
+      "evidence": ["contract-410"],
+      "invalidatedBy": ["src/api/workflows-retired.ts", "app/App.tsx"]
+    },
+    "COEX": {
+      "risk": "P2",
+      "owners": ["coexistence"],
+      "tests": ["tests/whatsapp.test.ts"],
+      "evidence": ["catalogued", "out-of-scope"],
+      "invalidatedBy": ["src/whatsapp", "src/api/settings.ts"]
+    }
+  }
+}

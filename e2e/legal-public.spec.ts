@@ -10,8 +10,7 @@ for (const path of publicStaticRoutes) {
       await expect(page).toHaveURL(new RegExp(`${path}$`));
       await expect(page.getByText("Informação pública")).toBeVisible();
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-      await expect(page.getByText("Instalação autogerenciada")).toBeVisible();
-      await expect(page.getByText("Escola de Automação")).toHaveCount(0);
+      await expect(page.getByRole("link", { name: "Escola de Automação" })).toHaveAttribute("href", "https://escoladeautomacao.com.br/");
       const dimensions = await page.evaluate(() => ({
         width: document.documentElement.clientWidth,
         scrollWidth: document.documentElement.scrollWidth,

@@ -42,3 +42,29 @@ paths = [
   '''(^|/)app/lib/flow-templates\.ts$''',
   '''(^|/)tests/domain/miniapps-functional-matrix\.test\.ts$''',
 ]
+
+[[allowlists]]
+description = "Chave PEM deliberadamente inválida do arquivo de exemplo"
+targetRules = ["private-key"]
+condition = "AND"
+stopwords = ["replace-me"]
+paths = ['''(^|/)\.dev\.vars\.example$''']
+
+[[allowlists]]
+description = "UUID público de versão Cloudflare no histórico de auditoria"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "secret"
+regexes = ['''^56e81dda-bc6e-40c5-ad7d-9f1505b85c4a$''']
+paths = ['''(^|/)docs/plano-auditoria-real-meta-2026-07-14\.md$''']
+
+[[allowlists]]
+description = "Credenciais literais e inválidas em comandos de documentação"
+targetRules = ["curl-auth-header"]
+condition = "AND"
+stopwords = ["ACCESS_TOKEN", "dev-api-key"]
+paths = [
+  '''(^|/)docs/whatsapp-flows-complete-reference\.md$''',
+  '''(^|/)docs/whatsapp\.context\.md$''',
+  '''(^|/)docs/superpowers/plans/2026-07-05-smartzap-cf\.md$''',
+]

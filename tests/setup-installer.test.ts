@@ -38,7 +38,7 @@ describe("instalação SmartZap", () => {
     const response = await SELF.fetch("https://x.com/api/setup/status", { headers: AUTH });
     expect(response.status).toBe(200);
     const raw = await response.text();
-    expect(raw).not.toContain("test-token");
+    expect(raw).not.toContain("test-whatsapp-token");
     expect(raw).not.toContain("dev-meta-secret");
     expect(raw).not.toContain(env.SMARTZAP_VAULT_KEY as string);
     const data = JSON.parse(raw) as {
@@ -154,7 +154,7 @@ describe("instalação SmartZap", () => {
     expect(JSON.parse(raw)).toEqual({ ok: true, callbackUrl });
     expect(raw).not.toContain("dev-meta-secret");
     expect(raw).not.toContain("dev-verify");
-    expect(raw).not.toContain("test-token");
+    expect(raw).not.toContain("test-whatsapp-token");
 
     expect(fetchMock).toHaveBeenCalledTimes(9);
     const calls = fetchMock.mock.calls as unknown as Array<[string, RequestInit]>;
@@ -241,7 +241,7 @@ describe("instalação SmartZap", () => {
         id: messageId,
         status,
         timestamp: "1749416383",
-        recipient_id: "5511999999999",
+        recipient_id: "5511982219966",
       },
     });
 

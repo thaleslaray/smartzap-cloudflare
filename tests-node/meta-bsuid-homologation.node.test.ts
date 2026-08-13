@@ -130,7 +130,7 @@ describe("homologação Meta BSUID", () => {
   });
 
   it("mascara telefone sem preservar a parte central", () => {
-    expect(maskPhone("+5511999999999")).toBe("+5511 *****-9999");
+    expect(maskPhone("+5521982219966")).toBe("+5521 *****-9966");
   });
 
   it("monta payload estrito com recipient e sem to", () => {

@@ -8,30 +8,30 @@ describe("preflight do canário Meta", () => {
         {
           meta: {
             appWebhookCallbackUrl:
-              "https://smartzap.example.workers.dev/webhook",
+              "https://smartzap-cf.thales2581.workers.dev/webhook",
             webhookCallbackUrl:
-              "https://smartzap-staging.example.workers.dev/webhook",
+              "https://smartzap-cf-staging.thales2581.workers.dev/webhook",
             phoneWebhookCallbackUrl:
-              "https://smartzap-staging.example.workers.dev/webhook",
+              "https://smartzap-cf-staging.thales2581.workers.dev/webhook",
             effectiveWebhookCallbackUrl:
-              "https://smartzap-staging.example.workers.dev/webhook",
+              "https://smartzap-cf-staging.thales2581.workers.dev/webhook",
           },
         },
-        "https://smartzap-staging.example.workers.dev",
+        "https://smartzap-cf-staging.thales2581.workers.dev",
       ),
     ).toEqual({
       expectedCallbackUrl:
-        "https://smartzap-staging.example.workers.dev/webhook",
+        "https://smartzap-cf-staging.thales2581.workers.dev/webhook",
       callbackUrl:
-        "https://smartzap-staging.example.workers.dev/webhook",
+        "https://smartzap-cf-staging.thales2581.workers.dev/webhook",
       appCallbackUrl:
-        "https://smartzap.example.workers.dev/webhook",
+        "https://smartzap-cf.thales2581.workers.dev/webhook",
       wabaCallbackUrl:
-        "https://smartzap-staging.example.workers.dev/webhook",
+        "https://smartzap-cf-staging.thales2581.workers.dev/webhook",
       phoneCallbackUrl:
-        "https://smartzap-staging.example.workers.dev/webhook",
+        "https://smartzap-cf-staging.thales2581.workers.dev/webhook",
       effectiveCallbackUrl:
-        "https://smartzap-staging.example.workers.dev/webhook",
+        "https://smartzap-cf-staging.thales2581.workers.dev/webhook",
       callbackMatchesStaging: true,
     });
   });
@@ -41,21 +41,21 @@ describe("preflight do canário Meta", () => {
       {
         meta: {
           appWebhookCallbackUrl:
-            "https://smartzap.example.workers.dev/webhook",
+            "https://smartzap-cf.thales2581.workers.dev/webhook",
           webhookCallbackUrl:
-            "https://smartzap.example.workers.dev/webhook",
+            "https://smartzap-cf.thales2581.workers.dev/webhook",
           phoneWebhookCallbackUrl:
-            "https://smartzap-staging.example.workers.dev/webhook",
+            "https://smartzap-cf-staging.thales2581.workers.dev/webhook",
           effectiveWebhookCallbackUrl:
-            "https://smartzap-staging.example.workers.dev/webhook",
+            "https://smartzap-cf-staging.thales2581.workers.dev/webhook",
         },
       },
-      "https://smartzap-staging.example.workers.dev/",
+      "https://smartzap-cf-staging.thales2581.workers.dev/",
     );
 
     expect(result.callbackMatchesStaging).toBe(false);
     expect(result.callbackUrl).toBe(
-      "https://smartzap-staging.example.workers.dev/webhook",
+      "https://smartzap-cf-staging.thales2581.workers.dev/webhook",
     );
   });
 });

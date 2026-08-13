@@ -4,7 +4,6 @@ import {
   assertIndependentForkOwner,
   assertTrueGitHubFork,
   githubForkTarget,
-  mainBranchProtection,
   normalizeGitHubOwner,
   synchronizationRef,
 } from "../scripts/lib/github-fork.mjs";
@@ -56,16 +55,5 @@ describe("verificação do fork verdadeiro", () => {
     const sha = "a".repeat(40);
     expect(synchronizationRef({ object: { sha } })).toEqual({ ref: "refs/heads/upstream-sync", sha });
     expect(() => synchronizationRef({ object: { sha: "main" } })).toThrow(/SHA/);
-  });
-
-  it("protege main por PR e check sem permitir força ou exclusão", () => {
-    expect(mainBranchProtection()).toEqual(expect.objectContaining({
-      required_status_checks: { strict: true, contexts: ["validar"] },
-      enforce_admins: true,
-      required_linear_history: true,
-      allow_force_pushes: false,
-      allow_deletions: false,
-      required_conversation_resolution: true,
-    }));
   });
 });

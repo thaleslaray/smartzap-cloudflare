@@ -1,7 +1,7 @@
 export const META_STAGING_CALLBACK_URL =
-  'https://smartzap-staging.example.workers.dev/webhook'
+  'https://smartzap-cf-staging.thales2581.workers.dev/webhook'
 export const META_PRODUCTION_CALLBACK_URL =
-  'https://smartzap.example.workers.dev/webhook'
+  'https://smartzap-cf.thales2581.workers.dev/webhook'
 
 export type QaMetaCallbackTarget = 'staging' | 'production'
 

@@ -12,8 +12,6 @@ do repositório oficial. Inclua versão, impacto, reprodução mínima e mitiga�
 - verifique a assinatura SSH da tag contra `release/allowed_signers`;
 - confira checksums do GitHub Release;
 - mantenha lockfile e ações do workflow pinadas;
-- use o Dependabot apenas para propor atualizações de dependências npm e Actions;
-- revise cada PR de dependência; nenhuma proposta faz merge ou deploy automático;
 - guarde secrets exclusivamente na Cloudflare;
 - não registre recovery files, `.dev.vars` ou configs geradas;
 - revise a branch `sync/vX.Y.Z` antes de fazer merge;

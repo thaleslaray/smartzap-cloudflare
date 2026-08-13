@@ -7,3 +7,4 @@ export function redactOperationalDetail(value: unknown): string {
     .replace(/\+?\d[\d\s().-]{7,}\d/g, '[REDACTED_ID]')
     .slice(0, 500)
 }
+

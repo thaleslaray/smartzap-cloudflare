@@ -307,7 +307,7 @@ describe('loadSendConfig', () => {
       const result = await loadSendConfig(env, campaign.id)
       expect(result).toMatchObject({ total: 0 })
       expect(result).not.toHaveProperty('creds')
-      expect(JSON.stringify(result)).not.toContain('test-token')
+      expect(JSON.stringify(result)).not.toContain('test-whatsapp-token')
       expect(JSON.stringify(result)).not.toContain('dev-meta-secret')
     } finally {
       await env.DB.prepare(

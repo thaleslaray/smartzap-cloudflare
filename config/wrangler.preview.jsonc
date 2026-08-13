@@ -1,0 +1,112 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "smartzap-cf-preview",
+  "main": "../src/index.ts",
+  "compatibility_date": "2026-07-05",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": false,
+  "assets": {
+    "directory": "../dist/client",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/webhook"]
+  },
+  "observability": { "enabled": true },
+  "ai": { "binding": "AI", "remote": true },
+  "vars": {
+    "ENVIRONMENT": "preview",
+    "META_GRAPH_VERSION": "v25.0",
+    "META_APP_ID": "344941004274813",
+    "META_EXPECTED_PHONE_ID": "177462062115446",
+    "META_EXPECTED_WABA_ID": "159711717233997",
+    "META_EXPECTED_CALLBACK_URL": "https://smartzap-cf-preview.thales2581.workers.dev/webhook",
+    "TURNSTILE_ENABLED": "false",
+    "AI_ENABLED": "false",
+    "AI_MODEL": "@cf/openai/gpt-oss-20b",
+    "AI_GATEWAY_ID": "smartzap-preview",
+    "AI_PROVIDER_TIMEOUT_MS": "30000",
+    "AI_MAX_DRAFTS_PER_CONVERSATION_HOUR": "5",
+    "AI_MAX_DRAFTS_PER_DAY": "20",
+    "CLOUDFLARE_ACCOUNT_ID": "4a1961760bc2292fab3733dc2b3c811c",
+    "CLOUDFLARE_WORKER_NAME": "smartzap-cf-preview",
+    "CLOUDFLARE_D1_DATABASE_ID": "680416ad-91d5-402f-8609-e75549d0511b",
+    "FLOW_DATA_API_VERSION": "3.0",
+    "INBOX_SEND_ENABLED": "false",
+    "INBOX_AUTOMATION_ENABLED": "false",
+    "AUTOMATION_QUEUE_NAME": "inbox-automation-preview",
+    "CAPI_QUEUE_NAME": "meta-conversions-preview",
+    "PILOT_GUARDS_ENABLED": "true",
+    "PILOT_SEND_ENABLED": "false",
+    "PILOT_MAX_REAL_SENDS": "1",
+    "PILOT_MAX_RUNS_PER_DAY": "1",
+    "PILOT_TIME_WINDOW_ENABLED": "false",
+    "PILOT_TEMPLATE_ALLOWLIST": "hello_world"
+  },
+  "secrets": { "required": [
+    "MASTER_PASSWORD",
+    "SMARTZAP_API_KEY",
+    "QA_READONLY_API_KEY",
+    "META_APP_SECRET",
+    "META_VERIFY_TOKEN",
+    "WHATSAPP_TOKEN"
+  ] },
+  "d1_databases": [{
+    "binding": "DB",
+    "database_name": "smartzap-preview",
+    "database_id": "680416ad-91d5-402f-8609-e75549d0511b",
+    "migrations_dir": "../migrations"
+  }],
+  "r2_buckets": [{
+    "binding": "MEDIA",
+    "bucket_name": "smartzap-media-preview"
+  }],
+  "queues": {
+    "producers": [
+      { "binding": "WEBHOOK_QUEUE", "queue": "meta-webhooks-preview" },
+      { "binding": "AUTOMATION_QUEUE", "queue": "inbox-automation-preview" },
+      { "binding": "CAPI_QUEUE", "queue": "meta-conversions-preview" },
+      { "binding": "CAPI_DLQ", "queue": "meta-conversions-preview-dlq" },
+      { "binding": "WEBHOOK_DLQ", "queue": "meta-webhooks-preview-dlq" },
+      { "binding": "AUTOMATION_DLQ", "queue": "inbox-automation-preview-dlq" }
+    ],
+    "consumers": [
+      {
+        "queue": "meta-webhooks-preview",
+        "max_batch_size": 50,
+        "max_batch_timeout": 2,
+        "max_retries": 5,
+        "dead_letter_queue": "meta-webhooks-preview-dlq"
+      },
+      {
+        "queue": "inbox-automation-preview",
+        "max_batch_size": 10,
+        "max_batch_timeout": 2,
+        "max_retries": 3,
+        "dead_letter_queue": "inbox-automation-preview-dlq"
+      },
+      {
+        "queue": "meta-conversions-preview",
+        "max_batch_size": 10,
+        "max_batch_timeout": 2,
+        "max_retries": 5
+      }
+    ]
+  },
+  "workflows": [
+    { "binding": "CAMPAIGN_WF", "name": "campaign-send-preview", "class_name": "CampaignSendWorkflow" },
+    { "binding": "SETUP_WF", "name": "smartzap-setup-health-preview", "class_name": "SetupHealthWorkflow" }
+  ],
+  "durable_objects": { "bindings": [
+    { "name": "REALTIME", "class_name": "RealtimeHub" },
+    { "name": "THROTTLE", "class_name": "PhoneThrottle" }
+  ] },
+  "migrations": [{
+    "tag": "v1",
+    "new_sqlite_classes": ["RealtimeHub", "PhoneThrottle"]
+  }],
+  "ratelimits": [{
+    "name": "LOGIN_LIMITER",
+    "namespace_id": "3001",
+    "simple": { "limit": 5, "period": 60 }
+  }]
+}

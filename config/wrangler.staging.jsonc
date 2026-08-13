@@ -1,0 +1,126 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "smartzap-cf-staging",
+  "main": "../src/index.ts",
+  "compatibility_date": "2026-07-05",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "../dist/client",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/webhook"]
+  },
+  "observability": { "enabled": true },
+  "ai": { "binding": "AI", "remote": true },
+  "ai_search_namespaces": [{
+    "binding": "AI_SEARCH",
+    "namespace": "smartzap-staging",
+    "remote": true
+  }],
+  "vars": {
+    "ENVIRONMENT": "staging",
+    "SETUP_REQUIRED": "false",
+    "SMARTZAP_VERSION": "1.0.0-rc.40",
+    "SMARTZAP_SCHEMA_VERSION": "3",
+    "SMARTZAP_RELEASE_CHANNEL": "rc",
+    "META_GRAPH_VERSION": "v26.0",
+    "META_APP_ID": "344941004274813",
+    "META_EXPECTED_PHONE_ID": "177462062115446",
+    "META_EXPECTED_WABA_ID": "159711717233997",
+    "META_EXPECTED_CALLBACK_URL": "https://smartzap-cf-staging.thales2581.workers.dev/webhook",
+    "META_AD_ACCOUNT_ID": "708497467651098",
+    "TURNSTILE_ENABLED": "false",
+    "AI_ENABLED": "true",
+    "AI_MODEL": "@cf/openai/gpt-oss-20b",
+    "AI_GATEWAY_ID": "smartzap-staging",
+    "AI_PROVIDER_TIMEOUT_MS": "30000",
+    "AI_MAX_DRAFTS_PER_CONVERSATION_HOUR": "20",
+    "AI_MAX_DRAFTS_PER_DAY": "200",
+    "CLOUDFLARE_ACCOUNT_ID": "4a1961760bc2292fab3733dc2b3c811c",
+    "CLOUDFLARE_WORKER_NAME": "smartzap-cf-staging",
+    "CLOUDFLARE_D1_DATABASE_ID": "54cb2035-c8ee-4d42-9302-aa5e26aa48cd",
+    "FLOW_DATA_API_VERSION": "3.0",
+    "INBOX_SEND_ENABLED": "false",
+    "INBOX_AUTOMATION_ENABLED": "false",
+    "AUTOMATION_QUEUE_NAME": "inbox-automation-staging",
+    "CAPI_QUEUE_NAME": "meta-conversions-staging",
+    "PILOT_GUARDS_ENABLED": "true",
+    "PILOT_SEND_ENABLED": "true",
+    "PILOT_MAX_REAL_SENDS": "3",
+    "PILOT_MAX_RUNS_PER_DAY": "10",
+    "PILOT_TIME_WINDOW_ENABLED": "true",
+    "PILOT_SUPERVISED_OUTSIDE_WINDOW": "false",
+    "PILOT_TEMPLATE_ALLOWLIST": "hello_world,template_20260125_1739,template_20260125_1841,ea_comunidade_assinatura_renovada,qa_suporte_telefone_20260803"
+  },
+  "secrets": { "required": [
+    "MASTER_PASSWORD",
+    "SMARTZAP_VAULT_KEY",
+    "SMARTZAP_API_KEY",
+    "QA_READONLY_API_KEY",
+    "QA_STAGING_MUTATION_API_KEY",
+    "META_APP_SECRET",
+    "META_VERIFY_TOKEN",
+    "WHATSAPP_TOKEN",
+    "PILOT_RECIPIENT_ALLOWLIST",
+    "GOOGLE_CALENDAR_ENCRYPTION_KEY"
+  ] },
+  "d1_databases": [{
+    "binding": "DB",
+    "database_name": "smartzap-staging",
+    "database_id": "54cb2035-c8ee-4d42-9302-aa5e26aa48cd",
+    "migrations_dir": "../migrations"
+  }],
+  "r2_buckets": [{
+    "binding": "MEDIA",
+    "bucket_name": "smartzap-media-staging"
+  }],
+  "queues": {
+    "producers": [
+      { "binding": "WEBHOOK_QUEUE", "queue": "meta-webhooks-staging" },
+      { "binding": "AUTOMATION_QUEUE", "queue": "inbox-automation-staging" },
+      { "binding": "CAPI_QUEUE", "queue": "meta-conversions-staging" },
+      { "binding": "CAPI_DLQ", "queue": "meta-conversions-staging-dlq" },
+      { "binding": "WEBHOOK_DLQ", "queue": "meta-webhooks-staging-dlq" },
+      { "binding": "AUTOMATION_DLQ", "queue": "inbox-automation-staging-dlq" }
+    ],
+    "consumers": [
+      {
+        "queue": "meta-webhooks-staging",
+        "max_batch_size": 50,
+        "max_batch_timeout": 2,
+        "max_retries": 5,
+        "dead_letter_queue": "meta-webhooks-staging-dlq"
+      },
+      {
+        "queue": "inbox-automation-staging",
+        "max_batch_size": 10,
+        "max_batch_timeout": 2,
+        "max_retries": 3,
+        "dead_letter_queue": "inbox-automation-staging-dlq"
+      },
+      {
+        "queue": "meta-conversions-staging",
+        "max_batch_size": 10,
+        "max_batch_timeout": 2,
+        "max_retries": 5
+      }
+    ]
+  },
+  "workflows": [
+    { "binding": "CAMPAIGN_WF", "name": "campaign-send-staging", "class_name": "CampaignSendWorkflow" },
+    { "binding": "SETUP_WF", "name": "smartzap-setup-health-staging", "class_name": "SetupHealthWorkflow" }
+  ],
+  "durable_objects": { "bindings": [
+    { "name": "REALTIME", "class_name": "RealtimeHub" },
+    { "name": "THROTTLE", "class_name": "PhoneThrottle" }
+  ] },
+  "migrations": [{
+    "tag": "v1",
+    "new_sqlite_classes": ["RealtimeHub", "PhoneThrottle"]
+  }],
+  "ratelimits": [{
+    "name": "LOGIN_LIMITER",
+    "namespace_id": "2001",
+    "simple": { "limit": 5, "period": 60 }
+  }],
+  "triggers": { "crons": ["*/15 * * * *"] }
+}

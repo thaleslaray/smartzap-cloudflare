@@ -20,6 +20,14 @@ export function parseActiveDeploymentVersion(output) {
   return candidates[0].versionId;
 }
 
+export function isMissingWorkerError(error) {
+  const detail = [error?.stderr, error?.stdout, error?.message]
+    .filter(Boolean)
+    .map(String)
+    .join("\n");
+  return /Worker does not exist/i.test(detail) && /(?:code:\s*10007|\[code:\s*10007\])/i.test(detail);
+}
+
 export function buildRollbackCheckpoint({ workerName, databaseName, bookmark, versionId, fromRelease, toRelease }) {
   if (!/^smartzap-[a-f0-9]{8}(?:-staging)?$/.test(workerName)) throw new Error("Worker inválido no checkpoint.");
   if (databaseName !== `${workerName}-db`) throw new Error("D1 não corresponde ao Worker no checkpoint.");

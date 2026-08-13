@@ -25,6 +25,23 @@ export function parseD1Databases(output: string): Array<{ id: string; name: stri
 export function parseCreatedD1Id(output: string): string;
 export function parseR2BucketNames(output: string): string[];
 export function parseQueueNames(output: string): string[];
+export interface ForkQueueConsumerSpec {
+  queue: string;
+  batchSize: number;
+  batchTimeout: number;
+  maxRetries: number;
+  deadLetterQueue?: string;
+}
+export interface ForkQueueConsumer {
+  id: string;
+  type: string;
+  script: string;
+  deadLetterQueue?: string;
+  settings: Record<string, unknown>;
+}
+export function queueConsumerSpecs(names: ForkResourceNames): ForkQueueConsumerSpec[];
+export function parseQueueConsumers(output: string): ForkQueueConsumer[];
+export function assertOwnedQueueConsumer(queueName: string, consumers: ForkQueueConsumer[], workerName: string): ForkQueueConsumer | null;
 export function classifyForkResources(input: {
   database?: unknown;
   buckets: string[];

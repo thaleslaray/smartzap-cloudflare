@@ -14,10 +14,8 @@ terceiros.
 
 Uma release oficial nunca faz merge, aplica migration, resolve conflito ou
 promove produção automaticamente. O workflow opcional
-`.github/workflows/upstream-sync.yml` consulta diariamente a release `stable`
-mais recente — ou aceita uma tag `rc`/`beta` informada pelo proprietário —,
-verifica sua assinatura contra a chave já confiada pelo fork, executa os testes,
-cria `sync/vX.Y.Z` e abre um pull request para revisão.
+`.github/workflows/upstream-sync.yml` apenas cria `sync/vX.Y.Z` a partir da tag
+oficial e abre um pull request para revisão.
 
 ## Canais
 

@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Link, useLocation } from "react-router";
 
-const updatedAt = "12 de agosto de 2026";
+const updatedAt = "6 de agosto de 2026";
 
 function PageShell({ title, intro, children }: {
   title: string;
@@ -21,7 +21,12 @@ function PageShell({ title, intro, children }: {
           <Link to="/login" className="text-lg font-semibold tracking-tight text-white">
             SmartZap
           </Link>
-          <span className="text-sm text-zinc-400">Instalação autogerenciada</span>
+          <a
+            href="https://escoladeautomacao.com.br/"
+            className="text-sm text-emerald-300 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+          >
+            Escola de Automação
+          </a>
         </div>
       </header>
       <main className="mx-auto w-full max-w-4xl px-5 py-10 sm:px-8 sm:py-14">
@@ -59,11 +64,10 @@ function PrivacyPolicy() {
   return (
     <PageShell
       title="Política de Privacidade do SmartZap"
-      intro="Esta política explica como o proprietário desta instalação trata dados no SmartZap para atendimento, campanhas e mensuração de resultados no WhatsApp."
+      intro="Esta política explica como a Escola de Automação trata dados no SmartZap, uma ferramenta própria de atendimento, campanhas e mensuração de resultados no WhatsApp."
     >
       <Section title="Quem controla os dados">
-        <p>O proprietário desta instalação é responsável pelo tratamento descrito nesta página, pela operação do SmartZap e pela definição dos canais de contato com os titulares.</p>
-        <p>O projeto open-source SmartZap e seus mantenedores não acessam, operam nem controlam automaticamente os dados mantidos em instalações de terceiros.</p>
+        <p>A Escola de Automação é responsável pelo tratamento descrito nesta página e opera o SmartZap para suas próprias atividades.</p>
       </Section>
       <Section title="Dados tratados">
         <ul className="list-disc space-y-2 pl-5">
@@ -83,10 +87,10 @@ function PrivacyPolicy() {
         <p>Os dados podem ser processados pelos serviços necessários à operação, especialmente Meta/WhatsApp e Cloudflare. Para mensuração de anúncios, o SmartZap envia à Meta somente os campos necessários ao evento, sem enviar transcrição, mídia, nome, telefone ou e-mail pela Conversions API for Business Messaging.</p>
       </Section>
       <Section title="Conservação e segurança">
-        <p>O proprietário define e documenta os prazos de retenção aplicáveis à sua operação. O acesso deve ser restrito, identificadores sensíveis são mascarados na interface e registros técnicos não devem conter credenciais.</p>
+        <p>Os dados são mantidos pelo período necessário às finalidades operacionais e obrigações aplicáveis. O acesso é restrito, identificadores sensíveis são mascarados na interface e registros técnicos não devem conter credenciais.</p>
       </Section>
       <Section title="Seus direitos e contato">
-        <p>Você pode solicitar confirmação, acesso, correção, oposição ou exclusão, conforme a legislação aplicável. Use o mesmo canal oficial pelo qual entrou em contato com esta operação e informe que a solicitação se refere aos dados tratados no SmartZap.</p>
+        <p>Você pode solicitar confirmação, acesso, correção, oposição ou exclusão, conforme a legislação aplicável. Use o canal oficial de atendimento disponível no site da Escola de Automação e informe que a solicitação se refere ao SmartZap.</p>
         <p><Link className="font-medium text-emerald-300 hover:underline" to="/data-deletion">Consulte as instruções de exclusão de dados.</Link></p>
       </Section>
     </PageShell>
@@ -97,11 +101,11 @@ function DataDeletion() {
   return (
     <PageShell
       title="Solicitação de exclusão de dados"
-      intro="Esta página apresenta o procedimento para pedir ao proprietário desta instalação a exclusão de dados pessoais tratados no SmartZap."
+      intro="Esta página apresenta o procedimento público para pedir a exclusão de dados pessoais tratados pela Escola de Automação no SmartZap."
     >
       <Section title="Como solicitar">
         <ol className="list-decimal space-y-2 pl-5">
-          <li>Use o mesmo canal oficial de WhatsApp ou atendimento pelo qual se relacionou com esta operação.</li>
+          <li>Acesse o canal oficial de atendimento em <a className="text-emerald-300 underline underline-offset-4" href="https://escoladeautomacao.com.br/">escoladeautomacao.com.br</a>.</li>
           <li>Use o assunto ou a primeira frase “Exclusão de dados — SmartZap”.</li>
           <li>Informe o número de WhatsApp usado no atendimento e descreva quais dados deseja excluir.</li>
           <li>Responda à verificação de titularidade. Nunca envie senha, token ou código de autenticação.</li>

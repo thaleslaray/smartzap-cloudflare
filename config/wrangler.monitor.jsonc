@@ -1,0 +1,36 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "smartzap-qa-monitor",
+  "main": "../src/qa-monitor.ts",
+  "compatibility_date": "2026-07-29",
+  "compatibility_flags": [
+    "nodejs_compat",
+    "global_fetch_strictly_public"
+  ],
+  "workers_dev": true,
+  "preview_urls": false,
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 1
+    }
+  },
+  "vars": {
+    "MONITOR_RELEASE_SHA": "local",
+    "STAGING_URL": "https://smartzap-cf-staging.thales2581.workers.dev",
+    "PRODUCTION_URL": "https://smartzap-cf.thales2581.workers.dev"
+  },
+  "kv_namespaces": [{
+    "binding": "STATE",
+    "id": "2e73aa8ea8f04ec3807a90126437677f"
+  }],
+  "analytics_engine_datasets": [{
+    "binding": "ANALYTICS",
+    "dataset": "smartzap_qa_monitor"
+  }],
+  "triggers": {
+    "crons": ["*/5 * * * *"]
+  }
+}

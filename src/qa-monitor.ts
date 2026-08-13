@@ -2,8 +2,8 @@ const REPORT_TTL_SECONDS = 21 * 24 * 60 * 60;
 const DEFAULT_TIMEOUT_MS = 10_000;
 const DEFAULT_ATTEMPTS = 2;
 const ALLOWED_TARGET_HOSTS = new Set([
-  "smartzap-staging.example.workers.dev",
-  "smartzap.example.workers.dev",
+  "smartzap-cf-staging.thales2581.workers.dev",
+  "smartzap-cf.thales2581.workers.dev",
 ]);
 
 export type MonitorTargetKind = "health" | "app-shell";

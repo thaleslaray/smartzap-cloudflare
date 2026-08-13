@@ -28,3 +28,4 @@ export async function securityHeaders(c: Context, next: Next) {
   if (new URL(c.req.url).pathname.startsWith('/api/') || new URL(c.req.url).pathname === '/webhook')
     c.header('Cache-Control', 'no-store')
 }
+

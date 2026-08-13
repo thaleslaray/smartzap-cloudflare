@@ -23,8 +23,8 @@ function createEnv() {
       }),
     } as unknown as AnalyticsEngineDataset,
     MONITOR_RELEASE_SHA: "abc123",
-    STAGING_URL: "https://smartzap-staging.example.workers.dev",
-    PRODUCTION_URL: "https://smartzap.example.workers.dev",
+    STAGING_URL: "https://smartzap-cf-staging.thales2581.workers.dev",
+    PRODUCTION_URL: "https://smartzap-cf.thales2581.workers.dev",
   } satisfies MonitorEnv;
   return { env, values, points };
 }

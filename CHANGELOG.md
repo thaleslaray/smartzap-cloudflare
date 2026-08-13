@@ -1,9 +1,122 @@
 # Changelog
 
+## [1.0.0-rc.42] - 2026-08-13
+
+### Corrigido
+
+- A atualização de forks antigos agora usa uma branch-ponte oficial com o mesmo
+  conteúdo da tag assinada e histórico compatível com o `main` do cliente.
+- O workflow recusa a proposta se a árvore da ponte divergir da release ou se
+  ela não compartilhar o histórico do fork, sem publicar ou fazer merge.
+
+## [1.0.0-rc.41] - 2026-08-13
+
+- Vincula a instalação rápida à identidade imutável da release no manifesto, nos bindings do Worker e no ledger D1 exibido pelo `/setup`.
+- Substitui a `rc.40`, reprovada na homologação física porque versão, commit, schema e canal apareciam como não identificados após o provisionamento.
+
+## [1.0.0-rc.40] - 2026-08-13
+
+- Corrige a leitura interna dos artefatos imutáveis quando o provisionador é publicado sob a subrota `/smartzap`, preservando checksum e rollback integral.
+- Substitui a `rc.39`, reprovada na primeira instalação OAuth física porque o binding R2 só reconhecia o caminho de release na raiz.
+
+## [1.0.0-rc.39] - 2026-08-13
+
+- Recusa de forma determinística pedidos para revelar tokens, senhas, chaves de API, credenciais ou segredos, sem refletir valores sensíveis.
+- Substitui a `rc.38`, reprovada em uma das 84 sessões reais porque a recusa de exposição de segredos ainda dependia da saída variável do provedor.
+
+## [1.0.0-rc.38] - 2026-08-13
+
+- Torna determinísticas e fail-closed as respostas a pedido de disparo em massa sem consentimento e a garantia contratual absoluta de disponibilidade.
+- Substitui a `rc.37`, reprovada na repetição real do laboratório de IA porque duas das 84 sessões devolveram resposta vazia após os limites finitos do provedor.
+
+## [1.0.0-rc.37] - 2026-08-13
+
+- Isola a matriz responsiva de Projetos/Fábrica em um processo WebKit próprio, sem retry e sem ampliar timeout, após a reprodução dedicada passar 30/30 vezes.
+- Substitui a `rc.36`, cuja matriz integral foi reprovada por um timeout de navegação após mais de 60 cenários WebKit sequenciais.
+
+## [1.0.0-rc.36] - 2026-08-13
+
+- Vincula a identidade imutável da release ao diagnóstico do staging e exige o SHA exato do commit no comando de publicação.
+- Substitui a `rc.35`, reprovada no staging porque `/setup` não identificava versão, commit, schema e canal.
+
+## [1.0.0-rc.35] - 2026-08-13
+
+- Preserva explicitamente no staging o Cron de reconciliação a cada 15 minutos e exige a chave do cofre como secret antes da publicação.
+- Substitui a `rc.34`, reprovada no preflight antes do deploy por não declarar o gatilho agendado.
+
+## [1.0.0-rc.34] - 2026-08-13
+
+- Corrige o formato canônico do changelog exigido pelo gerador de propostas de atualização.
+- Substitui a `rc.33`, reprovada antes do deploy porque suas notas não podiam ser extraídas automaticamente.
+
+## [1.0.0-rc.33] - 2026-08-13
+
+- Consolida CAPI/CTWA, reconciliação de conversões, cofre cifrado e assistente `/setup` no runtime candidato.
+- Separa o manifesto público genérico do manifesto interno de produção para impedir regressão de bindings e credenciais.
+- Mantém o instalador fork-first, a instalação rápida OAuth isolada e os mecanismos de atualização, migração e rollback homologados na `rc.32`.
+- Acrescenta os gates executáveis de instalação limpa, cadeia de release, acessibilidade, calibração humana e certificação fail-closed.
+
+## 1.0.0-rc.32
+
+- Aceita a identidade JSON única de deploy quando o Wrangler 4 acrescenta diagnóstico ao arquivo de saída estruturada.
+- Mantém a validação fechada: ausência de deploy, múltiplas identidades, Worker divergente ou override continuam reprovando a instalação.
+
+## 1.0.0-rc.31
+
+- Torna a retomada do instalador idempotente quando consumidores de Queue já pertencem ao mesmo Worker.
+- Interrompe sem alteração se qualquer Queue pertencer a outro Worker ou a um consumidor HTTP.
+- Remove temporariamente apenas consumidores próprios antes do deploy e os restaura se o deploy falhar.
+
+## 1.0.0-rc.30
+
+- Separa fisicamente os projetos Workers Builds de produção e staging.
+- Exige correspondência entre branch, `SMARTZAP_INSTALL_ID` e Worker conectado antes de qualquer mutação Cloudflare.
+- Transforma branch enviada ao projeto errado em validação sem deploy, impedindo que staging alcance produção.
+- Remove a tentativa incompatível de publicar o Worker `-staging` pelo token conectado ao Worker de produção.
+
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o
 versionamento segue SemVer.
 
 ## [Unreleased]
+
+## [1.0.0-rc.29] - 2026-08-13
+
+### Corrigido
+
+- modela o canário físico como Wrangler Environment oficial do Worker-base e
+  publica com `--env staging`, conforme a restrição de nome do Workers Builds;
+- mantém D1, R2, Queues, Workflows e variáveis integralmente isolados no bloco
+  `env.staging`, enquanto valida o Worker final `smartzap-<id>-staging`;
+- evita qualquer tentativa de publicar um nome arbitrário a partir do projeto
+  Cloudflare conectado ao Worker de produção.
+
+## [1.0.0-rc.28] - 2026-08-13
+
+### Corrigido
+
+- retoma com segurança uma instalação inicial interrompida quando o D1 já
+  existe, mas o Worker isolado ainda não foi criado;
+- aceita exclusivamente `Worker does not exist [code: 10007]` como ausência de
+  runtime anterior, mantendo qualquer outra falha como bloqueante;
+- evita criar bookmark ou checkpoint D1 quando não existe versão anterior do
+  Worker e neutraliza também no rollback o override de nome do Workers Builds.
+
+## [1.0.0-rc.27] - 2026-08-13
+
+### Segurança
+
+- neutraliza `WRANGLER_CI_OVERRIDE_NAME`, variável injetada pelo Workers Builds
+  que podia substituir o nome isolado de staging pelo nome do Worker conectado;
+- passa `--name` explicitamente ao Wrangler e exige a confirmação estruturada
+  pós-deploy do nome, da versão e do destino exatos antes de aceitar a publicação.
+
+### Operação
+
+- a `rc.26` foi reprovada no canário físico porque o staging foi publicado
+  temporariamente sobre o Worker conectado; produção recebeu rollback imediato
+  para a `rc.24` e a proposta da `rc.26` não será integrada;
+- a `rc.27` só pode avançar após criar um Worker físico de staging separado e
+  comprovar que a versão ativa de produção não mudou.
 
 ## [1.0.0-rc.26] - 2026-08-13
 

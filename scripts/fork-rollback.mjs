@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { assertRollbackCheckpoint } from "./lib/fork-release.mjs";
 import { deploymentId } from "./lib/fork-bootstrap.mjs";
+import { buildWranglerChildEnvironment } from "./lib/wrangler-ci-env.mjs";
 
 const root = process.cwd();
 const staging = process.argv.includes("--staging");
@@ -28,8 +29,9 @@ if (!execute) {
 }
 
 const npx = process.platform === "win32" ? "npx.cmd" : "npx";
+const wranglerEnvironment = buildWranglerChildEnvironment(process.env);
 if (restoreD1) {
-  execFileSync(npx, ["wrangler", "d1", "time-travel", "restore", checkpoint.databaseName, "--bookmark", checkpoint.bookmark, "--json"], { cwd: root, stdio: "inherit", env: { ...process.env, CI: "1" } });
+  execFileSync(npx, ["wrangler", "d1", "time-travel", "restore", checkpoint.databaseName, "--bookmark", checkpoint.bookmark, "--json"], { cwd: root, stdio: "inherit", env: wranglerEnvironment });
 }
-execFileSync(npx, ["wrangler", "rollback", checkpoint.versionId, "--name", checkpoint.workerName, "--message", `Rollback SmartZap para ${checkpoint.fromRelease?.version || checkpoint.versionId}`, "-y"], { cwd: root, stdio: "inherit", env: { ...process.env, CI: "1" } });
+execFileSync(npx, ["wrangler", "rollback", checkpoint.versionId, "--name", checkpoint.workerName, "--message", `Rollback SmartZap para ${checkpoint.fromRelease?.version || checkpoint.versionId}`, "-y"], { cwd: root, stdio: "inherit", env: wranglerEnvironment });
 console.log("Rollback solicitado. Valide /setup, health, filas, DLQs, webhook e reconciliação antes de reabrir tráfego.");

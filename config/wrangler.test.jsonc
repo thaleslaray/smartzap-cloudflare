@@ -20,7 +20,7 @@
     "QA_STAGING_MUTATION_API_KEY": "dev-mutation-key",
     "META_APP_SECRET": "dev-meta-secret",
     "META_VERIFY_TOKEN": "dev-verify",
-    "WHATSAPP_TOKEN": "test-token",
+    "WHATSAPP_TOKEN": "test-whatsapp-token",
     "FLOW_PRIVATE_KEY": "",
     "FLOW_PUBLIC_KEY": "",
     "TURNSTILE_SECRET": "",

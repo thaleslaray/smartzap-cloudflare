@@ -56,7 +56,7 @@ describe("Meta Ads Insights", () => {
     const result = await fetchMetaAdInsights({
       token: "secret-token",
       graphVersion: "v26.0",
-      adAccountId: "100000000000003",
+      adAccountId: "708497467651098",
       since: "2026-08-08",
       until: "2026-08-09",
       fetcher,
@@ -81,7 +81,7 @@ describe("Meta Ads Insights", () => {
     const result = await fetchMetaAdInsights({
       token: "secret-token",
       graphVersion: "v25.0",
-      adAccountId: "100000000000003",
+      adAccountId: "708497467651098",
       since: "2026-08-08",
       until: "2026-08-08",
       fetcher: async () => Response.json({

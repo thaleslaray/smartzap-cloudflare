@@ -25,7 +25,7 @@ describe("contrato de envio simples", () => {
       { type: "BUTTONS", buttons: [
         { type: "QUICK_REPLY", text: "Confirmar" },
         { type: "URL", text: "Abrir", url: "https://example.com/{{1}}" },
-        { type: "PHONE_NUMBER", text: "Ligar", phone_number: "+5511999999999" },
+        { type: "PHONE_NUMBER", text: "Ligar", phone_number: "+5521982219966" },
       ] },
     ];
     expect(isSimpleTemplateSendContract(components)).toBe(true);
@@ -61,14 +61,14 @@ describe("matriz completa dos botões suportados", () => {
         url: "https://example.com/pedido/{{1}}",
         example: ["pedido-123"],
       },
-      { type: "PHONE_NUMBER", text: "Ligar", phone_number: "+5511999999999" },
+      { type: "PHONE_NUMBER", text: "Ligar", phone_number: "+5521982219966" },
     ])).toEqual([]);
   });
 
   it("aceita os grupos em ordem inversa sem intercalar", () => {
     expect(validateSimpleTemplateButtons([
       { type: "URL", text: "Site", url: "https://example.com" },
-      { type: "PHONE_NUMBER", text: "Ligar", phone_number: "+5511999999999" },
+      { type: "PHONE_NUMBER", text: "Ligar", phone_number: "+5521982219966" },
       { type: "QUICK_REPLY", text: "Sim" },
       { type: "QUICK_REPLY", text: "Não" },
     ])).toEqual([]);
@@ -109,7 +109,7 @@ describe("matriz completa dos botões suportados", () => {
       { type: "URL", text: "URL 2", url: "https://example.com/2" },
       { type: "URL", text: "URL 3", url: "https://example.com/3" },
       { type: "PHONE_NUMBER", text: "Fone 1", phone_number: "123" },
-      { type: "PHONE_NUMBER", text: "Fone 2", phone_number: "+5511999999999" },
+      { type: "PHONE_NUMBER", text: "Fone 2", phone_number: "+5521982219966" },
       { type: "FLOW", text: "Abrir" },
       ...Array.from({ length: 5 }, (_, index) => ({
         type: "QUICK_REPLY",

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildForkWrangler, classifyForkResources, deploymentId, deploymentResourceNames, parseCreatedD1Id, parseD1Databases, parseQueueNames, parseR2BucketNames } from "../scripts/lib/fork-bootstrap.mjs";
-import { assertRollbackCheckpoint, buildRollbackCheckpoint, parseActiveDeploymentVersion, parseTimeTravelBookmark } from "../scripts/lib/fork-release.mjs";
+import { assertOwnedQueueConsumer, buildForkWrangler, classifyForkResources, deploymentId, deploymentResourceNames, parseCreatedD1Id, parseD1Databases, parseQueueConsumers, parseQueueNames, parseR2BucketNames, queueConsumerSpecs } from "../scripts/lib/fork-bootstrap.mjs";
+import { assertRollbackCheckpoint, buildRollbackCheckpoint, isMissingWorkerError, parseActiveDeploymentVersion, parseTimeTravelBookmark } from "../scripts/lib/fork-release.mjs";
 import { assertSchemaTransition, validateForkMigrationManifest } from "../scripts/lib/fork-migrations.mjs";
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -42,6 +42,7 @@ describe("bootstrap fork-first", () => {
     expect(parsed.r2_buckets[0].bucket_name).toBe("smartzap-12ab34cd-staging-media");
     expect(parsed.workflows.map((item: { name: string }) => item.name)).toEqual(["smartzap-12ab34cd-staging-campaign-send", "smartzap-12ab34cd-staging-setup-health"]);
     expect(parsed.vars).toEqual(expect.objectContaining({ ENVIRONMENT: "staging", SMARTZAP_VERSION: "1.2.3-rc.1", SMARTZAP_COMMIT: "abc123", SMARTZAP_SCHEMA_VERSION: "7" }));
+    expect(parsed.env).toBeUndefined();
   });
 
   it("lê respostas D1 sem depender de IDs fixos", () => {
@@ -65,6 +66,26 @@ describe("bootstrap fork-first", () => {
     expect(parseQueueNames(table)).toEqual(["smartzap-12ab34cd-meta-webhooks", "smartzap-12ab34cd-meta-conversions"]);
   });
 
+  it("retoma consumidores de Queue somente quando pertencem ao Worker esperado", () => {
+    const names = deploymentResourceNames("smartzap-12ab34cd-staging");
+    expect(queueConsumerSpecs(names)).toEqual([
+      expect.objectContaining({ queue: names.webhookQueue, batchSize: 50, deadLetterQueue: names.webhookDlq }),
+      expect.objectContaining({ queue: names.automationQueue, maxRetries: 3, deadLetterQueue: names.automationDlq }),
+      expect.objectContaining({ queue: names.conversionQueue, maxRetries: 5 }),
+    ]);
+    const consumers = parseQueueConsumers(JSON.stringify([{
+      consumer_id: "consumer-1",
+      type: "worker",
+      script: names.worker,
+      settings: { batch_size: 50, max_retries: 5, max_wait_time_ms: 2000 },
+      dead_letter_queue: names.webhookDlq,
+    }]));
+    expect(assertOwnedQueueConsumer(names.webhookQueue, consumers, names.worker)).toEqual(expect.objectContaining({ id: "consumer-1", script: names.worker }));
+    expect(assertOwnedQueueConsumer(names.webhookQueue, [], names.worker)).toBeNull();
+    expect(() => assertOwnedQueueConsumer(names.webhookQueue, [{ ...consumers[0], script: "outro-worker" }], names.worker)).toThrow(/outro-worker/);
+    expect(() => assertOwnedQueueConsumer(names.webhookQueue, [{ ...consumers[0], type: "http_pull", script: "" }], names.worker)).toThrow(/http_pull/);
+  });
+
   it("bloqueia R2 ou Queue órfã antes de criar um D1", () => {
     const names = deploymentResourceNames("smartzap-12ab34cd");
     expect(() => classifyForkResources({ database: null, buckets: [names.media], queues: [], names })).toThrow(/sem o D1 reservado/);
@@ -82,6 +103,16 @@ describe("bootstrap fork-first", () => {
     expect(assertRollbackCheckpoint(checkpoint, "smartzap-12ab34cd")).toEqual(expect.objectContaining({ bookmark, versionId }));
     expect(JSON.stringify(checkpoint)).not.toMatch(/password|vault|token/i);
     expect(() => assertRollbackCheckpoint(checkpoint, "smartzap-deadbeef")).toThrow(/não pertence/);
+  });
+
+  it("distingue uma instalação retomável sem Worker de falhas reais da Cloudflare", () => {
+    expect(isMissingWorkerError({
+      stderr: "Worker does not exist [code: 10007]",
+      message: "Command failed: wrangler deployments list",
+    })).toBe(true);
+    expect(isMissingWorkerError({ stderr: "Worker does not exist" })).toBe(false);
+    expect(isMissingWorkerError({ stderr: "Authentication error [code: 10000]" })).toBe(false);
+    expect(isMissingWorkerError(new Error("network timeout"))).toBe(false);
   });
 
   it("valida a cadeia real de migration e bloqueia checksum divergente antes do deploy", () => {

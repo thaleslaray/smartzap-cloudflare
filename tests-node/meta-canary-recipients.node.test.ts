@@ -18,7 +18,7 @@ describe("destinatários do canário Meta", () => {
     expect(
       resolveExistingMetaCanaryContact(
         { name: "Contato real", status: "opt_in" },
-        "+5511 *****-9999",
+        "+5521 *****-9966",
         false,
       ),
     ).toEqual({ temporaryOptInRequired: false, originalStatus: "opt_in" });
@@ -28,7 +28,7 @@ describe("destinatários do canário Meta", () => {
     expect(() =>
       resolveExistingMetaCanaryContact(
         { name: "Contato real", status: "opt_out" },
-        "+5511 *****-9999",
+        "+5521 *****-9966",
         false,
       ),
     ).toThrow(/sem opt-in comprovado/);
@@ -40,7 +40,7 @@ describe("destinatários do canário Meta", () => {
       expect(
         resolveExistingMetaCanaryContact(
           { name: "Contato real", status },
-          "+5511 *****-9999",
+          "+5521 *****-9966",
           true,
         ),
       ).toEqual({ temporaryOptInRequired: true, originalStatus: status });
@@ -51,7 +51,7 @@ describe("destinatários do canário Meta", () => {
     expect(() =>
       resolveExistingMetaCanaryContact(
         { name: "Contato real", status: "suppressed" },
-        "+5511 *****-9999",
+        "+5521 *****-9966",
         true,
       ),
     ).toThrow(/suprimido/);

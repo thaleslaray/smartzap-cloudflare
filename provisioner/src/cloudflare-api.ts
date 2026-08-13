@@ -263,8 +263,8 @@ export class CloudflareApi {
   }
 
   private async fetchRelease(url: URL, expectedSha256: string): Promise<Response> {
-    if (this.releaseBucket && url.pathname.startsWith("/release/")) {
-      const key = url.pathname.slice("/release/".length);
+    const key = releaseObjectKey(url);
+    if (this.releaseBucket && key) {
       const object = await this.releaseBucket.get(key);
       if (!object) throw new Error(`Artefato indisponível: ${url.pathname}`);
       const bytes = new Uint8Array(await object.arrayBuffer());
@@ -273,6 +273,28 @@ export class CloudflareApi {
     }
     return fetchVerified(url, expectedSha256);
   }
+}
+
+export function releaseObjectKey(url: URL): string | undefined {
+  const marker = "/release/";
+  const offset = url.pathname.indexOf(marker);
+  if (offset < 0) return undefined;
+  const encodedKey = url.pathname.slice(offset + marker.length);
+  if (!encodedKey) return undefined;
+
+  let key: string;
+  try {
+    key = decodeURIComponent(encodedKey);
+  } catch {
+    return undefined;
+  }
+
+  const segments = key.split("/");
+  return !key.startsWith("files/")
+    || !/^[A-Za-z0-9._/-]+$/.test(key)
+    || segments.some((segment) => segment === "" || segment === "." || segment === "..")
+    ? undefined
+    : key;
 }
 
 export async function exchangeOAuthCode(input: {
@@ -343,7 +365,7 @@ export function buildWorkerMetadata(input: {
     compatibility_flags: release.compatibilityFlags,
     annotations: { "workers/message": `SmartZap ${release.version}`, "workers/tag": release.version },
     ...(assetsJwt ? { assets: { jwt: assetsJwt, config: { not_found_handling: "single-page-application", run_worker_first: ["/api/*", "/webhook"] } } } : {}),
-    bindings: workerBindings(names, databaseId, secrets),
+    bindings: workerBindings(names, databaseId, secrets, release),
     migrations: {
       new_tag: "v1",
       new_sqlite_classes: ["RealtimeHub", "PhoneThrottle"],
@@ -351,7 +373,12 @@ export function buildWorkerMetadata(input: {
   };
 }
 
-function workerBindings(names: InstallationNames, databaseId: string, secrets: { masterPassword: string; vaultKey: string }): unknown[] {
+function workerBindings(
+  names: InstallationNames,
+  databaseId: string,
+  secrets: { masterPassword: string; vaultKey: string },
+  release: SmartZapReleaseManifest,
+): unknown[] {
   const vars: Record<string, string> = {
     ENVIRONMENT: "production",
     SETUP_REQUIRED: "true",
@@ -368,6 +395,10 @@ function workerBindings(names: InstallationNames, databaseId: string, secrets: {
     INBOX_AUTOMATION_ENABLED: "false",
     AUTOMATION_QUEUE_NAME: names.automationQueue,
     CAPI_QUEUE_NAME: names.conversionQueue,
+    SMARTZAP_VERSION: release.version,
+    SMARTZAP_COMMIT: release.commitSha,
+    SMARTZAP_SCHEMA_VERSION: String(release.databaseSchemaVersion),
+    SMARTZAP_RELEASE_CHANNEL: release.channel,
   };
   return [
     ...Object.entries(vars).map(([name, text]) => ({ name, type: "plain_text", text })),

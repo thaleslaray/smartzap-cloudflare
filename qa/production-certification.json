@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "kind": "smartzap-production-certification-spec",
+  "catalog": "jornada.md",
+  "release": {
+    "sourceCommit": "8071c4499ab29f6f52065397ea50dc983de68117",
+    "productionVersion": "8c64633b-f6af-4b00-9b00-66e4cb3b2cb7",
+    "productionUrl": "https://smartzap-cf.thales2581.workers.dev"
+  },
+  "evidence": {
+    "preflight": "qa/reports/AUTOQA_20260808_FINAL_807_PREFLIGHT/report.json",
+    "unit": "qa/reports/AUTOQA_20260808_FINAL_807_UNIT/report.json",
+    "contract": "qa/reports/AUTOQA_20260808_FINAL_807_CONTRACT/report.json",
+    "e2e-matrix": "qa/reports/AUTOQA_20260808_FINAL_807_E2E/report.json",
+    "visual": "qa/reports/AUTOQA_20260808_FINAL_807_VISUAL/report.json",
+    "production-routes": "qa/reports/AUTOQA_20260808_FINAL_807_PROD_ROUTES/playwright-results.json",
+    "production-meta-ui": "qa/reports/AUTOQA_20260808_FINAL_807_PROD_META_UI/playwright-results.json",
+    "production-health-1": "qa/reports/AUTOQA_20260808_FINAL_807_PROD_HEALTH_1/remote-health.json",
+    "production-health-2": "qa/reports/AUTOQA_20260808_FINAL_807_PROD_HEALTH_2/remote-health.json",
+    "production-health-3": "qa/reports/AUTOQA_20260808_FINAL_807_PROD_HEALTH_3/remote-health.json",
+    "meta-canary": "qa/reports/AUTOQA_META_20260805T205931Z_d097cf3/meta-canary.json",
+    "ai-eval": "qa/reports/AUTOQA_AI_20260805165213_5a061319/ai-eval.json",
+    "ai-human-calibration": null,
+    "miniapps-stress": "qa/reports/AUTOQA_MINI_STRESS_1785948489435/miniapps-stress.json",
+    "projects-stress": "qa/reports/AUTOQA_PROJECT_STRESS_1785948665929/template-projects-stress.json",
+    "cleanup": "qa/reports/AUTOQA_20260808_FINAL_807_CLEANUP/cleanup.json",
+    "rollback": "qa/reports/AUTOQA_20260808_CAPI_ROLLBACK/rollback-drill.json",
+    "meta-bsuid": "qa/reports/AUTOQA_META_BSUID_20260809_RELEASE_807_READ_2/meta-bsuid-attestation.json",
+    "soak-14-days": "qa/reports/AUTOQA_SOAK_FINAL_20260813_RETEST2/soak-attestation.json",
+    "manual-accessibility": null,
+    "backup-restore": "qa/reports/AUTOQA_20260808_FINAL_807_BACKUP/backup-restore-attestation.json",
+    "security-isolation": "qa/reports/AUTOQA_20260808_FINAL_807_SECURITY/security-isolation-attestation.json",
+    "release-risk": null
+  }
+}

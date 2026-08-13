@@ -10,12 +10,20 @@ import {
   deploymentId,
   deploymentResourceNames,
   parseD1Databases,
+  parseQueueConsumers,
   parseQueueNames,
+  queueConsumerSpecs,
+  assertOwnedQueueConsumer,
 } from "./lib/fork-bootstrap.mjs";
-import { buildRollbackCheckpoint, parseActiveDeploymentVersion, parseTimeTravelBookmark } from "./lib/fork-release.mjs";
+import { buildRollbackCheckpoint, isMissingWorkerError, parseActiveDeploymentVersion, parseTimeTravelBookmark } from "./lib/fork-release.mjs";
 import { assertSchemaTransition, validateForkMigrationManifest } from "./lib/fork-migrations.mjs";
 import { INSTALL_GUARD_TABLE, parseWranglerRows } from "./lib/deploy-safety.mjs";
 import { assertSafeDeployArtifact } from "./lib/artifact-safety.mjs";
+import {
+  assertWranglerDeployIdentity,
+  buildWranglerChildEnvironment,
+  parseWranglerDeployOutput,
+} from "./lib/wrangler-ci-env.mjs";
 
 const root = process.cwd();
 const staging = process.argv.includes("--staging");
@@ -40,7 +48,7 @@ function runWrangler(args, options = {}) {
   return execFileSync(process.platform === "win32" ? "npx.cmd" : "npx", ["wrangler", ...args], {
     cwd: root,
     encoding: "utf8",
-    env: { ...process.env, CI: "1" },
+    env: buildWranglerChildEnvironment(process.env, options.environment),
     stdio: options.visible ? ["ignore", "inherit", "inherit"] : ["ignore", "pipe", "pipe"],
   });
 }
@@ -112,6 +120,51 @@ function ensureR2AndQueues(inventory) {
   for (const queue of inventory.requiredQueues) if (!existingQueues.has(queue)) runWrangler(["queues", "create", queue], { visible: true });
 }
 
+function inspectOwnedQueueConsumers() {
+  return queueConsumerSpecs(names).map((spec) => {
+    const consumers = parseQueueConsumers(runWrangler(["queues", "consumer", "list", spec.queue, "--json"]));
+    return { spec, consumer: assertOwnedQueueConsumer(spec.queue, consumers, workerName) };
+  });
+}
+
+function detachOwnedQueueConsumers(reconciliation) {
+  for (const { spec, consumer } of reconciliation) {
+    if (!consumer) continue;
+    console.log(`Retomada idempotente: removendo temporariamente o consumidor próprio de ${spec.queue}.`);
+    runWrangler(["queues", "consumer", "worker", "remove", spec.queue, workerName], { visible: true });
+  }
+}
+
+function addQueueConsumer(spec) {
+  const args = [
+    "queues", "consumer", "worker", "add", spec.queue, workerName,
+    "--batch-size", String(spec.batchSize),
+    "--batch-timeout", String(spec.batchTimeout),
+    "--message-retries", String(spec.maxRetries),
+  ];
+  if (spec.deadLetterQueue) args.push("--dead-letter-queue", spec.deadLetterQueue);
+  runWrangler(args, { visible: true });
+}
+
+function restoreQueueConsumersAfterFailure() {
+  const failures = [];
+  for (const spec of queueConsumerSpecs(names)) {
+    try {
+      const consumers = parseQueueConsumers(runWrangler(["queues", "consumer", "list", spec.queue, "--json"]));
+      const consumer = assertOwnedQueueConsumer(spec.queue, consumers, workerName);
+      if (!consumer) {
+        console.error(`Recuperação: restaurando consumidor de ${spec.queue} após falha no deploy.`);
+        addQueueConsumer(spec);
+      }
+    } catch (error) {
+      failures.push(`${spec.queue}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(`Não foi possível restaurar todos os consumidores após a falha: ${failures.join(" | ")}`);
+  }
+}
+
 function writeMigrationSet() {
   const baseline = readFileSync(resolve(root, "provisioner", "baseline", "0001_fresh_install.sql"), "utf8");
   const baselineHash = createHash("sha256").update(baseline).digest("hex");
@@ -145,8 +198,15 @@ function captureRollbackCheckpoint(d1Created) {
     channel: currentRow.channel,
   };
   if (current.version === version && current.commit === commit && String(current.schemaVersion) === schemaVersion) return null;
+  let versionId;
+  try {
+    versionId = parseActiveDeploymentVersion(runWrangler(["deployments", "list", "--name", workerName, "--json"]));
+  } catch (error) {
+    if (!isMissingWorkerError(error)) throw error;
+    console.log(`Retomada segura: ${workerName} ainda não possui runtime; não há versão anterior para checkpoint.`);
+    return null;
+  }
   const bookmark = parseTimeTravelBookmark(runWrangler(["d1", "time-travel", "info", names.database, "--json"]));
-  const versionId = parseActiveDeploymentVersion(runWrangler(["deployments", "list", "--name", workerName, "--json"]));
   const checkpoint = buildRollbackCheckpoint({ workerName, databaseName: names.database, bookmark, versionId, fromRelease: current, toRelease: release });
   mkdirSync(checkpointsDirectory, { recursive: true });
   const checkpointPath = join(checkpointsDirectory, `${workerName}-${Date.now()}.json`);
@@ -187,14 +247,31 @@ function applyMigrations() {
 function deploy() {
   assertSafeDeployArtifact(resolve(root, "dist"));
   const secretPath = join(tmpdir(), `smartzap-secrets-${crypto.randomUUID()}.json`);
+  const outputPath = join(tmpdir(), `smartzap-deploy-${crypto.randomUUID()}.json`);
   try {
     const secretValues = Object.fromEntries(
       ["MASTER_PASSWORD", "SMARTZAP_VAULT_KEY"].map((name) => [name, process.env[name]]),
     );
     writeFileSync(secretPath, JSON.stringify(secretValues), { mode: 0o600 });
-    runWrangler(["deploy", "--config", configPath, "--secrets-file", secretPath, "--keep-vars", "--message", `SmartZap ${version} (${commit.slice(0, 12)})`, "--tag", version.replace(/[^a-zA-Z0-9_-]/g, "-")], { visible: true });
+    if (process.env.WRANGLER_CI_OVERRIDE_NAME && process.env.WRANGLER_CI_OVERRIDE_NAME !== workerName) {
+      console.log(`Override de nome do Workers Builds neutralizado; alvo autorizado: ${workerName}.`);
+    }
+    const consumers = inspectOwnedQueueConsumers();
+    try {
+      detachOwnedQueueConsumers(consumers);
+      runWrangler(["deploy", "--name", workerName, "--config", configPath, "--secrets-file", secretPath, "--keep-vars", "--message", `SmartZap ${version} (${commit.slice(0, 12)})`, "--tag", version.replace(/[^a-zA-Z0-9_-]/g, "-")], {
+        visible: true,
+        environment: { WRANGLER_OUTPUT_FILE_PATH: outputPath },
+      });
+    } catch (error) {
+      restoreQueueConsumersAfterFailure();
+      throw error;
+    }
+    const deployed = assertWranglerDeployIdentity(parseWranglerDeployOutput(readFileSync(outputPath, "utf8")), workerName);
+    console.log(`Identidade do deploy confirmada: ${deployed.worker_name} @ ${deployed.version_id}.`);
   } finally {
     rmSync(secretPath, { force: true });
+    rmSync(outputPath, { force: true });
   }
 }
 

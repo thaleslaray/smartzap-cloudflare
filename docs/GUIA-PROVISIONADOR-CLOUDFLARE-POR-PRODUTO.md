@@ -1,12 +1,17 @@
-# Guia completo: instaladores de sistemas na Cloudflare por OAuth
+# Guia completo: instalar sistemas na Cloudflare
 
 > Documento autônomo para equipes e agentes que nunca viram o SmartZap nem o provisionador atual.
 >
-> Última revisão: 12/08/2026. Antes de implementar, confira novamente a documentação oficial da Cloudflare indicada no final deste guia, pois APIs, escopos e limitações podem mudar.
+> Última revisão: 13/08/2026. Antes de implementar, confira novamente a documentação oficial da Cloudflare indicada no final deste guia, pois APIs, escopos e limitações podem mudar.
 
 ## 1. Objetivo
 
-Este guia explica como oferecer um instalador web no formato:
+Este guia explica dois modelos complementares de distribuição:
+
+1. **fork próprio**, recomendado para produção autogerenciada, no qual o usuário recebe o código, conecta o repositório ao Workers Builds e controla cada atualização;
+2. **instalação rápida por OAuth**, adequada para avaliação ou versão fixa, na qual o provisionador cria os recursos sem GitHub ou terminal.
+
+No modelo rápido, o fluxo é:
 
 ```text
 Usuário abre o portal
@@ -19,7 +24,7 @@ Usuário abre o portal
   → conclui a configuração do produto
 ```
 
-O usuário final não precisa:
+No modelo rápido, o usuário final não precisa:
 
 - fornecer API Token;
 - clonar um repositório;
@@ -28,7 +33,17 @@ O usuário final não precisa:
 - criar manualmente D1, R2, Queues, Workflows ou Worker;
 - entregar credenciais Cloudflare à equipe do produto.
 
-O modelo foi comprovado inicialmente no SmartZap, mas a arquitetura serve para outros sistemas implantados em infraestrutura Cloudflare.
+No modelo com fork, GitHub ou GitLab e Workers Builds fazem parte deliberadamente do fluxo porque o proprietário assume manutenção, customizações, homologação e publicação. O modelo foi comprovado inicialmente no SmartZap, mas a arquitetura serve para outros sistemas implantados em infraestrutura Cloudflare.
+
+### 1.1 Escolha do modelo e responsabilidade
+
+| Modelo | Código do cliente | Atualizações | Responsável por revisar e publicar |
+|---|---|---|---|
+| Fork próprio | Fork na conta Git do proprietário | Pull request opcional a partir de release oficial assinada | Proprietário do fork |
+| Instalação rápida OAuth | Release imutável instalada sem repositório | Não incluídas; a versão permanece fixa | Proprietário da instalação |
+| Serviço gerenciado | Definido em contrato separado | Conforme contrato | Prestador contratado |
+
+Uma nova release do publicador nunca deve alterar automaticamente uma instalação de terceiro. No fork, a automação pode **propor** uma atualização, mas não pode resolver conflitos, fazer merge, migrar o banco ou publicar produção. Na instalação rápida, atualizar exige uma operação futura explícita ou uma migração deliberada para fork.
 
 ## 2. A decisão mais importante
 
@@ -77,6 +92,8 @@ Não reutilize o cliente `SmartZap Provisioner` em outro sistema.
 ```text
 https://instalar.exemplo.com/
 ├── /produto-a/
+│   ├── fork/
+│   ├── quick/
 │   ├── oauth/start
 │   ├── oauth/callback
 │   ├── api/session
@@ -553,6 +570,31 @@ Depois que o baseline for publicado:
 - o D1 registra o nome e checksum aplicados;
 - checksum divergente bloqueia a instalação.
 
+### 12.1 Fork, Workers Builds e atualizações
+
+O fork próprio e a instalação rápida podem compartilhar os mesmos artefatos assinados, mas possuem ciclos de manutenção diferentes.
+
+No modelo com fork:
+
+1. o usuário cria um fork verdadeiro do repositório oficial;
+2. conecta esse fork ao Cloudflare Workers Builds;
+3. configura o comando de build e os comandos de deploy de produção e de branches não produtivas;
+4. mantém produção ligada à branch `main` do próprio fork;
+5. recebe atualizações oficiais por uma branch ou pull request revisável;
+6. testa migrations e runtime em staging físico antes do merge;
+7. decide quando publicar e mantém o próprio plano de rollback.
+
+A integração Git da Cloudflare precisa ser autorizada uma vez na conta GitHub ou GitLab do proprietário. Ao conectar um repositório a um Worker existente, o nome do Worker deve permanecer compatível com o `name` da configuração Wrangler. Branches de proposta não devem promover tráfego produtivo; use upload de versão ou validação sem deploy até a aprovação.
+
+No modelo rápido:
+
+- o provisionador instala exatamente a versão declarada no manifesto;
+- não cria nem conecta um repositório Git;
+- não acompanha `latest`;
+- não recebe atualização automática;
+- uma release futura não muda o Worker instalado;
+- a migração para fork deve preservar dados, secrets e rollback de forma explícita, sem tratar nomes semelhantes como prova de propriedade.
+
 ## 13. Plano somente leitura
 
 Antes de criar qualquer recurso, `POST /api/plan` deve:
@@ -695,6 +737,8 @@ Credenciais de terceiros não devem passar pelo Worker central do provisionador 
 
 ```text
 GET  /<produto>/                  interface
+GET  /<produto>/fork/            instalação autogerenciada com código próprio
+GET  /<produto>/quick/           instalação rápida de versão fixa
 GET  /<produto>/logo.svg         identidade OAuth
 GET  /<produto>/health           saúde pública
 GET  /<produto>/oauth/start      inicia Authorization Code + PKCE
@@ -728,6 +772,9 @@ Respostas de sessão nunca devem conter tokens. Respostas de erro devem remover 
 - rollback na ordem correta;
 - sanitização de erros;
 - revogação de OAuth.
+- separação entre fork e sessão OAuth rápida;
+- ausência de promessa de atualização automática;
+- proposta de atualização sem merge, migration ou deploy automático.
 
 ### 20.2 Navegador
 
@@ -763,6 +810,8 @@ Cubra:
 - release e versão instaladas;
 - setup real do produto.
 
+Para o fork, acrescente uma instalação real via Workers Builds, uma proposta de atualização limpa, uma customização sem conflito, um conflito intencional, staging separado e rollback para a versão anterior. Um build verde sem deploy físico não comprova manutenção nem atualização.
+
 ### 20.4 Critério de homologação pública
 
 Não divulgue “instalação em um clique” enquanto não houver evidência de:
@@ -779,6 +828,17 @@ Não divulgue “instalação em um clique” enquanto não houver evidência de
 - rollback ensaiado.
 
 ## 21. Checklist para um novo produto
+
+### Distribuição e manutenção
+
+- [ ] fork próprio e instalação rápida claramente separados;
+- [ ] modelo recomendado declarado;
+- [ ] responsabilidades de manutenção sem ambiguidade;
+- [ ] versão rápida fixa e visível;
+- [ ] integração Git autorizada pelo proprietário;
+- [ ] atualização somente por PR revisável;
+- [ ] staging e rollback antes de produção;
+- [ ] nenhuma promessa de merge, migration ou deploy automático.
 
 ### Produto e rotas
 
@@ -867,25 +927,30 @@ Não divulgue “instalação em um clique” enquanto não houver evidência de
 - Não trate “API respondeu 200” como instalação funcional.
 - Não entregue dezenas de migrações históricas a um banco novo; gere um baseline final.
 - Não publique o selo de instalação simples sem teste físico em conta externa.
+- Não chame cópia independente, Deploy Button ou repositório renomeado de fork verificável.
+- Não prometa atualização automática para uma instalação rápida de versão fixa.
+- Não faça merge, migration ou deploy de produção no fork de terceiros sem ação explícita do proprietário.
 
 ## 23. Modelo de handoff para outro time ou agente
 
 Copie o texto abaixo junto com este documento:
 
 ```text
-Implemente um instalador Cloudflare OAuth para o sistema <NOME>, seguindo integralmente o guia “Guia completo: instaladores de sistemas na Cloudflare por OAuth”.
+Implemente a distribuição Cloudflare do sistema <NOME>, seguindo integralmente o guia “Guia completo: instalar sistemas na Cloudflare”.
 
 Você não possui contexto prévio. Antes de editar:
 1. inventarie o produto, sua infraestrutura Cloudflare e seus secrets;
 2. consulte a documentação oficial atual da Cloudflare;
 3. derive os escopos a partir das chamadas reais;
-4. crie rota, OAuth client, callback, cookie, release, ledger e homologação exclusivos;
-5. preserve o portal compartilhado e não altere os instaladores existentes;
-6. implemente plano read-only, instalação idempotente, rollback e revogação;
-7. teste primeiro como cliente privado e só proponha promoção pública após DNS Verified;
-8. nunca exponha ou registre credenciais;
-9. execute testes locais e físicos, corrigindo e repetindo até passar;
-10. entregue evidências exatas, pendências e rollback.
+4. ofereça fork próprio como modelo autogerenciado e instalação OAuth rápida somente quando ambos fizerem sentido para o produto;
+5. crie rota, OAuth client, callback, cookie, release, ledger e homologação exclusivos;
+6. preserve o portal compartilhado e não altere os instaladores existentes;
+7. implemente plano read-only, instalação idempotente, rollback e revogação;
+8. teste primeiro como cliente privado e só proponha promoção pública após DNS Verified;
+9. nunca exponha ou registre credenciais;
+10. execute testes locais e físicos, corrigindo e repetindo até passar;
+11. não atualize instalações de terceiros automaticamente; no fork, apenas proponha PR revisável;
+12. entregue evidências exatas, pendências e rollback.
 
 Não reutilize o OAuth client de outro produto. Não afirme que está pronto apenas porque compilou ou porque uma API respondeu 200.
 ```
@@ -901,6 +966,9 @@ Não reutilize o OAuth client de outro produto. Não afirme que está pronto ape
 - [Secrets em Workers](https://developers.cloudflare.com/workers/configuration/secrets/)
 - [Importação, exportação e limitações do D1](https://developers.cloudflare.com/d1/best-practices/import-export-data/)
 - [Referência da API Cloudflare](https://developers.cloudflare.com/api/)
+- [Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/)
+- [Integração Git do Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/git-integration/)
+- [Configuração de builds e branches](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/)
 
 ## 25. Exemplo concreto: SmartZap
 
@@ -909,10 +977,14 @@ O SmartZap usa atualmente:
 ```text
 Portal:        https://instalar.escoladeautomacao.com/
 Produto:       https://instalar.escoladeautomacao.com/smartzap/
+Fork próprio:  https://instalar.escoladeautomacao.com/smartzap/fork/
+Versão fixa:   https://instalar.escoladeautomacao.com/smartzap/quick/
 OAuth client:  SmartZap Provisioner
 Callback:      https://instalar.escoladeautomacao.com/smartzap/oauth/callback
 Logo:          https://instalar.escoladeautomacao.com/smartzap/logo.svg
 Cookie path:   /smartzap
 ```
 
-Esse cliente OAuth pertence somente ao SmartZap. Um novo sistema deve seguir o mesmo contrato de arquitetura, mas receber identidade, permissões, sessão, release, ledger e homologação próprios.
+O SmartZap recomenda o fork próprio para produção autogerenciada. A rota rápida instala uma release imutável, não cria GitHub e não inclui atualizações automáticas. A interface deve sempre ler e mostrar a versão exata do manifesto, sem depender deste texto.
+
+Esse cliente OAuth pertence somente ao SmartZap e atende apenas a modalidade rápida. O fork não reutiliza a sessão OAuth do provisionador. Um novo sistema deve seguir o mesmo contrato de arquitetura, mas receber identidade, permissões, sessão, release, ledger e homologação próprios.

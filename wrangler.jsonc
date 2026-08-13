@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "smartzap",
+  "name": "smartzap-cf",
   "main": "src/index.ts",
   "compatibility_date": "2026-08-09",
   "compatibility_flags": ["nodejs_compat"],
@@ -13,6 +13,9 @@
   "observability": { "enabled": true },
   "dev": { "inspector_port": 9230 },
   "ai": { "binding": "AI", "remote": true },
+  // O plugin Vite atual ainda exige um nome padrão; o Deploy to Cloudflare
+  // permite personalizá-lo e o módulo permanece desligado até o usuário ativar IA.
+  "ai_search_namespaces": [{ "binding": "AI_SEARCH", "namespace": "smartzap" }],
   // Em dev/test o .dev.vars sobrescreve com ENVIRONMENT=development
   "vars": {
     "ENVIRONMENT": "production",
@@ -27,28 +30,30 @@
     "AI_MAX_DRAFTS_PER_DAY": "200",
     "FLOW_DATA_API_VERSION": "3.0",
     "INBOX_SEND_ENABLED": "true",
-    "INBOX_AUTOMATION_ENABLED": "false"
+    "INBOX_AUTOMATION_ENABLED": "false",
+    "AUTOMATION_QUEUE_NAME": "inbox-automation",
+    "CAPI_QUEUE_NAME": "meta-conversions"
   },
   // O instalador solicita somente os dois segredos que não podem viver no D1.
   // Meta, IA, calendário e demais integrações são cadastrados depois em /setup.
   "secrets": { "required": [
     "MASTER_PASSWORD", "SMARTZAP_VAULT_KEY"
   ] },
-  "d1_databases": [{ "binding": "DB", "database_name": "smartzap-db", "migrations_dir": "migrations" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "smartzap", "migrations_dir": "migrations" }],
   "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "smartzap-media" }],
   "queues": {
     "producers": [
-      { "binding": "WEBHOOK_QUEUE", "queue": "smartzap-meta-webhooks" },
-      { "binding": "AUTOMATION_QUEUE", "queue": "smartzap-inbox-automation" },
-      { "binding": "CAPI_QUEUE", "queue": "smartzap-meta-conversions" },
-      { "binding": "CAPI_DLQ", "queue": "smartzap-meta-conversions-dlq" },
-      { "binding": "WEBHOOK_DLQ", "queue": "smartzap-meta-webhooks-dlq" },
-      { "binding": "AUTOMATION_DLQ", "queue": "smartzap-inbox-automation-dlq" }
+      { "binding": "WEBHOOK_QUEUE", "queue": "meta-webhooks" },
+      { "binding": "AUTOMATION_QUEUE", "queue": "inbox-automation" },
+      { "binding": "CAPI_QUEUE", "queue": "meta-conversions" },
+      { "binding": "CAPI_DLQ", "queue": "meta-conversions-dlq" },
+      { "binding": "WEBHOOK_DLQ", "queue": "meta-webhooks-dlq" },
+      { "binding": "AUTOMATION_DLQ", "queue": "inbox-automation-dlq" }
     ],
     "consumers": [
-      { "queue": "smartzap-meta-webhooks", "max_batch_size": 50, "max_batch_timeout": 2, "max_retries": 5, "dead_letter_queue": "smartzap-meta-webhooks-dlq" },
-      { "queue": "smartzap-inbox-automation", "max_batch_size": 10, "max_batch_timeout": 2, "max_retries": 3, "dead_letter_queue": "smartzap-inbox-automation-dlq" },
-      { "queue": "smartzap-meta-conversions", "max_batch_size": 10, "max_batch_timeout": 2, "max_retries": 5 }
+      { "queue": "meta-webhooks", "max_batch_size": 50, "max_batch_timeout": 2, "max_retries": 5, "dead_letter_queue": "meta-webhooks-dlq" },
+      { "queue": "inbox-automation", "max_batch_size": 10, "max_batch_timeout": 2, "max_retries": 3, "dead_letter_queue": "inbox-automation-dlq" },
+      { "queue": "meta-conversions", "max_batch_size": 10, "max_batch_timeout": 2, "max_retries": 5 }
     ]
   },
   "workflows": [

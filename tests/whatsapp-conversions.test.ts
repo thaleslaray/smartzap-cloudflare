@@ -13,17 +13,17 @@ describe("CAPI for Business Messaging", () => {
       graphVersion: "v26.0",
       fetcher,
     });
-    await expect(client.getDataset("100000000000006")).resolves.toEqual({
+    await expect(client.getDataset("159711717233997")).resolves.toEqual({
       ok: true,
       datasetId: "555555555555555",
     });
-    await expect(client.createDataset("100000000000006")).resolves.toEqual({
+    await expect(client.createDataset("159711717233997")).resolves.toEqual({
       ok: true,
       datasetId: "555555555555555",
     });
     expect(fetcher.mock.calls.map(([url, init]) => [String(url), init?.method])).toEqual([
-      ["https://graph.facebook.com/v26.0/100000000000006/dataset", "GET"],
-      ["https://graph.facebook.com/v26.0/100000000000006/dataset", "POST"],
+      ["https://graph.facebook.com/v26.0/159711717233997/dataset", "GET"],
+      ["https://graph.facebook.com/v26.0/159711717233997/dataset", "POST"],
     ]);
     expect(fetcher.mock.calls[0][1]?.headers).toMatchObject({
       authorization: "Bearer secret-token",
@@ -44,7 +44,7 @@ describe("CAPI for Business Messaging", () => {
       eventId: "sz_1234567890abcdef",
       eventName: "Purchase",
       eventTime: 1_786_000_000,
-      wabaId: "100000000000006",
+      wabaId: "159711717233997",
       ctwaClid: "click-id-123",
       valueMinor: 12990,
       currency: "BRL",
@@ -63,7 +63,7 @@ describe("CAPI for Business Messaging", () => {
       action_source: "business_messaging",
       messaging_channel: "whatsapp",
       user_data: {
-        whatsapp_business_account_id: "100000000000006",
+        whatsapp_business_account_id: "159711717233997",
         ctwa_clid: "click-id-123",
       },
       custom_data: { value: 129.9, currency: "BRL" },
@@ -81,7 +81,7 @@ describe("CAPI for Business Messaging", () => {
     });
     await expect(temporary.sendEvent({
       datasetId: "555555555555555", eventId: "event-temporary-1234",
-      eventName: "LeadSubmitted", eventTime: 1, wabaId: "100000000000006",
+      eventName: "LeadSubmitted", eventTime: 1, wabaId: "159711717233997",
       ctwaClid: "clid",
     })).resolves.toMatchObject({
       outcome: "temporary_failed", code: "613", retryAfterSeconds: 45,
@@ -95,7 +95,7 @@ describe("CAPI for Business Messaging", () => {
     });
     await expect(permanent.sendEvent({
       datasetId: "555555555555555", eventId: "event-permanent-1234",
-      eventName: "QualifiedLead", eventTime: 1, wabaId: "100000000000006",
+      eventName: "QualifiedLead", eventTime: 1, wabaId: "159711717233997",
       ctwaClid: "clid",
     })).resolves.toMatchObject({
       outcome: "permanent_failed", code: "100", subcode: "33",
@@ -107,7 +107,7 @@ describe("CAPI for Business Messaging", () => {
     });
     await expect(unknown.sendEvent({
       datasetId: "555555555555555", eventId: "event-unknown-1234",
-      eventName: "LeadSubmitted", eventTime: 1, wabaId: "100000000000006",
+      eventName: "LeadSubmitted", eventTime: 1, wabaId: "159711717233997",
       ctwaClid: "clid",
     })).resolves.toMatchObject({ outcome: "unknown", httpStatus: 0 });
   });
