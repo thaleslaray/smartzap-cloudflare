@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { settingsDb } from "../db/settings";
 import { contactsDb } from "../db/contacts";
-import { getCredentials } from "../whatsapp/credentials";
+import { getCredentials, getMetaSecrets } from "../whatsapp/credentials";
 import { whatsappClient } from "../whatsapp/client";
 import { templatesDb } from "../db/templates";
 import { probeMeta } from "../whatsapp/health";
@@ -328,11 +328,12 @@ export const settingsRoutes = new Hono<{ Bindings: Env }>()
   })
   .get("/", async (c) => {
     const s = settingsDb(c.env.DB);
+    const meta = await getMetaSecrets(c.env).catch(() => null);
     return c.json({
       // Token NUNCA sai da API — nem prefixo; só o fato de existir
-      whatsapp_token: { configured: Boolean(c.env.WHATSAPP_TOKEN) },
-      meta_app_id: c.env.META_APP_ID || null,
-      meta_app_secret: { configured: Boolean(c.env.META_APP_SECRET) },
+      whatsapp_token: { configured: Boolean(meta?.token) },
+      meta_app_id: meta?.appId || null,
+      meta_app_secret: { configured: Boolean(meta?.appSecret) },
       whatsapp_phone_id: await s.get("whatsapp_phone_id"),
       whatsapp_waba_id: await s.get("whatsapp_waba_id"),
       throttle_mps: await s.get("throttle_mps"),
@@ -362,8 +363,9 @@ export const settingsRoutes = new Hono<{ Bindings: Env }>()
     );
     const metaProbe = credentials?.wabaId ? await probeMeta(credentials) : null;
     const metaLive = metaProbe?.ok ?? false;
+    const metaSecrets = await getMetaSecrets(c.env).catch(() => null);
     const webhookSecretsConfigured = Boolean(
-      c.env.META_APP_SECRET && c.env.META_VERIFY_TOKEN,
+      metaSecrets?.appSecret && metaSecrets.verifyToken,
     );
     const appWebhookMissingFields = metaProbe?.health
       ? SMARTZAP_REQUIRED_META_WEBHOOK_FIELDS.filter(

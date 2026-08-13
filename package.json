@@ -1,6 +1,6 @@
 {
   "name": "smartzap-cf",
-  "version": "1.0.0",
+  "version": "1.0.0-rc.33",
   "description": "",
   "main": "index.js",
   "type": "module",
@@ -15,15 +15,28 @@
     "predev": "node scripts/prepare-dev.mjs",
     "dev": "vite dev",
     "build": "vite build",
+    "typecheck": "tsc --noEmit",
     "postbuild": "node scripts/sanitize-build.mjs",
     "deploy": "npm run build && wrangler deploy",
+    "fork:deploy": "node scripts/fork-deploy.mjs",
+    "fork:preview": "node scripts/fork-deploy.mjs --staging",
+    "fork:branch": "node scripts/workers-build-deploy.mjs",
+    "fork:verify": "node scripts/verify-github-fork.mjs",
+    "qa:fork:updates": "node scripts/qa-fork-update-scenarios.mjs",
+    "fork:rollback": "node scripts/fork-rollback.mjs",
+    "release:validate": "node scripts/validate-release-metadata.mjs",
+    "release:verify-tag": "node scripts/verify-release-tag.mjs",
+    "release:assets": "node scripts/build-release-assets.mjs",
+    "release:verify-assets": "node scripts/verify-release-assets.mjs",
+    "deploy:guard": "node scripts/deploy-safe.mjs",
+    "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
     "test": "npm run test:workers && npm run test:node",
     "test:workers": "npm run test:workers:1 && npm run test:workers:2",
     "test:workers:1": "vitest run --config vitest.config.ts --max-workers=1 --shard=1/2",
     "test:workers:2": "vitest run --config vitest.config.ts --max-workers=1 --shard=2/2",
     "test:node": "vitest run --config vitest.node.config.ts --max-workers=1",
     "test:watch": "vitest --config vitest.config.ts --max-workers=1",
-    "types": "wrangler types",
+    "types": "wrangler types worker-configuration.d.ts --include-env false",
     "db:migrate:local": "wrangler d1 migrations apply smartzap --local",
     "db:migrate:e2e": "CI=1 wrangler d1 migrations apply smartzap-test --config config/wrangler.test.jsonc --local --persist-to .wrangler/e2e-state",
     "db:seed:e2e": "CI=1 wrangler d1 execute smartzap-test --config config/wrangler.test.jsonc --local --persist-to .wrangler/e2e-state --file scripts/e2e-seed.sql",
@@ -72,6 +85,18 @@
     "qa:risk:verify": "node scripts/qa-release-risk.mjs verify",
     "qa:soak:finalize": "node scripts/qa-soak-finalize.mjs",
     "qa:security:isolation": "node scripts/qa-security-isolation.mjs",
+    "qa:security:public-history": "node scripts/qa-secret-scan.mjs --history",
+    "qa:install:canary": "node scripts/qa-install-canary-evidence.mjs",
+    "qa:install:baseline": "node scripts/qa-provisioner-baseline-remote.mjs",
+    "release:public": "node scripts/build-public-release.mjs",
+    "public:build": "node scripts/build-public-release.mjs",
+    "provisioner:release": "node scripts/build-provisioner-release.mjs",
+    "provisioner:release:upload": "node scripts/upload-provisioner-release.mjs",
+    "provisioner:baseline": "node scripts/build-d1-baseline.mjs",
+    "provisioner:baseline:check": "node scripts/build-d1-baseline.mjs --check",
+    "provisioner:dev": "wrangler dev --config provisioner/wrangler.jsonc --port 4192",
+    "provisioner:db:local": "wrangler d1 migrations apply smartzap-provisioner --config provisioner/wrangler.jsonc --local",
+    "provisioner:check": "tsc -p provisioner/tsconfig.json",
     "qa:backup:restore": "node scripts/qa-backup-restore.mjs",
     "qa:certification:prepare": "node scripts/qa-production-certification.mjs prepare",
     "qa:certification:verify": "node scripts/qa-production-certification.mjs verify",
@@ -94,7 +119,23 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
+  "cloudflare": {
+    "bindings": {
+      "MASTER_PASSWORD": {
+        "description": "Cole a senha administrativa que você definiu em **/install**. Ela não é armazenada pelo instalador."
+      },
+      "SMARTZAP_VAULT_KEY": {
+        "description": "Cole a chave AES-256 gerada em **/install** e guarde o arquivo de recuperação. A perda exige recadastrar as integrações."
+      },
+      "DB": {
+        "description": "Banco D1 do SmartZap. A instalação aplica todas as migrações automaticamente."
+      },
+      "MEDIA": {
+        "description": "Bucket R2 para mídias de templates e conversas."
+      }
+    }
+  },
   "dependencies": {
     "@xyflow/react": "^12.11.2",
     "hono": "4.13.0",
@@ -124,7 +165,7 @@
     "typescript": "^6.0.3",
     "vite": "^8.1.4",
     "vitest": "^4.1.10",
-    "wrangler": "4.118.0"
+    "wrangler": "^4.120.0"
   },
   "overrides": {
     "undici": "7.29.0",

@@ -8,6 +8,7 @@ import {
 
 const root = resolve(import.meta.dirname, "..");
 const command = process.argv[2];
+const productionConfig = process.env.SMARTZAP_PRODUCTION_WRANGLER_CONFIG || "wrangler.jsonc";
 
 function option(name, fallback) {
   const index = process.argv.indexOf(`--${name}`);
@@ -35,8 +36,8 @@ function commandJson(executable, args) {
 
 function cloudflareSnapshot(versionId) {
   return {
-    version: commandJson("npx", ["wrangler", "versions", "view", versionId, "--json"]),
-    deployments: commandJson("npx", ["wrangler", "deployments", "list", "--json"]),
+    version: commandJson("npx", ["wrangler", "versions", "view", versionId, "--config", productionConfig, "--json"]),
+    deployments: commandJson("npx", ["wrangler", "deployments", "list", "--config", productionConfig, "--json"]),
   };
 }
 

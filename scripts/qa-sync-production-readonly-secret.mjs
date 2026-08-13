@@ -16,7 +16,9 @@ if (!process.argv.includes("--rotate"))
 const root = resolve(import.meta.dirname, "..");
 const staging = process.argv.includes("--staging");
 const target = staging ? "staging" : "production";
-const config = staging ? "config/wrangler.staging.jsonc" : "wrangler.jsonc";
+const config = staging
+  ? "config/wrangler.staging.jsonc"
+  : (process.env.SMARTZAP_PRODUCTION_WRANGLER_CONFIG || "wrangler.jsonc");
 const privatePath = resolve(root, `.dev.vars.qa.${target}.local`);
 const pendingPath = `${privatePath}.next`;
 const key = randomBytes(32).toString("base64url");

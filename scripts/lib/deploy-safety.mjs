@@ -1,0 +1,263 @@
+export const INSTALL_GUARD_TABLE = "smartzap_install_guard";
+const CLOUDFLARE_INTERNAL_D1_TABLES = new Set(["_cf_KV", "d1_migrations"]);
+
+export function stripJsonComments(source) {
+  let result = "";
+  let inString = false;
+  let escaped = false;
+  let lineComment = false;
+  let blockComment = false;
+  for (let index = 0; index < source.length; index += 1) {
+    const character = source[index];
+    const next = source[index + 1];
+    if (lineComment) {
+      if (character === "\n") { lineComment = false; result += character; }
+      continue;
+    }
+    if (blockComment) {
+      if (character === "*" && next === "/") { blockComment = false; index += 1; }
+      continue;
+    }
+    if (inString) {
+      result += character;
+      if (escaped) escaped = false;
+      else if (character === "\\") escaped = true;
+      else if (character === '"') inString = false;
+      continue;
+    }
+    if (character === '"') { inString = true; result += character; continue; }
+    if (character === "/" && next === "/") { lineComment = true; index += 1; continue; }
+    if (character === "/" && next === "*") { blockComment = true; index += 1; continue; }
+    result += character;
+  }
+  return result;
+}
+
+export function readWorkerName(source) {
+  const parsed = JSON.parse(stripJsonComments(source));
+  const name = String(parsed.name ?? "").trim();
+  if (!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(name)) {
+    throw new Error("O nome do projeto precisa usar somente letras minúsculas, números e hífens.");
+  }
+  return name;
+}
+
+export function assertIsolatedResourceNames(source) {
+  const parsed = JSON.parse(stripJsonComments(source));
+  const workerName = readWorkerName(source);
+  if (!/^smartzap-[a-f0-9]{8}(?:-staging)?$/.test(workerName)) {
+    throw new Error("Use em Projeto / Worker o nome exclusivo gerado em /install (smartzap- + 8 caracteres). Nenhum recurso foi alterado.");
+  }
+
+  const expected = new Map([
+    ["Banco D1", `${workerName}-db`],
+    ["Bucket R2", `${workerName}-media`],
+    ["Fila WEBHOOK", `${workerName}-meta-webhooks`],
+    ["Fila AUTOMATION", `${workerName}-inbox-automation`],
+    ["Fila CAPI", `${workerName}-meta-conversions`],
+    ["DLQ CAPI", `${workerName}-meta-conversions-dlq`],
+    ["DLQ WEBHOOK", `${workerName}-meta-webhooks-dlq`],
+    ["DLQ AUTOMATION", `${workerName}-inbox-automation-dlq`],
+  ]);
+  const actual = new Map();
+  actual.set("Banco D1", parsed.d1_databases?.find((entry) => entry?.binding === "DB")?.database_name);
+  actual.set("Bucket R2", parsed.r2_buckets?.find((entry) => entry?.binding === "MEDIA")?.bucket_name);
+  const queueBindings = new Map((parsed.queues?.producers ?? []).map((entry) => [entry?.binding, entry?.queue]));
+  actual.set("Fila WEBHOOK", queueBindings.get("WEBHOOK_QUEUE"));
+  actual.set("Fila AUTOMATION", queueBindings.get("AUTOMATION_QUEUE"));
+  actual.set("Fila CAPI", queueBindings.get("CAPI_QUEUE"));
+  actual.set("DLQ CAPI", queueBindings.get("CAPI_DLQ"));
+  actual.set("DLQ WEBHOOK", queueBindings.get("WEBHOOK_DLQ"));
+  actual.set("DLQ AUTOMATION", queueBindings.get("AUTOMATION_DLQ"));
+
+  const mismatches = [...expected].filter(([label, expectedName]) => actual.get(label) !== expectedName);
+  if (mismatches.length > 0) {
+    const details = mismatches.map(([label, expectedName]) => `${label}: use ${expectedName}`).join("; ");
+    throw new Error(`Existem recursos ausentes, antigos ou de outra instalação. ${details}. Volte ao formulário da Cloudflare e use exatamente os nomes do arquivo de recuperação.`);
+  }
+
+  const consumerNames = new Set((parsed.queues?.consumers ?? []).flatMap((entry) => [entry?.queue, entry?.dead_letter_queue].filter(Boolean)));
+  const producerNames = new Set(queueBindings.values());
+  if ([...consumerNames].some((name) => !producerNames.has(name))) {
+    throw new Error("As filas consumidoras não correspondem às filas exclusivas desta instalação. Nenhum recurso foi alterado.");
+  }
+  return { workerName, resources: Object.fromEntries(actual) };
+}
+
+export function deriveRuntimeResourceNames(workerName) {
+  const match = /^smartzap-([a-f0-9]{8})(?:-staging)?$/.exec(workerName);
+  if (!match) {
+    throw new Error("Não foi possível preparar os recursos internos: use o nome exclusivo smartzap- + 8 caracteres gerado em /install.");
+  }
+
+  // A Cloudflare exige um inteiro positivo em formato string. Somar 1 mantém
+  // uma correspondência determinística e sem colisão para todo sufixo de 32 bits.
+  const rateLimitNamespace = (BigInt(`0x${match[1]}`) + 1n).toString(10);
+  return {
+    workerName,
+    workflows: {
+      CAMPAIGN_WF: `${workerName}-campaign-send`,
+      SETUP_WF: `${workerName}-setup-health`,
+    },
+    rateLimitNamespace,
+    aiGatewayId: workerName,
+  };
+}
+
+function findExactlyOne(entries, predicate, missingMessage, duplicateMessage) {
+  const matches = entries.filter(predicate);
+  if (matches.length === 0) throw new Error(missingMessage);
+  if (matches.length > 1) throw new Error(duplicateMessage);
+  return matches[0];
+}
+
+function normalizeCloudflareQueueConsumers(parsed, workerName) {
+  const producers = Array.isArray(parsed.queues?.producers) ? parsed.queues.producers : [];
+  const consumers = Array.isArray(parsed.queues?.consumers) ? parsed.queues.consumers : [];
+  const producerNames = new Map(producers.map((entry) => [entry?.binding, entry?.queue]));
+  const specs = [
+    {
+      label: "WEBHOOK",
+      queueBinding: "WEBHOOK_QUEUE",
+      dlqBinding: "WEBHOOK_DLQ",
+      defaultQueue: "smartzap-meta-webhooks",
+      defaultDlq: "smartzap-meta-webhooks-dlq",
+    },
+    {
+      label: "AUTOMATION",
+      queueBinding: "AUTOMATION_QUEUE",
+      dlqBinding: "AUTOMATION_DLQ",
+      defaultQueue: "smartzap-inbox-automation",
+      defaultDlq: "smartzap-inbox-automation-dlq",
+    },
+    {
+      label: "CAPI",
+      queueBinding: "CAPI_QUEUE",
+      dlqBinding: null,
+      defaultQueue: "smartzap-meta-conversions",
+      defaultDlq: null,
+    },
+  ];
+
+  if (consumers.length !== specs.length) {
+    throw new Error("A quantidade de filas consumidoras mudou. Nenhum recurso remoto foi alterado.");
+  }
+
+  for (const spec of specs) {
+    const queueName = producerNames.get(spec.queueBinding);
+    const allowedQueueNames = new Set([spec.defaultQueue, queueName]);
+    const consumer = findExactlyOne(
+      consumers,
+      (entry) => allowedQueueNames.has(entry?.queue),
+      `A fila consumidora ${spec.label} está ausente. Nenhum recurso remoto foi alterado.`,
+      `A fila consumidora ${spec.label} aparece mais de uma vez. Nenhum recurso remoto foi alterado.`,
+    );
+    if (queueName !== `${workerName}-${spec.defaultQueue.replace(/^smartzap-/, "")}`) {
+      throw new Error(`A fila produtora ${spec.label} não pertence a ${workerName}. Nenhum recurso remoto foi alterado.`);
+    }
+    consumer.queue = queueName;
+
+    if (spec.dlqBinding) {
+      const dlqName = producerNames.get(spec.dlqBinding);
+      const allowedDlqNames = new Set([spec.defaultDlq, dlqName]);
+      if (!allowedDlqNames.has(consumer.dead_letter_queue)) {
+        throw new Error(`A DLQ consumidora ${spec.label} não pertence a ${workerName}. Nenhum recurso remoto foi alterado.`);
+      }
+      consumer.dead_letter_queue = dlqName;
+    } else if (consumer.dead_letter_queue) {
+      throw new Error(`A fila consumidora ${spec.label} contém uma DLQ inesperada. Nenhum recurso remoto foi alterado.`);
+    }
+  }
+}
+
+export function prepareIsolatedDeploymentConfig(source) {
+  const parsed = JSON.parse(stripJsonComments(source));
+  const workerName = readWorkerName(source);
+  normalizeCloudflareQueueConsumers(parsed, workerName);
+  assertIsolatedResourceNames(JSON.stringify(parsed));
+  const runtime = deriveRuntimeResourceNames(workerName);
+  const workflows = Array.isArray(parsed.workflows) ? parsed.workflows : [];
+  const workflowClasses = {
+    CAMPAIGN_WF: "CampaignSendWorkflow",
+    SETUP_WF: "SetupHealthWorkflow",
+  };
+
+  for (const [binding, name] of Object.entries(runtime.workflows)) {
+    const workflow = findExactlyOne(
+      workflows,
+      (entry) => entry?.binding === binding,
+      `O Workflow obrigatório ${binding} está ausente. Nenhum recurso remoto foi alterado.`,
+      `O Workflow obrigatório ${binding} aparece mais de uma vez. Nenhum recurso remoto foi alterado.`,
+    );
+    if (workflow.class_name !== workflowClasses[binding]) {
+      throw new Error(`O Workflow ${binding} aponta para uma classe inesperada. Nenhum recurso remoto foi alterado.`);
+    }
+    workflow.name = name;
+  }
+
+  const rateLimits = Array.isArray(parsed.ratelimits) ? parsed.ratelimits : [];
+  const loginLimiter = findExactlyOne(
+    rateLimits,
+    (entry) => entry?.name === "LOGIN_LIMITER",
+    "O limitador obrigatório LOGIN_LIMITER está ausente. Nenhum recurso remoto foi alterado.",
+    "O limitador obrigatório LOGIN_LIMITER aparece mais de uma vez. Nenhum recurso remoto foi alterado.",
+  );
+  loginLimiter.namespace_id = runtime.rateLimitNamespace;
+
+  if (!parsed.vars || typeof parsed.vars !== "object" || Array.isArray(parsed.vars)) {
+    throw new Error("A configuração de variáveis do Worker está ausente. Nenhum recurso remoto foi alterado.");
+  }
+  parsed.vars.AI_GATEWAY_ID = runtime.aiGatewayId;
+
+  return {
+    source: `${JSON.stringify(parsed, null, 2)}\n`,
+    ...runtime,
+  };
+}
+
+export function assertPreparedRuntimeResources(source) {
+  const { workerName } = assertIsolatedResourceNames(source);
+  const parsed = JSON.parse(stripJsonComments(source));
+  const expected = deriveRuntimeResourceNames(workerName);
+  const workflows = Array.isArray(parsed.workflows) ? parsed.workflows : [];
+
+  for (const [binding, expectedName] of Object.entries(expected.workflows)) {
+    const matches = workflows.filter((entry) => entry?.binding === binding);
+    if (matches.length !== 1 || matches[0]?.name !== expectedName) {
+      throw new Error(`O Workflow ${binding} não está isolado para ${workerName}. Execute npm run deploy:prepare antes de publicar.`);
+    }
+  }
+
+  const rateLimits = Array.isArray(parsed.ratelimits) ? parsed.ratelimits : [];
+  const loginLimiters = rateLimits.filter((entry) => entry?.name === "LOGIN_LIMITER");
+  if (loginLimiters.length !== 1 || loginLimiters[0]?.namespace_id !== expected.rateLimitNamespace) {
+    throw new Error(`O limitador LOGIN_LIMITER não está isolado para ${workerName}. Execute npm run deploy:prepare antes de publicar.`);
+  }
+  if (parsed.vars?.AI_GATEWAY_ID !== expected.aiGatewayId) {
+    throw new Error(`O identificador do AI Gateway não está isolado para ${workerName}. Execute npm run deploy:prepare antes de publicar.`);
+  }
+
+  return expected;
+}
+
+export function parseWranglerRows(output) {
+  const start = output.indexOf("[");
+  if (start < 0) throw new Error("A Cloudflare não devolveu um resultado JSON legível para o D1.");
+  const parsed = JSON.parse(output.slice(start));
+  if (!Array.isArray(parsed) || parsed.some((entry) => entry?.success === false)) {
+    throw new Error("A consulta de segurança do D1 foi recusada pela Cloudflare.");
+  }
+  return parsed.flatMap((entry) => Array.isArray(entry?.results) ? entry.results : []);
+}
+
+export function assessDatabaseSafety({ workerName, tables, guardWorkerName }) {
+  const applicationTables = tables.filter((table) => !CLOUDFLARE_INTERNAL_D1_TABLES.has(table));
+  if (applicationTables.length === 0) return { action: "claim" };
+  if (!applicationTables.includes(INSTALL_GUARD_TABLE)) {
+    throw new Error("O D1 selecionado já contém dados e não pertence a esta instalação. Volte e escolha um banco novo com o nome exclusivo mostrado em /install.");
+  }
+  if (!guardWorkerName || guardWorkerName !== workerName) {
+    throw new Error("O D1 selecionado pertence a outra instalação do SmartZap. Volte e crie um banco novo; nenhum dado foi alterado.");
+  }
+  return { action: "resume" };
+}

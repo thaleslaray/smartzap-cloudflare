@@ -16,6 +16,18 @@ const e2eWorkerSuffix = [
 const e2eWorkerName = `smartzap-test-${e2eWorkerSuffix}`.slice(0, 63)
 
 export default defineConfig({
+  server: {
+    // Relatórios do Playwright podem ser produzidos enquanto o Vite está ativo.
+    // Ignorá-los evita reloads em cascata e falsos negativos visuais quando um
+    // operador escolhe um diretório de evidências dentro do repositório.
+    watch: {
+      ignored: [
+        '**/test-results/**',
+        '**/tmp/qa-*/**',
+        '**/qa/reports/**',
+      ],
+    },
+  },
   plugins: [
     react(),
     tailwindcss(),

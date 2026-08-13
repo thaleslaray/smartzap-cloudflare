@@ -65,7 +65,9 @@
       { "binding": "WEBHOOK_QUEUE", "queue": "meta-webhooks-preview" },
       { "binding": "AUTOMATION_QUEUE", "queue": "inbox-automation-preview" },
       { "binding": "CAPI_QUEUE", "queue": "meta-conversions-preview" },
-      { "binding": "CAPI_DLQ", "queue": "meta-conversions-preview-dlq" }
+      { "binding": "CAPI_DLQ", "queue": "meta-conversions-preview-dlq" },
+      { "binding": "WEBHOOK_DLQ", "queue": "meta-webhooks-preview-dlq" },
+      { "binding": "AUTOMATION_DLQ", "queue": "inbox-automation-preview-dlq" }
     ],
     "consumers": [
       {
@@ -90,11 +92,10 @@
       }
     ]
   },
-  "workflows": [{
-    "binding": "CAMPAIGN_WF",
-    "name": "campaign-send-preview",
-    "class_name": "CampaignSendWorkflow"
-  }],
+  "workflows": [
+    { "binding": "CAMPAIGN_WF", "name": "campaign-send-preview", "class_name": "CampaignSendWorkflow" },
+    { "binding": "SETUP_WF", "name": "smartzap-setup-health-preview", "class_name": "SetupHealthWorkflow" }
+  ],
   "durable_objects": { "bindings": [
     { "name": "REALTIME", "class_name": "RealtimeHub" },
     { "name": "THROTTLE", "class_name": "PhoneThrottle" }

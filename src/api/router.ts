@@ -29,6 +29,7 @@ import { flowEndpointRoutes } from "./flow-endpoint";
 import { googleCalendarPublicRoutes, googleCalendarRoutes } from "./google-calendar";
 import { pricingRoutes } from "./pricing";
 import { conversionsRoutes } from "./conversions";
+import { setupRoutes } from "./setup";
 
 export function createApp() {
   const app = new Hono<{ Bindings: Env }>();
@@ -63,6 +64,7 @@ export function createApp() {
   app.route("/api/contacts", contactsRoutes);
   app.route("/api/templates", templatesRoutes);
   app.route("/api/settings", settingsRoutes);
+  app.route("/api/setup", setupRoutes);
   app.route("/api/google-calendar", googleCalendarRoutes);
   app.route("/api/realtime", realtimeRoutes);
   app.route("/api/campaigns", campaignsRoutes);

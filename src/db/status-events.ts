@@ -67,10 +67,15 @@ export async function ensureStatusEventReconciliationSchema(db: D1Database) {
      ON status_events(received_at, id)
      WHERE apply_state='pending' AND event_kind='message_status'`,
   ).run();
-  await db.prepare(
-    `INSERT OR IGNORE INTO d1_migrations (name)
-     VALUES ('0035_status_event_reconciliation.sql')`,
-  ).run();
+  // A baseline de uma instalação nova já contém essas colunas. O ledger só
+  // deve registrar a migration legada quando o fallback realmente reparou um
+  // schema antigo; uma simples verificação não é uma migration aplicada.
+  if (changed) {
+    await db.prepare(
+      `INSERT OR IGNORE INTO d1_migrations (name)
+       VALUES ('0035_status_event_reconciliation.sql')`,
+    ).run();
+  }
   return { changed, columns: reconciliationColumns.length };
 }
 
@@ -119,7 +124,8 @@ export function statusEventsDb(db: D1Database) {
     },
     async markIgnored(eventKey: string) {
       await db.prepare(
-        `UPDATE status_events SET apply_state='ignored', applied_at=datetime('now')
+        `UPDATE status_events SET apply_state='ignored', applied_at=datetime('now'),
+           last_apply_error=NULL
          WHERE event_key=?1 AND apply_state='pending'`,
       ).bind(eventKey).run();
     },

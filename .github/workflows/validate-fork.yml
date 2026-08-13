@@ -1,0 +1,33 @@
+name: Validar fork
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  validar:
+    name: validar
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do pull request
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Preparar Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Validar sem publicar
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run release:validate
+          npm run typecheck
+          npm test
+          npm run build

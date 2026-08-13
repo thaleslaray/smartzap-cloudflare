@@ -1,6 +1,6 @@
 // Primitivos visuais do design system SmartZap CF (DS/templates/*.dc.html).
 // Superfícies zinc, acento emerald, radius 10px. Ícones lucide.
-import { useEffect, useRef, type ButtonHTMLAttributes, type ComponentType, type ReactNode, type RefObject } from 'react'
+import { useEffect, useRef, type ButtonHTMLAttributes, type ComponentType, type HTMLAttributes, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Zap } from 'lucide-react'
 
@@ -199,9 +199,9 @@ export function Button({
 // Card base — variante `default` do Container do SmartZap original. A variante
 // glass existe no legado, mas não é o padrão: usar transparência aqui altera
 // todos os painéis, tabelas e filtros migrados.
-export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
+export function Card({ children, className = '', ...rest }: HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={`premium-card min-w-0 max-w-full rounded-[22px] border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] transition-all duration-200 ${className}`}>
+    <div {...rest} className={`premium-card min-w-0 max-w-full rounded-[22px] border border-[var(--ds-border-default)] bg-[var(--ds-bg-elevated)] transition-all duration-200 ${className}`}>
       {children}
     </div>
   )

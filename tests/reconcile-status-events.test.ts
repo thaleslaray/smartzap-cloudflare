@@ -23,7 +23,12 @@ function statusEvent(messageId: string, status: "delivered" | "read" | "failed")
 }
 
 describe("reconciliação de status órfãos", () => {
-  it("mantém a preparação do schema idempotente e registra a migration", async () => {
+  it("mantém a preparação idempotente sem poluir o ledger de uma baseline completa", async () => {
+    // O ambiente de testes aplica o histórico interno completo; removemos a
+    // marca antiga para simular o banco público criado diretamente da baseline.
+    await env.DB.prepare(
+      "DELETE FROM d1_migrations WHERE name='0035_status_event_reconciliation.sql'",
+    ).run();
     expect(await ensureStatusEventReconciliationSchema(env.DB)).toEqual({
       changed: false,
       columns: 6,
@@ -32,7 +37,7 @@ describe("reconciliação de status órfãos", () => {
       await env.DB.prepare(
         "SELECT COUNT(*) AS n FROM d1_migrations WHERE name='0035_status_event_reconciliation.sql'",
       ).first(),
-    ).toEqual({ n: 1 });
+    ).toEqual({ n: 0 });
   });
 
   it("aplica callback que chegou antes de message_id ser persistido", async () => {
@@ -105,6 +110,36 @@ describe("reconciliação de status órfãos", () => {
       apply_state: "pending",
       apply_attempts: 2,
       last_apply_error: "campaign_contact_not_found",
+    });
+  });
+
+  it("encerra callback antigo da mensagem de setup sem tratá-lo como órfão de campanha", async () => {
+    await env.DB.prepare(
+      "UPDATE status_events SET apply_state='ignored' WHERE apply_state='pending'",
+    ).run();
+    const messageId = `wamid.setup.${crypto.randomUUID()}`;
+    await env.DB.prepare(
+      `INSERT INTO settings(key,value,updated_at) VALUES('setup_test_message_id',?1,datetime('now'))
+       ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at`,
+    ).bind(messageId).run();
+    await env.DB.prepare(
+      `INSERT INTO status_events(message_id,status,raw,received_at,event_kind,event_key,waba_id,apply_state,last_apply_error)
+       VALUES(?1,'delivered','{}',datetime('now'),'message_status',?2,'waba-reconcile','pending','campaign_contact_not_found')`,
+    ).bind(messageId, `status:${messageId}:delivered`).run();
+
+    const result = await reconcilePendingStatusEvents(env.DB);
+    expect(result).toMatchObject({
+      scanned: 1,
+      applied: 0,
+      alreadyCanonical: 1,
+      unmatched: 0,
+      errors: 0,
+    });
+    expect(await env.DB.prepare(
+      "SELECT apply_state,last_apply_error FROM status_events WHERE message_id=?1",
+    ).bind(messageId).first()).toEqual({
+      apply_state: "ignored",
+      last_apply_error: null,
     });
   });
 });

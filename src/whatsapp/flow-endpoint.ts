@@ -1,6 +1,7 @@
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 import { handleDynamicBookingRequest } from "./dynamic-booking";
+import { getMetaSecrets } from "./credentials";
 
 export type FlowEndpointRequest = {
   action: "ping" | "INIT" | "data_exchange" | "BACK";
@@ -253,10 +254,11 @@ export async function handleFlowRequest(
   const reference = flowReference(request.flow_token);
   if (!reference) throw new Error("flow_token inválido");
   if (request.version === "4.0") {
-    if (!env?.META_APP_SECRET || !(await isValidFlowTokenSignature(
+    const meta = env ? await getMetaSecrets(env) : null;
+    if (!meta || !(await isValidFlowTokenSignature(
       request.flow_token,
       request.flow_token_signature,
-      env.META_APP_SECRET,
+      meta.appSecret,
     ))) throw new Error("flow_token_signature inválida");
   }
   const row = await db

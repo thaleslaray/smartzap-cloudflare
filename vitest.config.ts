@@ -17,6 +17,7 @@ export default defineConfig({
           // Testes de sucesso injetam um provider falso diretamente.
           AI: {},
           MASTER_PASSWORD: 'dev',
+          SMARTZAP_VAULT_KEY: 'MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY',
           SMARTZAP_API_KEY: 'dev-api-key',
           QA_READONLY_API_KEY: 'dev-readonly-key',
           QA_STAGING_MUTATION_API_KEY: 'dev-mutation-key',
@@ -31,6 +32,7 @@ export default defineConfig({
           META_EXPECTED_PHONE_ID: '11111',
           META_EXPECTED_WABA_ID: '22222',
           META_EXPECTED_CALLBACK_URL: 'https://worker.example/webhook',
+          META_AD_ACCOUNT_ID: '999999999999999',
           PILOT_SEND_ENABLED: 'false',
           PILOT_RECIPIENT_E164: '+5511999999999',
           PILOT_MAX_REAL_SENDS: '3',

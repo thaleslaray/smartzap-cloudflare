@@ -5,9 +5,12 @@ import { reconcileCampaignCounters } from "./cron/reconcile";
 import { cleanupExpiredData } from "./cron/cleanup";
 import { reconcilePendingStatusEvents } from "./cron/reconcile-status-events";
 import { checkUpcomingRateCard, reconcilePricingAnalytics } from "./cron/pricing";
+import { reconcileMetaConversions } from "./cron/conversion-reconciliation";
 import { broadcastToHub } from "./api/realtime";
 import { ensureStatusEventReconciliationSchema } from "./db/status-events";
 import { redactOperationalDetail } from "./domain/redaction";
+import { getCredentials } from "./whatsapp/credentials";
+import { settingsDb } from "./db/settings";
 import {
   handleAutomationBatch,
   type AutomationQueueEvent,
@@ -98,14 +101,18 @@ export function isAutomationQueue(
   env: Pick<Env, "AUTOMATION_QUEUE_NAME">,
   queueName: string,
 ): boolean {
-  return queueName === (env.AUTOMATION_QUEUE_NAME?.trim() || "inbox-automation");
+  const configuredName = env.AUTOMATION_QUEUE_NAME?.trim();
+  if (configuredName) return queueName === configuredName;
+  return queueName === "inbox-automation" || queueName.endsWith("-inbox-automation");
 }
 
 export function isConversionQueue(
   env: Pick<Env, "CAPI_QUEUE_NAME">,
   queueName: string,
 ): boolean {
-  return queueName === (env.CAPI_QUEUE_NAME?.trim() || "meta-conversions");
+  const configuredName = env.CAPI_QUEUE_NAME?.trim();
+  if (configuredName) return queueName === configuredName;
+  return queueName === "meta-conversions" || queueName.endsWith("-meta-conversions");
 }
 
 export async function processConversionMessages(
@@ -150,6 +157,7 @@ export default {
     await processWebhookMessages(batch.messages, env);
   },
   async scheduled(_event, env) {
+    await settingsDb(env.DB).set("cron_last_run", new Date().toISOString());
     await ensureStatusEventReconciliationSchema(env.DB);
     const statusReconciliation = await reconcilePendingStatusEvents(env.DB);
     const fixed = await reconcileCampaignCounters(env.DB);
@@ -170,9 +178,30 @@ export default {
         ),
       }));
     }
+    try {
+      const reconciliation = await reconcileMetaConversions(env, { trigger: "cron" });
+      if (reconciliation.status !== "skipped")
+        console.log(JSON.stringify({
+          level: reconciliation.status === "succeeded" ? "info" : "warn",
+          msg: reconciliation.status === "succeeded"
+            ? "conversões Meta reconciliadas"
+            : "conversões Meta não reconciliadas",
+          status: reconciliation.status,
+          rows: reconciliation.rows,
+          pages: reconciliation.pages,
+          retryable: reconciliation.retryable,
+          detail: reconciliation.detail,
+        }));
+    } catch (error) {
+      console.error(JSON.stringify({
+        level: "warn",
+        msg: "reconciliador de conversões Meta falhou",
+        error: redactOperationalDetail(error instanceof Error ? error.message : error),
+      }));
+    }
     const cleaned = await cleanupExpiredData(
       env.DB,
-      Boolean(env.WHATSAPP_TOKEN),
+      Boolean(await getCredentials(env).catch(() => null)),
       env.MEDIA,
     );
     try {
@@ -235,3 +264,4 @@ export default {
 export { RealtimeHub } from "./do/RealtimeHub";
 export { PhoneThrottle } from "./do/PhoneThrottle";
 export { CampaignSendWorkflow } from "./workflows/CampaignSendWorkflow";
+export { SetupHealthWorkflow } from "./workflows/SetupHealthWorkflow";

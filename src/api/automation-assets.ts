@@ -388,7 +388,7 @@ export const flowsRoutes = new Hono<{ Bindings: Env }>()
     const credentials = await getCredentials(c.env);
     if (!credentials)
       return c.json({ error: "Credenciais da Meta não configuradas" }, 400);
-    if (!c.env.META_VERIFY_TOKEN)
+    if (!credentials.verifyToken)
       return c.json({ error: "Verify token do webhook não configurado" }, 400);
     const rawBody = await readJsonBody(c, 2_048);
     if (!rawBody.ok) return c.json({ error: rawBody.error }, rawBody.status);
@@ -415,7 +415,7 @@ export const flowsRoutes = new Hono<{ Bindings: Env }>()
           appId: credentials.appId,
           appSecret: credentials.appSecret,
           callbackUrl: callback.url,
-          verifyToken: c.env.META_VERIFY_TOKEN,
+          verifyToken: credentials.verifyToken,
         });
       } else if (callback.target) {
         await configureMetaWabaWebhookOverride({
@@ -423,14 +423,14 @@ export const flowsRoutes = new Hono<{ Bindings: Env }>()
           wabaId: credentials.wabaId,
           token: credentials.token,
           callbackUrl: callback.url,
-          verifyToken: c.env.META_VERIFY_TOKEN,
+          verifyToken: credentials.verifyToken,
         });
         await configureMetaPhoneWebhookOverride({
           version: credentials.graphVersion,
           phoneId: credentials.phoneId,
           token: credentials.token,
           callbackUrl: callback.url,
-          verifyToken: c.env.META_VERIFY_TOKEN,
+          verifyToken: credentials.verifyToken,
         });
       } else {
         await configureMetaAppWebhookSubscription({
@@ -438,7 +438,7 @@ export const flowsRoutes = new Hono<{ Bindings: Env }>()
           appId: credentials.appId,
           appSecret: credentials.appSecret,
           callbackUrl: callback.url,
-          verifyToken: c.env.META_VERIFY_TOKEN,
+          verifyToken: credentials.verifyToken,
         });
       }
       const probe = await whatsappClient(credentials).checkOperational(credentials.wabaId);
@@ -751,7 +751,7 @@ export const flowsRoutes = new Hono<{ Bindings: Env }>()
             flowJson,
             publish: false,
             endpointUri,
-            applicationId: c.env.META_APP_ID,
+            applicationId: credentials.appId,
             cloneFlowId: previousMetaId,
             includeFlowJson: false,
           });
@@ -763,7 +763,7 @@ export const flowsRoutes = new Hono<{ Bindings: Env }>()
             name: draftCloneName,
             flowJson,
             endpointUri,
-            applicationId: c.env.META_APP_ID,
+            applicationId: credentials.appId,
           });
           await c.env.DB.prepare(
             `INSERT INTO flow_meta_versions
@@ -784,7 +784,7 @@ export const flowsRoutes = new Hono<{ Bindings: Env }>()
             name: draftUpdateName,
             flowJson,
             endpointUri,
-            applicationId: c.env.META_APP_ID,
+            applicationId: credentials.appId,
           });
         }
       } else {
@@ -799,7 +799,7 @@ export const flowsRoutes = new Hono<{ Bindings: Env }>()
           // dessa consulta escondia a causa e deixava Flows inválidos órfãos.
           publish: false,
           endpointUri,
-          applicationId: c.env.META_APP_ID,
+          applicationId: credentials.appId,
         });
         metaId = created.id;
         validationErrors = created.validationErrors;

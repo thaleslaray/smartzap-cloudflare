@@ -12,7 +12,9 @@
   },
   "vars": {
     "ENVIRONMENT": "test",
+    "SETUP_REQUIRED": "false",
     "MASTER_PASSWORD": "dev",
+    "SMARTZAP_VAULT_KEY": "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY",
     "SMARTZAP_API_KEY": "dev-api-key",
     "QA_READONLY_API_KEY": "dev-readonly-key",
     "QA_STAGING_MUTATION_API_KEY": "dev-mutation-key",
@@ -28,6 +30,7 @@
     "META_EXPECTED_PHONE_ID": "11111",
     "META_EXPECTED_WABA_ID": "22222",
     "META_EXPECTED_CALLBACK_URL": "https://worker.example/webhook",
+    "META_AD_ACCOUNT_ID": "999999999999999",
     "TURNSTILE_ENABLED": "false",
     "AI_ENABLED": "false",
     "AI_MODEL": "@cf/openai/gpt-oss-20b",
@@ -62,15 +65,16 @@
       { "binding": "WEBHOOK_QUEUE", "queue": "meta-webhooks-test" },
       { "binding": "AUTOMATION_QUEUE", "queue": "inbox-automation" },
       { "binding": "CAPI_QUEUE", "queue": "meta-conversions-test" },
-      { "binding": "CAPI_DLQ", "queue": "meta-conversions-test-dlq" }
+      { "binding": "CAPI_DLQ", "queue": "meta-conversions-test-dlq" },
+      { "binding": "WEBHOOK_DLQ", "queue": "meta-webhooks-test-dlq" },
+      { "binding": "AUTOMATION_DLQ", "queue": "inbox-automation-test-dlq" }
     ],
     "consumers": [{ "queue": "meta-webhooks-test", "max_batch_size": 50 }, { "queue": "inbox-automation", "max_batch_size": 10 }, { "queue": "meta-conversions-test", "max_batch_size": 10 }]
   },
-  "workflows": [{
-    "binding": "CAMPAIGN_WF",
-    "name": "campaign-send-test",
-    "class_name": "CampaignSendWorkflow"
-  }],
+  "workflows": [
+    { "binding": "CAMPAIGN_WF", "name": "campaign-send-test", "class_name": "CampaignSendWorkflow" },
+    { "binding": "SETUP_WF", "name": "smartzap-setup-health-test", "class_name": "SetupHealthWorkflow" }
+  ],
   "durable_objects": { "bindings": [
     { "name": "REALTIME", "class_name": "RealtimeHub" },
     { "name": "THROTTLE", "class_name": "PhoneThrottle" }

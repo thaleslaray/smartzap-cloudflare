@@ -6,6 +6,7 @@ import {
   handleFlowRequest,
   isValidFlowSignature,
 } from "../whatsapp/flow-endpoint";
+import { getMetaSecrets } from "../whatsapp/credentials";
 
 const encryptedRequestSchema = z.object({
   // 10 MB de payload claro mais overhead de Base64/GCM.
@@ -15,15 +16,18 @@ const encryptedRequestSchema = z.object({
 });
 
 export const flowEndpointRoutes = new Hono<{ Bindings: Env }>()
-  .get("/", (c) =>
-    c.json({
+  .get("/", async (c) => {
+    const meta = await getMetaSecrets(c.env).catch(() => null);
+    return c.json({
       status: c.env.FLOW_PRIVATE_KEY ? "ready" : "not_configured",
-      signatureValidation: Boolean(c.env.META_APP_SECRET),
-    }),
-  )
+      signatureValidation: Boolean(meta?.appSecret),
+    });
+  })
   .post("/", async (c) => {
     if (!c.env.FLOW_PRIVATE_KEY)
       return c.json({ error: "endpoint não configurado" }, 503);
+    const meta = await getMetaSecrets(c.env).catch(() => null);
+    if (!meta) return c.json({ error: "Meta não configurada" }, 503);
     const rawBody = await c.req.text();
     if (new TextEncoder().encode(rawBody).byteLength > 15_000_000)
       return c.json({ error: "request acima do limite" }, 413);
@@ -31,7 +35,7 @@ export const flowEndpointRoutes = new Hono<{ Bindings: Env }>()
       !(await isValidFlowSignature(
         rawBody,
         c.req.header("x-hub-signature-256"),
-        c.env.META_APP_SECRET,
+        meta.appSecret,
       ))
     )
       return new Response(null, { status: 432 });

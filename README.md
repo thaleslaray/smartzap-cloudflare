@@ -1,136 +1,130 @@
-# SmartZap CF
+# SmartZap
 
-Automação de campanhas WhatsApp pela API oficial da Meta, executada em Cloudflare Workers.
+WhatsApp oficial para campanhas, Inbox, contatos e templates, executado inteiramente na conta Cloudflare de quem instala.
 
-O app cobre contatos com consentimento, importação CSV, sincronização de templates,
-estimativa e envio de campanhas, webhook de status, dashboard, configurações e Inbox
-de mensagens recebidas. A IA oferece rascunhos assistivos revisáveis e, quando o
-piloto está explicitamente habilitado, automação controlada pela Inbox com agente,
-base de conhecimento, handoff e kill switch global.
+## Escolha como instalar
 
-## Pré-requisitos de produção
+### 1. Fork próprio — recomendado para produção
 
-- Node.js 22 e uma sessão autenticada do Wrangler.
-- Conta WhatsApp Business com `Phone Number ID` e `WABA ID`.
-- App Meta com System User token, App Secret e webhook habilitado.
-- Turnstile opcional; habilite somente quando houver widget configurado.
-- Créditos e autenticação válidos no AI Gateway da Cloudflare são necessários somente
-  para habilitar os rascunhos de IA.
+O proprietário cria um fork real, conecta esse repositório ao Workers Builds e
+decide quando revisar e publicar atualizações. O SmartZap Community fornece
+releases e instruções, mas não opera, monitora nem atualiza instalações de
+terceiros.
 
-## Provisionamento
+1. Abra **[Instalar com meu próprio código](https://instalar.escoladeautomacao.com/smartzap/fork/)**.
+2. Crie o fork no GitHub.
+3. Importe o fork no Workers Builds.
+4. Use `npm run fork:deploy` em produção e `npm run fork:branch` como comando
+   não produtivo; somente `staging/*` provisiona staging físico.
+5. Abra `/setup` e homologue a Meta.
 
-Os nomes abaixo precisam coincidir com os bindings de `wrangler.jsonc`:
+Consulte [instalação com fork](docs/FORK_INSTALLATION.md),
+[política de atualizações](UPDATE_POLICY.md), [suporte](SUPPORT.md) e
+[migrações/rollback](docs/MIGRATIONS_AND_ROLLBACK.md).
 
-```sh
-npx wrangler d1 create smartzap
-npx wrangler r2 bucket create smartzap-media
-npx wrangler queues create meta-webhooks
-npx wrangler queues create meta-webhooks-dlq
-```
+### 2. Instalação rápida — versão fixa
 
-Depois de criar o D1, confirme o `database_id` em `wrangler.jsonc`. Durable Objects e
-Workflow são publicados pelo próprio deploy; este projeto não usa KV. O binding `AI`
-usa o gateway dedicado `smartzap`, com logs e cache desligados, e faturamento unificado,
-sem chave de provedor externo no Worker.
+O provisionador OAuth atual continua disponível. Ele pode ser usado nos ensaios
+controlados registrados em `Auditoria.md`; a divulgação como instalação simples
+continua bloqueada até três instalações limpas aprovadas.
 
-Configure todos os valores exigidos antes do primeiro deploy:
+1. Abra a **[instalação rápida do SmartZap](https://instalar.escoladeautomacao.com/smartzap/quick/)**.
+2. Autorize a Cloudflare pelo OAuth oficial e escolha explicitamente a conta de destino.
+3. Defina sua senha administrativa; a chave do cofre é criada no navegador.
+4. Baixe o arquivo de recuperação e guarde-o em um gerenciador de senhas.
+5. Confira o plano somente leitura. Recurso incompatível ou sem ledger bloqueia a execução.
+6. Instale e abra o `/setup` indicado ao final.
+7. Cadastre a Meta, configure o webhook, sincronize os templates e conclua a mensagem real de homologação.
 
-```sh
-npx wrangler secret put MASTER_PASSWORD
-npx wrangler secret put SMARTZAP_API_KEY
-npx wrangler secret put META_APP_SECRET
-npx wrangler secret put META_VERIFY_TOKEN
-npx wrangler secret put WHATSAPP_TOKEN
-npx wrangler secret put PILOT_SEND_ENABLED
-npx wrangler secret put PILOT_RECIPIENT_E164
-```
+O instalador não pede senha da Cloudflare, API Token, CLI, GitHub Actions nem
+configuração manual de bindings. Tokens OAuth ficam cifrados no D1 do control
+plane, expiram em até 30 minutos e são apagados após instalação, desconexão ou
+limpeza de sessão abandonada.
 
-`META_VERIFY_TOKEN` é um valor criado por você e informado também no painel da Meta.
-Ele é diferente de `META_APP_SECRET`, usado para validar a assinatura HMAC. Embora
-Turnstile fica desativado enquanto `TURNSTILE_ENABLED=false`. Para habilitá-lo, mude
-a flag para `true` e instale `TURNSTILE_SECRET` e `TURNSTILE_SITE_KEY`; com a flag
-ativa e configuração incompleta, o login falha fechado.
-Durante a preparação use `PILOT_SEND_ENABLED=false`. O destinatário autorizado fica
-somente em `PILOT_RECIPIENT_E164`; nunca grave o número completo no repositório.
+Essa modalidade não cria fork e não inclui atualização automática ou manutenção
+contínua. A responsabilidade permanece com o proprietário. Consulte
+[termos do provisionador](PROVISIONER_TERMS.md),
+[privacidade OAuth](OAUTH_PRIVACY.md) e
+[migração para fork](docs/MIGRATE_QUICK_TO_FORK.md).
 
-Mantenha `AI_ENABLED=false` até uma sondagem do AI Gateway retornar sucesso e existirem
-créditos e limite de gasto configurados na conta. Ativar essa flag não habilita envio
-por si só: a automação também exige `INBOX_AUTOMATION_ENABLED=true`, Atendimento IA
-global ligado, conversa aberta em modo IA, agente ativo, documentos vinculados,
-destinatário permitido no piloto e janela Meta válida. O modo assistivo continua
-gerando rascunhos para revisão humana.
+## O que o provisionador cria na conta escolhida
 
-As vars versionadas fixam o App ID, Phone Number ID, WABA, teto global de três
-tentativas e a allowlist de templates desta auditoria. Em produção, valores do D1 que
-divergirem desses ativos bloqueiam o carregamento das credenciais.
+- Worker e assets da aplicação;
+- D1 com uma única baseline final atômica;
+- R2 para mídia;
+- Queues e DLQs de webhook, automação e conversões;
+- Durable Objects de tempo real e controle de vazão;
+- Workflow de campanhas e Workflow isolado de diagnóstico do instalador;
+- Cron operacional e rate limit de login;
+- Workers AI disponível, mas desligado até ativação explícita.
 
-## Migração, validação e deploy
+AI Search não faz parte do núcleo. Se o usuário ativar a base de conhecimento de
+IA no `/setup`, o assistente só apresenta o módulo como pronto depois de confirmar
+um namespace próprio.
 
-As migrações devem ser aplicadas antes de publicar o código que depende delas:
+Antes de qualquer criação, o plano deriva nomes exclusivos do identificador
+`smartzap-xxxxxxxx`, consulta cada recurso e classifica-o como `criar`,
+`reutilizar` pelo mesmo ledger ou `bloquear`. A baseline D1, o Worker e os assets
+são validados por SHA-256. Falha antes da liberação remove somente os recursos
+criados pela rodada; uma nova sessão OAuth pode retomar a mesma instalação sem
+duplicar versões ou consumidores.
 
-```sh
-npx wrangler d1 migrations apply smartzap --remote
-npm test
-npx tsc --noEmit
-npm run build
-npm run deploy
-```
+## Segurança das credenciais
 
-O bloco `secrets.required` de `wrangler.jsonc` interrompe o deploy se algum valor
-obrigatório estiver ausente. O login de produção também falha de forma fechada se o
-Turnstile não estiver completamente configurado.
+- `SMARTZAP_VAULT_KEY` é uma chave base64url de 256 bits e existe somente como secret do Worker.
+- Tokens e segredos externos são cifrados com AES-256-GCM antes de entrar no D1.
+- Cada registro usa IV aleatório e dados autenticados vinculados ao nome e à versão da chave.
+- APIs e logs devolvem somente estado de configuração; nunca plaintext, prefixo de token ou chave.
+- Perder a chave exige recadastrar as integrações. O arquivo de recuperação não é enviado ao SmartZap.
+- Instalações antigas continuam podendo usar secrets do Worker durante a migração para o cofre.
 
-No painel do app Meta, configure:
+### Rotação sem expor a nova chave ao aplicativo
 
-- URL de callback: `https://SEU-DOMINIO/webhook`.
-- Token de verificação: exatamente o valor de `META_VERIFY_TOKEN`.
-- Graph API: `v25.0` (binding `META_GRAPH_VERSION`; altere somente com teste de contrato).
-- Campos assinados: `messages`, `user_preferences` e `message_template_status_update`.
-- Confirme que o app aparece em `WABA_ID/subscribed_apps`; o health-check valida essa
-  assinatura ao vivo e não considera apenas a presença dos secrets.
+1. Gere outra chave de 256 bits em `/install` e guarde o novo arquivo de recuperação.
+2. Adicione-a temporariamente aos secrets do Worker como `SMARTZAP_VAULT_KEY_NEXT`.
+3. Em `/setup`, use **Rotacionar cofre**. Todos os registros são recifrados em uma transação D1 única.
+4. Promova o mesmo valor para `SMARTZAP_VAULT_KEY` e remova `SMARTZAP_VAULT_KEY_NEXT`.
+5. Volte a `/setup`, use **Finalizar promoção** e valide Meta, templates e mensagem real.
 
-No SmartZap, abra **Configurações** e informe apenas `Phone Number ID`, `WABA ID` e o
-throttle desejado. O token oficial permanece exclusivamente no secret
-`WHATSAPP_TOKEN`. Em seguida, sincronize os templates aprovados pela Meta.
+Durante a transição o runtime tenta as duas chaves e bloqueia novas gravações no cofre. Se a execução cair antes de concluir a transação, o botão **Recuperar rotação interrompida** fica disponível após 15 minutos; ele só libera o cofre se todos os registros ainda abrirem com a chave ativa. A API de rotação nunca recebe nem devolve o valor das chaves. Se o arquivo de recuperação for perdido, a saída segura é gerar uma nova chave e recadastrar as integrações externas.
 
-## Checklist do piloto
+## Assistente `/setup`
 
-- [ ] `GET https://SEU-DOMINIO/api/health` retorna `{ "ok": true }`.
-- [ ] A tela Configurações indica Meta, webhook e banco prontos.
-- [ ] A verificação GET do webhook é aceita pela Meta.
-- [ ] A tela confirma que existe app inscrito nos webhooks da WABA.
-- [ ] A tela confirma `CONNECTED`, `CLOUD_API`, `LIVE` e o App ID esperado.
-- [ ] Kill switch desligado durante a preparação; allowlist de destinatário e ledger validados.
-- [ ] Um evento assinado da Meta é aceito e um evento com assinatura inválida é rejeitado.
-- [ ] Um CSV pequeno importa somente após a declaração de opt-in.
-- [ ] Uma campanha pequena mostra audiência e custo antes de permitir o disparo.
-- [ ] Pausar, retomar e cancelar uma campanha de teste respeitam o estado exibido.
-- [ ] Status `sent`, `delivered`, `read` e falha aparecem sem regressão de estado.
-- [ ] `user_preferences=stop` retira o contato da audiência e revoga o consentimento ativo.
-- [ ] Template pausado/desativado bloqueia a campanha antes de percorrer a audiência.
-- [ ] Inbox persiste mensagens inbound, deduplica pelo ID Meta e não concede opt-in.
-- [ ] IA assistiva gera somente rascunhos revisáveis; a automação autônoma só é exercitada
-      em conversa de piloto explicitamente autorizada e com todas as travas registradas.
+O núcleo só é liberado quando estes gates passam:
 
-Nesta auditoria, cada campanha real deve começar com `[PILOT REAL]`, conter exatamente
-o destinatário autorizado e usar um template da allowlist. O Workflow força 1 msg/s e
-o ledger conta aceites, rejeições e resultados ambíguos no mesmo teto de três tentativas.
-A estimativa não faz chamadas à Meta e é a simulação segura do funil; o botão
-**Disparar agora** inicia envios reais somente quando o kill switch estiver habilitado.
+1. D1, R2, filas e cada DLQ, Workflow real de diagnóstico, binding do Workflow de campanhas, Durable Objects, rate limit e Cron disponíveis.
+2. Chave do cofre válida.
+3. Token, App ID, App Secret, Verify Token, Phone Number ID e WABA validados ao vivo na Meta.
+4. Webhook configurado em `https://SEU-DOMINIO/webhook`.
+5. Pelo menos um template aprovado sincronizado.
+6. Mensagem enviada para contato autorizado e confirmada como `sent → delivered → read` pelo webhook e Queue.
 
-O rate limiter nativo do login atua por localidade da Cloudflare, não como um contador
-global. Se o Turnstile for habilitado para uma implantação, a configuração incompleta
-bloqueia o login em vez de degradar silenciosamente.
+IA, CAPI, calendário, MiniApps dinâmicos e demais integrações são módulos opcionais e não bloqueiam o núcleo.
 
-## Desenvolvimento e testes
+## Configuração do webhook Meta
+
+No painel do aplicativo Meta:
+
+- callback: copie exatamente a URL mostrada em `/setup`;
+- verify token: use o valor cadastrado no assistente;
+- campos obrigatórios: `messages`, `user_preferences` e `message_template_status_update`;
+- confirme a inscrição do aplicativo em `WABA_ID/subscribed_apps`.
+
+O SmartZap valida assinatura HMAC do `POST`, token do `GET`, aplicativo, WABA, número, escopos e callback efetivo.
+
+## Desenvolvimento local
+
+Requisitos: Node.js 22 ou superior e Wrangler autenticado.
 
 ```sh
-cp .dev.vars.example .dev.vars
 npm install
+cp .dev.vars.example .dev.vars
 npm run dev
 ```
 
-Validações disponíveis:
+Gere valores locais seguros para os dois campos vazios de `.dev.vars`. Não copie credenciais produtivas para o repositório.
+
+Validação principal:
 
 ```sh
 npm test
@@ -139,60 +133,41 @@ npm run build
 npm run e2e
 ```
 
-O servidor local aplica migrações pendentes automaticamente antes de iniciar. Vitest
-e E2E usam `config/wrangler.test.jsonc`, sem carregar o `.dev.vars` real. O E2E mantém
-um D1 isolado em `.wrangler/e2e-state`, aplica as migrações e insere um template
-aprovado de teste automaticamente. Ele simula login, importação com
-consentimento e estimativa de campanha. Ao confirmar, o seed sem Phone ID prova que o
-preflight bloqueia a operação antes de criar Workflow ou chamar a Meta.
+O repositório público inclui três branches conceituais: `main` para produção do
+proprietário, `sync/vX.Y.Z` para receber uma tag oficial e `customer/*` para
+customizações. O workflow opcional abre somente o PR; nunca migra ou publica
+produção automaticamente.
 
-Turnstile é controlado por feature flag. Quando desabilitado, o login continua
-protegido pela senha mestra, rate limiter e política de mesma origem. Quando habilitado,
-a ausência de `TURNSTILE_SECRET` ou `TURNSTILE_SITE_KEY` bloqueia o login.
+## Variáveis e módulos opcionais
 
-## Workflows e PostgreSQL
+O provisionador solicita somente:
 
-Os workflows operacionais são executados pela Queue `AUTOMATION_QUEUE`, com ledger
-por etapa e retomada durável. A ação **Database Query** preserva o contrato PostgreSQL
-do SmartZap original por meio de um binding Cloudflare Hyperdrive chamado
-`HYPERDRIVE`. Sem esse binding, a etapa falha explicitamente e nenhuma execução SQL é
-simulada no D1.
+- `MASTER_PASSWORD`;
+- `SMARTZAP_VAULT_KEY`.
 
-Depois de criar a configuração Hyperdrive para o PostgreSQL de destino, adicione o ID
-ao `wrangler.jsonc`:
+As demais integrações são cadastradas após o deploy ou mantidas desligadas:
 
-```json
-"hyperdrive": [
-  { "binding": "HYPERDRIVE", "id": "ID_DA_CONFIGURACAO" }
-]
-```
+- `AI_ENABLED=false` por padrão;
+- `INBOX_AUTOMATION_ENABLED=false` por padrão;
+- Turnstile só deve ser ativado junto das duas chaves;
+- CAPI exige Dataset e permissões Meta próprias;
+- Google Calendar exige OAuth e chave de criptografia próprios;
+- MiniApps dinâmicos exigem par RSA e endpoint de dados.
 
-No desenvolvimento local, defina a conexão fora do repositório:
+## Limites de evidência
 
-```sh
-export CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE="postgres://..."
-```
+Build e testes locais não provam instalação física. A divulgação como one-click exige, no mínimo:
 
-Consultas têm timeout de 15 segundos; a saída persistida é limitada a 1.000 linhas.
-Uma etapa cujo resultado remoto ficou incerto não é repetida automaticamente.
+- três instalações sem CLI em contas Cloudflare limpas;
+- cobertura em conta gratuita e paga;
+- interrupção, retomada, colisão de nomes e falha de provisionamento;
+- Meta e webhook reais;
+- ausência de credenciais no Git, D1 em plaintext, frontend e logs;
+- cleanup sem recurso residual;
+- regressão em Chromium, Firefox, WebKit e seis larguras.
 
-## IA
+O catálogo de jornadas fica em [`jornada.md`](./jornada.md) e o histórico imutável das execuções em [`Auditoria.md`](./Auditoria.md).
 
-A IA é fail-closed e possui dois caminhos explícitos:
+## Licença
 
-- `AI_ENABLED` é o kill switch global e nasce desligado;
-- cada conversa nasce com IA desligada e exige ativação explícita do operador;
-- o contexto é limitado a mensagens de texto, sem telefone ou nome no prompt;
-- conteúdo do cliente é tratado como não confiável e não há ferramentas disponíveis;
-- cache e persistência do conteúdo nos logs do AI Gateway ficam desligados;
-- há limites por conversa/hora e globais/dia;
-- no modo assistivo, toda saída vira `pending_review` e exige revisão humana;
-- no modo de automação controlada, a saída é aprovada automaticamente somente depois
-  das revalidações de conversa, agente, base, limites, destinatário e kill switch;
-  o envio continua sujeito ao ledger idempotente e ao piloto autorizado;
-- erros do provider são reduzidos a códigos técnicos e não persistem mensagens sensíveis.
-
-O único provedor configurado é o Workers AI, via binding `AI` e AI Gateway, usando
-`@cf/meta/llama-3.2-3b-instruct` nos testes e no piloto. Se créditos, modelo ou binding
-estiverem indisponíveis, a API retorna indisponibilidade e não cria resposta parcial
-nem tenta outro provedor.
+MIT. Consulte [`LICENSE`](./LICENSE).

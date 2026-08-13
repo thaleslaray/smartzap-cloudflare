@@ -31,6 +31,10 @@ export class RealtimeHub extends DurableObject<Env> {
     return n
   }
 
+  health(): boolean {
+    return true
+  }
+
   async webSocketClose(ws: WebSocket, code: number, reason: string, _wasClean: boolean) {
     // Completa o handshake de fechamento ecoando código/razão do cliente
     ws.close(code, reason)

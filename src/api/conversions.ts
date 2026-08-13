@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { conversationsDb } from "../db/conversations";
 import { conversionsDb } from "../db/conversions";
+import { conversionReconciliationDb } from "../db/conversion-reconciliation";
 import { settingsDb } from "../db/settings";
 import { ConversionEventInputSchema } from "../domain/conversions";
 import { getCredentials } from "../whatsapp/credentials";
@@ -9,6 +10,7 @@ import { businessMessagingCapi } from "../whatsapp/conversions";
 import { probeMeta } from "../whatsapp/health";
 import { readJsonBody } from "./body";
 import type { ConversionQueueEvent } from "../queue/conversion-consumer";
+import { reconcileMetaConversions } from "../cron/conversion-reconciliation";
 
 const ConversationIdSchema = z.string().uuid();
 const EventIdSchema = z.string().uuid();
@@ -56,6 +58,226 @@ const SummaryQuerySchema = z.coerce.number().int().refine(
   (value): value is 7 | 30 | 90 => [7, 30, 90].includes(value),
   "período inválido",
 );
+const ReconciliationMutationSchema = z.object({ confirm: z.literal(true) }).strict();
+
+function asNumber(value: unknown) {
+  const parsed = Number(value ?? 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function asString(value: unknown) {
+  return typeof value === "string" ? value : "";
+}
+
+function unitCost(spendMinor: number, resultCount: number) {
+  return resultCount > 0 ? Math.round(spendMinor / resultCount) : null;
+}
+
+async function reconciliationView(env: Env, days: 7 | 30 | 90) {
+  const raw = await conversionReconciliationDb(env.DB).summary(days);
+  const localAttributions = new Map(
+    raw.localAttributions.map((row) => {
+      const item = row as Record<string, unknown>;
+      return [asString(item.ad_id), asNumber(item.conversations)] as const;
+    }),
+  );
+  const localEvents = new Map<string, {
+    lead: number;
+    qualified: number;
+    purchase: number;
+    purchaseValueMinor: number;
+    latestEventAt: number;
+  }>();
+  for (const row of raw.localEvents) {
+    const item = row as Record<string, unknown>;
+    const adId = asString(item.ad_id);
+    const current = localEvents.get(adId) ?? {
+      lead: 0,
+      qualified: 0,
+      purchase: 0,
+      purchaseValueMinor: 0,
+      latestEventAt: 0,
+    };
+    const accepted = asNumber(item.accepted);
+    if (item.event_name === "LeadSubmitted") current.lead += accepted;
+    if (item.event_name === "QualifiedLead") current.qualified += accepted;
+    if (item.event_name === "Purchase") {
+      current.purchase += accepted;
+      current.purchaseValueMinor += asNumber(item.value_minor);
+    }
+    current.latestEventAt = Math.max(current.latestEventAt, asNumber(item.latest_event_at));
+    localEvents.set(adId, current);
+  }
+
+  const ads = raw.providerAds.map((row) => {
+    const item = row as Record<string, unknown>;
+    const adId = asString(item.ad_id);
+    const spendMinor = asNumber(item.spend_minor);
+    const conversationsStarted = asNumber(item.conversations_started);
+    const leads = asNumber(item.leads);
+    const qualifiedLeads = asNumber(item.qualified_leads);
+    const purchases = asNumber(item.purchases);
+    const purchaseValueMinor = asNumber(item.purchase_value_minor);
+    const local = localEvents.get(adId) ?? {
+      lead: 0,
+      qualified: 0,
+      purchase: 0,
+      purchaseValueMinor: 0,
+      latestEventAt: 0,
+    };
+    return {
+      campaignId: asString(item.campaign_id),
+      campaignName: asString(item.campaign_name),
+      adsetId: asString(item.adset_id),
+      adsetName: asString(item.adset_name),
+      adId,
+      adName: asString(item.ad_name),
+      currency: asString(item.currency),
+      firstDay: asString(item.first_day),
+      lastDay: asString(item.last_day),
+      fetchedAt: asString(item.fetched_at),
+      spendMinor,
+      impressions: asNumber(item.impressions),
+      reach: asNumber(item.reach),
+      clicks: asNumber(item.clicks),
+      inlineLinkClicks: asNumber(item.inline_link_clicks),
+      messagingConnections: asNumber(item.messaging_connections),
+      conversationsStarted,
+      leads,
+      qualifiedLeads,
+      purchases,
+      purchaseValueMinor,
+      costPerConversationMinor: unitCost(spendMinor, conversationsStarted),
+      costPerLeadMinor: unitCost(spendMinor, leads),
+      costPerQualifiedLeadMinor: unitCost(spendMinor, qualifiedLeads),
+      costPerPurchaseMinor: unitCost(spendMinor, purchases),
+      roas: spendMinor > 0 && purchaseValueMinor > 0
+        ? Number((purchaseValueMinor / spendMinor).toFixed(2))
+        : null,
+      smartZap: {
+        conversations: localAttributions.get(adId) ?? 0,
+        acceptedLeads: local.lead,
+        acceptedQualifiedLeads: local.qualified,
+        acceptedPurchases: local.purchase,
+        informedPurchaseValueMinor: local.purchaseValueMinor,
+      },
+    };
+  });
+
+  const totals = raw.providerTotals.map((row) => {
+    const item = row as Record<string, unknown>;
+    const spendMinor = asNumber(item.spend_minor);
+    const conversationsStarted = asNumber(item.conversations_started);
+    const leads = asNumber(item.leads);
+    const qualifiedLeads = asNumber(item.qualified_leads);
+    const purchases = asNumber(item.purchases);
+    const purchaseValueMinor = asNumber(item.purchase_value_minor);
+    return {
+      currency: asString(item.currency),
+      spendMinor,
+      impressions: asNumber(item.impressions),
+      reach: asNumber(item.reach),
+      clicks: asNumber(item.clicks),
+      inlineLinkClicks: asNumber(item.inline_link_clicks),
+      messagingConnections: asNumber(item.messaging_connections),
+      conversationsStarted,
+      leads,
+      qualifiedLeads,
+      purchases,
+      purchaseValueMinor,
+      costPerConversationMinor: unitCost(spendMinor, conversationsStarted),
+      costPerLeadMinor: unitCost(spendMinor, leads),
+      costPerQualifiedLeadMinor: unitCost(spendMinor, qualifiedLeads),
+      costPerPurchaseMinor: unitCost(spendMinor, purchases),
+      roas: spendMinor > 0 && purchaseValueMinor > 0
+        ? Number((purchaseValueMinor / spendMinor).toFixed(2))
+        : null,
+    };
+  });
+
+  const alerts: Array<{
+    severity: "info" | "warning" | "critical";
+    code: string;
+    title: string;
+    detail: string;
+  }> = [];
+  const lastRun = raw.latestRun;
+  const lastSuccess = raw.latestSuccessfulRun;
+  if (!env.META_AD_ACCOUNT_ID)
+    alerts.push({
+      severity: "critical",
+      code: "ad_account_missing",
+      title: "Conta de anúncios não configurada",
+      detail: "A sincronização de investimento e atribuição está desativada.",
+    });
+  if (!lastSuccess)
+    alerts.push({
+      severity: "warning",
+      code: "never_synced",
+      title: "A Meta ainda não foi sincronizada",
+      detail: "Use Sincronizar agora para buscar gasto e resultados atribuídos.",
+    });
+  if (lastRun?.status === "failed")
+    alerts.push({
+      severity: "warning",
+      code: "last_sync_failed",
+      title: "A última sincronização falhou",
+      detail: lastRun.error_detail || "O último retrato válido foi preservado.",
+    });
+  const lastSuccessMs = lastSuccess?.completed_at
+    ? Date.parse(`${lastSuccess.completed_at.replace(" ", "T")}Z`)
+    : Number.NaN;
+  if (Number.isFinite(lastSuccessMs) && Date.now() - lastSuccessMs > 8 * 60 * 60 * 1000)
+    alerts.push({
+      severity: "warning",
+      code: "stale_sync",
+      title: "Dados da Meta estão atrasados",
+      detail: "A última sincronização válida tem mais de 8 horas.",
+    });
+  if (lastSuccess && ads.length === 0)
+    alerts.push({
+      severity: "info",
+      code: "no_insights",
+      title: "Nenhum anúncio com dados no período",
+      detail: `A sincronização funcionou, mas a Meta não retornou mídia nos últimos ${days} dias.`,
+    });
+
+  const olderThan48h = Math.floor(Date.now() / 1000) - 48 * 60 * 60;
+  for (const ad of ads) {
+    const local = localEvents.get(ad.adId);
+    if (!local || !local.latestEventAt || local.latestEventAt > olderThan48h) continue;
+    const pending = [
+      ["lead", local.lead, ad.leads],
+      ["lead qualificado", local.qualified, ad.qualifiedLeads],
+      ["compra", local.purchase, ad.purchases],
+    ].find(([, acceptedCount, attributedCount]) => Number(acceptedCount) > Number(attributedCount));
+    if (pending)
+      alerts.push({
+        severity: "warning",
+        code: `attribution_gap_${ad.adId}`,
+        title: `Resultado sem atribuição agregada: ${pending[0]}`,
+        detail: `${ad.adName}: SmartZap aceito ${pending[1]}, Meta atribuiu ${pending[2]} após 48 horas.`,
+      });
+  }
+
+  return {
+    days,
+    state: !lastSuccess ? "not_synced" : alerts.some((item) => item.severity !== "info")
+      ? "attention"
+      : "healthy",
+    configuration: {
+      adAccountConfigured: Boolean(env.META_AD_ACCOUNT_ID),
+      adAccountSuffix: env.META_AD_ACCOUNT_ID?.replace(/^act_/, "").slice(-4) ?? null,
+      graphVersion: env.META_GRAPH_VERSION || null,
+    },
+    latestRun: lastRun,
+    latestSuccessfulRun: lastSuccess,
+    datasetQuality: raw.datasetQuality,
+    totals,
+    ads,
+    alerts,
+  };
+}
 
 type AccessRequirements = {
   marketingAccessConfirmed: boolean;
@@ -429,6 +651,26 @@ export const conversionsRoutes = new Hono<{ Bindings: Env }>()
     const parsed = SummaryQuerySchema.safeParse(c.req.query("days") ?? 30);
     if (!parsed.success) return c.json({ error: "período inválido" }, 400);
     return c.json(await conversionsDb(c.env.DB).summary(parsed.data));
+  })
+  .get("/reconciliation", async (c) => {
+    const parsed = SummaryQuerySchema.safeParse(c.req.query("days") ?? 30);
+    if (!parsed.success) return c.json({ error: "período inválido" }, 400);
+    return c.json(await reconciliationView(c.env, parsed.data));
+  })
+  .post("/reconciliation/sync", async (c) => {
+    const raw = await readJsonBody(c, 2_048);
+    if (!raw.ok) return c.json({ error: raw.error }, raw.status);
+    const body = ReconciliationMutationSchema.safeParse(raw.value);
+    if (!body.success) return c.json({ error: "confirmação obrigatória" }, 400);
+    const result = await reconcileMetaConversions(c.env, {
+      trigger: "manual",
+      force: true,
+    });
+    if (result.status === "failed")
+      return c.json({ error: result.detail || "sincronização com a Meta falhou", ...result }, 502);
+    if (result.status === "skipped")
+      return c.json({ error: result.detail || "sincronização não configurada", ...result }, 409);
+    return c.json({ ok: true, ...result });
   })
   .get("/conversations/:id", async (c) => {
     const id = ConversationIdSchema.safeParse(c.req.param("id"));

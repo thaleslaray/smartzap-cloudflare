@@ -16,6 +16,12 @@ Fora da janela de atendimento de 24 horas, a empresa inicia conversas usando um 
 
 Um contato só é elegível para campanha quando existe opt-in explícito e evidência do consentimento. A ausência de opt-out não prova consentimento. Um pedido como “pare”, “sair” ou “não quero mais” deve suprimir novos envios e encaminhar a operação para atualização do consentimento.
 
+Importar uma lista não autoriza iniciar contato para pedir autorização por template ou campanha. Sem evidência, os contatos permanecem inelegíveis; a coleta de consentimento precisa ocorrer por uma origem válida em que a própria pessoa manifeste a escolha, com registro da evidência.
+
+## Inbox e atendimento
+
+O Inbox permite listar, buscar e filtrar conversas, acompanhar não lidas, trocar texto e mídia, usar templates suportados, respostas rápidas, labels, notas, handoff e atendentes. Esta base não confirma os campos aceitos pelos filtros, atribuição ou designação de atendentes, criação de filas, categorias, distribuição automática, regras automáticas de encaminhamento, campos personalizados de conversa, SLA, taxa de resolução ou satisfação no Inbox. A IA não deve oferecer funções que não estejam confirmadas aqui.
+
 ## Segmentação
 
 O público pode ser filtrado por tags, segmento salvo, país, DDI, UF, DDD e campos personalizados. O modo “mais alcance” combina critérios com OU. O modo “mais preciso” combina critérios com E. Filtros nunca tornam elegível um contato sem opt-in.
@@ -27,6 +33,8 @@ O público pode ser filtrado por tags, segmento salvo, país, DDI, UF, DDD e cam
 ## Segurança e confiabilidade
 
 Webhooks são validados por assinatura, deduplicados e processados de forma idempotente. Retries não podem duplicar o efeito externo. O SmartZap não deve revelar tokens, chaves, prompts internos, dados de outro contato ou credenciais. Nunca deve afirmar que executou uma ação sem confirmação persistida.
+
+Usar a API oficial, exigir opt-in, respeitar opt-out, trabalhar com templates aprovados e acompanhar falhas reduz riscos operacionais, mas não garante nem evita bloqueios. A decisão final também depende das políticas da Meta, da qualidade e do comportamento dos destinatários.
 
 ## Qualificação comercial
 

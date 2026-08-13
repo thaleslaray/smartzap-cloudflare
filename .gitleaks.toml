@@ -1,0 +1,44 @@
+[extend]
+useDefault = true
+
+# Exceções mínimas para valores determinísticos que exercitam validação local.
+# Nenhum caminho ou regra inteira é ignorado: cada regex exige o valor público
+# exato. Um segredo diferente na mesma linha continua sendo detectado.
+[[allowlists]]
+description = "Chaves base64url públicas usadas somente por testes do cofre"
+condition = "AND"
+regexTarget = "secret"
+regexes = [
+  '''^MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY$''',
+  '''^ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA$''',
+  # Gitleaks 8.30 também testa candidatos decodificados e reduz a detecção
+  # ao prefixo de oito bytes dessas mesmas fixtures públicas.
+  '''^01234567$''',
+  '''^fedcba98$''',
+]
+paths = [
+  '''(^|/)config/wrangler\.test\.jsonc$''',
+  '''(^|/)tests/vault\.test\.ts$''',
+  '''(^|/)vitest\.config\.ts$''',
+]
+
+[[allowlists]]
+description = "Prefixos decodificados das fixtures públicas do cofre"
+targetRules = ["generic-api-key"]
+condition = "AND"
+stopwords = ["01234567", "fedcba98"]
+paths = [
+  '''(^|/)config/wrangler\.test\.jsonc$''',
+  '''(^|/)tests/vault\.test\.ts$''',
+  '''(^|/)vitest\.config\.ts$''',
+]
+
+[[allowlists]]
+description = "Identificador público do modelo de agendamento dinâmico"
+condition = "AND"
+regexTarget = "secret"
+regexes = ['''^agendamento_dinamico_v1$''']
+paths = [
+  '''(^|/)app/lib/flow-templates\.ts$''',
+  '''(^|/)tests/domain/miniapps-functional-matrix\.test\.ts$''',
+]

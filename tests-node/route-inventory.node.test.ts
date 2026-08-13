@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   authenticatedOperationalRoutes,
   coveredDynamicRoutePatterns,
+  publicInstallerRoutes,
   publicStaticRoutes,
 } from "../e2e/support/route-inventory";
 
@@ -18,7 +19,12 @@ describe("inventário de rotas do gate", () => {
       (path) =>
         !path.includes(":") &&
         !path.includes("*") &&
-        !["/login", "/atendimento", ...publicStaticRoutes].includes(path),
+        ![
+          "/login",
+          "/atendimento",
+          ...publicStaticRoutes,
+          ...publicInstallerRoutes,
+        ].includes(path),
     );
     expect([...authenticatedOperationalRoutes].sort()).toEqual(
       [...new Set(["/", ...mountedStatic])].sort(),
@@ -30,6 +36,17 @@ describe("inventário de rotas do gate", () => {
       publicStaticRoutes.includes(path as (typeof publicStaticRoutes)[number]),
     );
     expect([...publicStaticRoutes].sort()).toEqual([...new Set(mountedPublic)].sort());
+  });
+
+  it("declara separadamente as rotas públicas do instalador", () => {
+    const mountedPublic = mountedPaths.filter((path) =>
+      publicInstallerRoutes.includes(
+        path as (typeof publicInstallerRoutes)[number],
+      ),
+    );
+    expect([...publicInstallerRoutes].sort()).toEqual(
+      [...new Set(mountedPublic)].sort(),
+    );
   });
 
   it("declara cobertura para todo padrão dinâmico montado", () => {

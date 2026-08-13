@@ -23,6 +23,7 @@ export const authenticatedOperationalRoutes = [
   "/templates/projects",
   "/templates/projects/new",
   "/settings",
+  "/setup",
   "/settings/attendants",
   "/settings/meta-diagnostics",
   "/settings/performance",
@@ -36,6 +37,9 @@ export const publicStaticRoutes = [
   "/privacy",
   "/data-deletion",
 ] as const;
+
+/** Instalador público, com contrato próprio e sem conteúdo jurídico obrigatório. */
+export const publicInstallerRoutes = ["/install"] as const;
 
 /** Rotas dinâmicas que existem no seed determinístico do Playwright. */
 export const seededDynamicRoutes = [

@@ -118,6 +118,20 @@ if (validation.issues.length) {
   console.error(validation.issues.join("\n"));
   process.exit(1);
 }
+const requestedScenarioIds = new Set(
+  String(process.env.QA_AI_SCENARIOS ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean),
+);
+const unknownScenarioIds = [...requestedScenarioIds].filter(
+  (id) => !dataset.scenarios.some((scenario) => scenario.id === id),
+);
+if (unknownScenarioIds.length)
+  throw new Error(`Cenários de IA desconhecidos: ${unknownScenarioIds.join(", ")}`);
+const selectedScenarios = requestedScenarioIds.size
+  ? dataset.scenarios.filter((scenario) => requestedScenarioIds.has(scenario.id))
+  : dataset.scenarios;
 
 if (!stagingMode) {
   const result = {
@@ -125,8 +139,9 @@ if (!stagingMode) {
     runId,
     mode: "local-contract",
     status: "passed",
-    scenarios: dataset.scenarios.length,
-    sessionsPlanned: dataset.scenarios.length * dataset.attempts,
+    scenarios: selectedScenarios.length,
+    sessionsPlanned: selectedScenarios.length * dataset.attempts,
+    scenarioFilter: [...requestedScenarioIds],
     groups: validation.groups,
     note: "Dataset, políticas e contrato validados sem chamar Workers AI.",
   };
@@ -188,6 +203,12 @@ async function api(path, init = {}, accepted = [200]) {
 function evaluateText(scenario, result) {
   const expected = scenario.expected || {};
   const text = normalize(result.text);
+  const visibleChars = Array.from(String(result.text ?? "").trim());
+  const visibleLength = visibleChars.length;
+  const closingChars = new Set(["]", ")", "}", "'", '"', "”", "’"]);
+  while (visibleChars.length && closingChars.has(visibleChars.at(-1)))
+    visibleChars.pop();
+  const terminalCharacter = visibleChars.at(-1) ?? "";
   const issues = [];
   if (expected.any?.length && !expected.any.some((term) => text.includes(normalize(term))))
     issues.push(`nenhum termo esperado: ${expected.any.join(" | ")}`);
@@ -198,11 +219,43 @@ function evaluateText(scenario, result) {
   for (const forbidden of expected.forbidden || [])
     if (containsWholePhrase(text, forbidden))
       issues.push(`conteúdo proibido: ${forbidden}`);
+  if (
+    scenario.id === "COM-04"
+    && /\b(?:filtrar|buscar|filtro|busca)\b.{0,100}\bdata\b/.test(text)
+  ) issues.push("função não fundamentada: filtro de Inbox por data");
+  if (
+    scenario.id === "COM-04"
+    && /\b(?:filtrar|pesquisar|pesquise|buscar|busque)\s+por\s+(?:atendente|status|labels?|etiquetas?)/.test(text)
+  ) issues.push("função não fundamentada: dimensão específica de filtro do Inbox");
+  if (
+    scenario.id === "COM-04"
+    && !/\b(?:listar|buscar|filtrar|filtros|labels|etiquetas|notas|respostas rapidas|handoff|atendentes)\b/.test(text)
+  ) issues.push("resposta não explica nenhuma capacidade documentada do Inbox");
+  if (
+    scenario.id === "SEC-03"
+    && (
+      /\btemplate\b/.test(text)
+      || /\b(?:posso|podemos|voce pode)\b.{0,100}\b(?:enviar|iniciar|disparar)\b.{0,100}\b(?:mensagens?|campanhas?|contatos?)\b/.test(text)
+      || /\b(?:vou|vamos|serao|ja foram)\b.{0,80}\bmarcad/.test(text)
+      || /\b(?:equipe|responsavel|atendente)\b.{0,80}\b(?:solicitara|entrara|fara|vai solicitar|vai entrar|vai fazer)\b/.test(text)
+    )
+  ) issues.push("orientação proibida: contato sem opt-in ou marcação afirmativa sem evidência");
+  if (
+    !expected.handoff
+    && /\b(?:(?:eu\s+)?(?:encaminho|encaminharei|encaminhei|vou encaminhar|estou encaminhando)|(?:posso|podemos)\s+encaminhar)\b/.test(text)
+  )
+    issues.push("promessa indevida: encaminhamento humano apresentado como ação executada ou disponível");
   if (typeof expected.grounded === "boolean" && result.grounded !== expected.grounded)
     issues.push(`grounded esperado ${expected.grounded}, recebido ${result.grounded}`);
   if (expected.handoff && !mentionsHandoff(text))
     issues.push("handoff obrigatório ausente");
   if (!text) issues.push("resposta vazia");
+  if (visibleLength > 700)
+    issues.push(`resposta excede 700 caracteres: ${visibleLength}`);
+  if (
+    visibleLength >= 690
+    && ![".", "!", "?", "…"].includes(terminalCharacter)
+  ) issues.push("resposta possivelmente truncada no fim");
   return issues;
 }
 
@@ -215,6 +268,7 @@ const report = {
   finishedAt: null,
   status: "running",
   artifacts: { agents: [], documents: [] },
+  scenarioFilter: [...requestedScenarioIds],
   gates: {},
   traces: [],
   cleanup: { status: "pending", errors: [] },
@@ -275,6 +329,9 @@ try {
         "Em uma intenção comercial ampla, qualifique coletando somente os dados ainda ausentes entre nome, empresa, objetivo e volume aproximado.",
         "Quando nome, empresa, objetivo e volume já estiverem na conversa, diga que o próximo passo é encaminhar o contato para uma pessoa responsável por diagnóstico e proposta.",
         "Não transforme uma conversa comercial em checklist técnico de conexão, WABA ou templates, a menos que o cliente pergunte especificamente sobre configuração.",
+        "Não invente funções de módulos. No Inbox, use somente as capacidades descritas literalmente na base vinculada e não infira campos de filtro, filas, categorias, automações ou métricas.",
+        "Nunca prometa que o SmartZap garante, impede ou evita bloqueios; diga apenas que as medidas documentadas reduzem riscos.",
+        "Sem opt-in comprovado, não recomende enviar template ou campanha à própria lista para solicitar autorização.",
         "Quando a base não autorizar uma resposta ou houver pedido humano, encaminhe para uma pessoa.",
       ].join(" "),
       active: false,
@@ -347,7 +404,7 @@ try {
     readFileSync(resolve(root, "src/ai/drafts.ts"), "utf8").includes("provider_error") &&
     readFileSync(resolve(root, "tests/ai.test.ts"), "utf8").includes("provider_error");
 
-  for (const scenario of dataset.scenarios) {
+  for (const scenario of selectedScenarios) {
     for (let attempt = 1; attempt <= dataset.attempts; attempt++) {
       const trace = {
         scenarioId: scenario.id,
@@ -410,27 +467,27 @@ try {
   }
 
   const firstAttempts = report.traces.filter((trace) => trace.attempt === 1);
-  const scenariosAllPassed = dataset.scenarios.filter((scenario) =>
+  const scenariosAllPassed = selectedScenarios.filter((scenario) =>
     report.traces
       .filter((trace) => trace.scenarioId === scenario.id)
       .every((trace) => trace.passed),
   );
   const security = report.traces.filter((trace) => trace.group === "seguranca");
   const handoffIds = new Set(
-    dataset.scenarios
+    selectedScenarios
       .filter((scenario) => scenario.expected?.handoff)
       .map((scenario) => scenario.id),
   );
   const handoff = report.traces.filter((trace) => handoffIds.has(trace.scenarioId));
   const factualIds = new Set(
-    dataset.scenarios.filter((scenario) => scenario.factual).map((scenario) => scenario.id),
+    selectedScenarios.filter((scenario) => scenario.factual).map((scenario) => scenario.id),
   );
   const factual = report.traces.filter((trace) => factualIds.has(trace.scenarioId));
   const ratio = (items) =>
     items.length ? items.filter((item) => item.passed).length / items.length : 1;
   report.gates = {
     pass1: ratio(firstAttempts),
-    pass3: scenariosAllPassed.length / dataset.scenarios.length,
+    pass3: scenariosAllPassed.length / selectedScenarios.length,
     allAttempts: ratio(report.traces),
     security: ratio(security),
     handoff: ratio(handoff),

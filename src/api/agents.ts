@@ -207,7 +207,7 @@ export const agentsRoutes = new Hono<{ Bindings: Env }>()
       );
       if (!documentIds.length)
         return c.json({
-          text: "Este agente ainda não possui documentos vinculados. Vou encaminhar para uma pessoa.",
+          text: "Este agente ainda não possui documentos vinculados. O caso precisa ser encaminhado para uma pessoa.",
           grounded: false,
         });
       sources = extractKnowledgeSources(
@@ -219,13 +219,13 @@ export const agentsRoutes = new Hono<{ Bindings: Env }>()
       ).slice(0, agent.rag_max_results);
     } catch {
       return c.json({
-        text: "A base de conhecimento está temporariamente indisponível. Vou encaminhar para uma pessoa.",
+        text: "A base de conhecimento está temporariamente indisponível. O caso precisa ser encaminhado para uma pessoa.",
         grounded: false,
       });
     }
     if (!sources.length)
       return c.json({
-        text: "Não encontrei essa informação na base. Vou encaminhar para uma pessoa.",
+        text: "Não encontrei essa informação na base. O caso precisa ser encaminhado para uma pessoa.",
         grounded: false,
       });
     try {
@@ -248,7 +248,7 @@ export const agentsRoutes = new Hono<{ Bindings: Env }>()
       return c.json({ text: generated.text, grounded: true });
     } catch (error) {
       return c.json({
-        text: "Não consegui gerar uma resposta fundamentada. Vou encaminhar para uma pessoa.",
+        text: "Não consegui gerar uma resposta fundamentada. O caso precisa ser encaminhado para uma pessoa.",
         grounded: false,
         errorCode: error instanceof AiDraftError ? error.code : "provider_error",
       });

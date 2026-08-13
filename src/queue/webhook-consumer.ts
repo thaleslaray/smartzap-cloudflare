@@ -23,6 +23,7 @@ import {
   buildFlowConfirmation,
   flowFieldCatalog,
 } from "../domain/flow-response";
+import { reconcileSetupMessageDelivery } from "../setup/delivery";
 
 async function sha256(value: string): Promise<string> {
   const digest = await crypto.subtle.digest(
@@ -417,6 +418,17 @@ export async function handleWebhookBatch(
   const eventRecords = await Promise.all(events.map(recordFor));
   const statusInbox = statusEventsDb(env.DB);
   await statusInbox.insertMany(eventRecords);
+  const setupMessageId = await settingsDb(env.DB).get("setup_test_message_id");
+
+  // O assistente de instalação acompanha os callbacks pela própria Queue. Isso
+  // evita deixar o gate pendente até alguém abrir a tela e consultar o status.
+  const setupCandidateIds = new Set(
+    events
+      .filter((event): event is Extract<MetaWebhookEvent, { kind: "status" }> => event.kind === "status")
+      .map((event) => event.status.id),
+  );
+  for (const messageId of setupCandidateIds)
+    await reconcileSetupMessageDelivery(env.DB, messageId);
 
   const changedCampaigns = new Set<string>();
   let contactsChanged = false;
@@ -805,10 +817,17 @@ export async function handleWebhookBatch(
         await pricing.reconcileCampaignCost(updated.campaign_id);
     }
     if (!updated) {
-      await statusInbox.markPending(
-        eventRecord.event_key,
-        "campaign_contact_not_found",
-      );
+      if (setupMessageId && event.status.id === setupMessageId) {
+        // A mensagem real do assistente de instalação não pertence a uma
+        // campanha. Seus callbacks comprovam o gate do setup e são terminais;
+        // mantê-los pendentes criaria retry e backlog infinitos.
+        await statusInbox.markIgnored(eventRecord.event_key);
+      } else {
+        await statusInbox.markPending(
+          eventRecord.event_key,
+          "campaign_contact_not_found",
+        );
+      }
       continue;
     }
     await statusInbox.markApplied(eventRecord.event_key, {

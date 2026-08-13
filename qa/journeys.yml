@@ -33,6 +33,34 @@
       "evidence": ["public-ui", "responsive", "accessibility", "no-auth"],
       "invalidatedBy": ["app/App.tsx", "app/pages/Legal.tsx", "e2e/legal-public.spec.ts"]
     },
+    "INST": {
+      "risk": "P0",
+      "owners": ["cloudflare-installer", "security"],
+      "tests": ["tests/vault.test.ts", "tests/setup-installer.test.ts", "tests-node/deploy-safety.node.test.ts", "tests-node/install-canary-evidence.node.test.ts", "tests-node/route-inventory.node.test.ts", "tests-node/standalone-installer.node.test.ts", "tests-node/fork-bootstrap.node.test.ts", "tests-node/provisioner.node.test.ts", "e2e/installer-setup.spec.ts", "e2e/standalone-installer.spec.ts", "scripts/qa-install-canary-evidence.mjs", "scripts/qa-secret-scan.mjs", "scripts/validate-release-metadata.mjs"],
+      "evidence": ["local-secret-generation", "encrypted-vault", "deploy-dry-run", "immutable-release", "tag-pinned-deploy", "true-github-fork", "workers-builds", "update-pull-request", "migration-rollback", "ui", "responsive", "accessibility", "clean-account-install", "history-secret-scan", "durable-object-cleanup", "cleanup"],
+      "invalidatedBy": ["app/pages/Installer.tsx", "app/pages/Setup.tsx", "src/api/setup.ts", "src/security", "src/whatsapp/credentials.ts", "migrations/0049_secret_vault_and_setup.sql", "migrations/0050_installer_state_and_vault_rotation.sql", "migrations/0051_vault_rotation_recovery.sql", "wrangler.jsonc", "package.json", ".dev.vars.example", "README.md", "provisioner/src/index.ts", "provisioner/src/fork-ui.ts", "provisioner/src/ui.ts", "scripts/fork-deploy.mjs", "scripts/lib/fork-bootstrap.mjs", "scripts/lib/deploy-safety.mjs", "scripts/lib/install-canary-evidence.mjs", "scripts/build-public-release.mjs", "scripts/prepare-public-deploy.mjs", "scripts/qa-install-canary-evidence.mjs", "scripts/qa-secret-scan.mjs", "scripts/validate-release-metadata.mjs", "release/migrations.json", "fork-migrations", ".github/workflows/upstream-sync.yml", "e2e/installer-setup.spec.ts", "e2e/standalone-installer.spec.ts"]
+    },
+    "UPD": {
+      "risk": "P0",
+      "owners": ["release-maintenance"],
+      "tests": ["tests-node/fork-update-scenarios.node.test.ts", "tests-node/github-fork.node.test.ts", "tests-node/fork-bootstrap.node.test.ts", "scripts/qa-fork-update-scenarios.mjs", "scripts/generate-update-pr-body.mjs"],
+      "evidence": ["signed-release", "update-pull-request", "customization-preserved", "conflict-detected", "workers-builds", "rollback", "cleanup"],
+      "invalidatedBy": [".github/workflows/upstream-sync.yml", "scripts/generate-update-pr-body.mjs", "scripts/qa-fork-update-scenarios.mjs", "scripts/lib/github-fork.mjs", "scripts/lib/fork-release.mjs", "CHANGELOG.md", "UPDATE_POLICY.md"]
+    },
+    "MIG": {
+      "risk": "P0",
+      "owners": ["database-migrations", "release-maintenance"],
+      "tests": ["tests-node/fork-bootstrap.node.test.ts", "tests-node/fork-update-scenarios.node.test.ts", "scripts/fork-deploy.mjs", "scripts/fork-rollback.mjs"],
+      "evidence": ["baseline", "migration", "idempotency", "failure-atomicity", "schema-postcheck", "cleanup"],
+      "invalidatedBy": ["migrations", "fork-migrations", "provisioner/baseline", "release/migrations.json", "scripts/lib/fork-migrations.mjs", "scripts/fork-deploy.mjs"]
+    },
+    "ROLLBACK": {
+      "risk": "P0",
+      "owners": ["operations", "release-maintenance"],
+      "tests": ["tests-node/fork-bootstrap.node.test.ts", "tests-node/fork-update-scenarios.node.test.ts", "scripts/fork-rollback.mjs", "scripts/qa-rollback-drill.mjs"],
+      "evidence": ["worker-version", "d1-bookmark", "restore", "health", "under-ten-minutes", "cleanup"],
+      "invalidatedBy": ["scripts/fork-rollback.mjs", "scripts/qa-rollback-drill.mjs", "scripts/lib/fork-release.mjs", "scripts/lib/fork-migrations.mjs", "release/migrations.json", "fork-migrations"]
+    },
     "DASH": {
       "risk": "P1",
       "owners": ["dashboard"],

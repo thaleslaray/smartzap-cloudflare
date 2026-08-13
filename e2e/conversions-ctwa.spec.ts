@@ -16,18 +16,53 @@ async function expectNoHorizontalOverflow(page: Page) {
   expect(width.document).toBeLessThanOrEqual(width.viewport + 2);
 }
 
-test("painel separa registrado, aceito, matched e atribuído em desktop e mobile", async ({ page }) => {
+test("painel reconcilia mídia sem confundir agregado com match individual em desktop e mobile", async ({ page }) => {
+  await page.route("**/api/conversions/reconciliation?days=*", (route) => route.fulfill({
+    contentType: "application/json",
+    body: JSON.stringify({
+      days: 30,
+      state: "healthy",
+      configuration: { adAccountConfigured: true, adAccountSuffix: "1098", graphVersion: "v26.0" },
+      latestRun: { id: "run-e2e", status: "succeeded", error_detail: null, started_at: "2026-08-09 12:00:00", completed_at: "2026-08-09 12:00:01" },
+      latestSuccessfulRun: { id: "run-e2e", status: "succeeded", insight_rows: 1, scope_start: "2026-05-12", scope_end: "2026-08-09", completed_at: "2026-08-09 12:00:01" },
+      datasetQuality: { status: "not_applicable", detail: "Dataset Quality documenta métricas web; não é usado como EMQ do WhatsApp." },
+      totals: [{
+        currency: "BRL", spendMinor: 1073, impressions: 179, reach: 160,
+        clicks: 8, inlineLinkClicks: 5, messagingConnections: 3,
+        conversationsStarted: 3, leads: 1, qualifiedLeads: 0, purchases: 0,
+        purchaseValueMinor: 0, costPerConversationMinor: 358, costPerLeadMinor: 1073,
+        costPerQualifiedLeadMinor: null, costPerPurchaseMinor: null, roas: null,
+      }],
+      ads: [{
+        campaignId: "120252848215600683", campaignName: "SmartZap — CANÁRIO CTWA",
+        adsetId: "120252848215620683", adsetName: "CTWA controlado",
+        adId: "120252848215610683", adName: "Criativo WhatsApp",
+        currency: "BRL", firstDay: "2026-08-08", lastDay: "2026-08-08",
+        fetchedAt: "2026-08-09 12:00:01", spendMinor: 1073, impressions: 179,
+        reach: 160, clicks: 8, inlineLinkClicks: 5, messagingConnections: 3,
+        conversationsStarted: 3, leads: 1, qualifiedLeads: 0, purchases: 0,
+        purchaseValueMinor: 0, costPerConversationMinor: 358, costPerLeadMinor: 1073,
+        costPerQualifiedLeadMinor: null, costPerPurchaseMinor: null, roas: null,
+        smartZap: { conversations: 3, acceptedLeads: 1, acceptedQualifiedLeads: 0, acceptedPurchases: 0, informedPurchaseValueMinor: 0 },
+      }],
+      alerts: [],
+    }),
+  }));
   await login(page);
   for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
     await page.setViewportSize(viewport);
     await page.goto("/analytics/conversions");
     await expect(page.getByRole("heading", { name: "Conversões de anúncios" })).toBeVisible();
     await expect(page.getByRole("tab", { name: "Visão geral" })).toBeVisible();
+    await expect(page.getByText("R$ 10,73", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("3 Meta")).toBeVisible();
+    await expect(page.getByText("1 aceitos pela API")).toBeVisible();
     await page.getByRole("tab", { name: "Diagnóstico Meta" }).click();
     await expect(page.getByText("Registrado pelo SmartZap")).toBeVisible();
-    await expect(page.getByText("Aceito pela Meta", { exact: true })).toBeVisible();
-    await expect(page.getByText("Matched pela Meta")).toBeVisible();
-    await expect(page.getByText("Atribuído pela Meta")).toBeVisible();
+    await expect(page.getByText("Aceito pela API da Meta", { exact: true })).toBeVisible();
+    await expect(page.getByText("Matched individualmente")).toBeVisible();
+    await expect(page.getByText("Atribuído individualmente")).toBeVisible();
+    await expect(page.getByText("Leads atribuídos no agregado")).toBeVisible();
     await expectNoHorizontalOverflow(page);
   }
   const results = await new AxeBuilder({ page }).include("main").analyze();

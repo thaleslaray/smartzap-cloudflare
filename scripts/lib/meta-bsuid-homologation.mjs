@@ -15,6 +15,7 @@ export function evaluateMetaBsuidHomologation(input) {
   const official = input?.official ?? {};
   const outbound = input?.outbound ?? {};
   const cleanup = input?.cleanup ?? {};
+  const requireRead = truthy(input?.requireRead);
 
   const checks = {
     officialWebhookScenario:
@@ -36,8 +37,9 @@ export function evaluateMetaBsuidHomologation(input) {
       Number(outbound.providerCallCount) === 1 &&
       truthy(outbound.accepted) &&
       Boolean(outbound.messageId),
-    statusProgressed:
-      TERMINAL_SUCCESS.has(String(outbound.status ?? "").toLowerCase()),
+    statusProgressed: requireRead
+      ? String(outbound.status ?? "").toLowerCase() === "read"
+      : TERMINAL_SUCCESS.has(String(outbound.status ?? "").toLowerCase()),
     idempotencyConfirmed:
       truthy(outbound.operationalContractPassed) &&
       Number(outbound.providerCallCount) === 1 &&
@@ -59,7 +61,9 @@ export function evaluateMetaBsuidHomologation(input) {
     bsuidPersisted: "o BSUID não foi persistido de forma única",
     conversationAssociated: "Inbox/conversa inbound não foi associada de forma única",
     officialReplyAccepted: "o envio oficial estritamente por BSUID não foi aceito",
-    statusProgressed: "o envio não chegou a delivered/read",
+    statusProgressed: requireRead
+      ? "o envio não chegou a read"
+      : "o envio não chegou a delivered/read",
     idempotencyConfirmed: "o replay idempotente não foi comprovado",
     cleanupPassed: "callback ou artefatos de homologação não foram limpos",
   };

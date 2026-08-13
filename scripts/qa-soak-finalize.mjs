@@ -110,7 +110,10 @@ function integritySnapshot() {
 
 async function invocationGapSnapshot(gap) {
   const accountId = String(process.env.CLOUDFLARE_ACCOUNT_ID || "4a1961760bc2292fab3733dc2b3c811c");
-  const token = String(process.env.CLOUDFLARE_API_TOKEN || "");
+  // O token de Analytics é deliberadamente separado da autenticação que o
+  // Wrangler usa para KV/D1. Sobrescrever CLOUDFLARE_API_TOKEN com um token
+  // GraphQL somente-leitura faria a coleta operacional perder acesso ao KV.
+  const token = String(process.env.CLOUDFLARE_ANALYTICS_TOKEN || "");
   // O dataset de invocações é exposto com precisão de segundos. Excluímos um
   // segundo inteiro em cada borda para não contar os dois ciclos adjacentes
   // que delimitam a lacuna como se estivessem dentro dela.

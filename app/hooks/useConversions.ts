@@ -274,3 +274,103 @@ export function useConversionSummary(days: 7 | 30 | 90) {
     queryFn: () => api<ConversionSummary>(`/api/conversions/summary?days=${days}`),
   });
 }
+
+export type ConversionReconciliationMetric = {
+  currency: string;
+  spendMinor: number;
+  impressions: number;
+  reach: number;
+  clicks: number;
+  inlineLinkClicks: number;
+  messagingConnections: number;
+  conversationsStarted: number;
+  leads: number;
+  qualifiedLeads: number;
+  purchases: number;
+  purchaseValueMinor: number;
+  costPerConversationMinor: number | null;
+  costPerLeadMinor: number | null;
+  costPerQualifiedLeadMinor: number | null;
+  costPerPurchaseMinor: number | null;
+  roas: number | null;
+};
+
+export type ConversionReconciliation = {
+  days: 7 | 30 | 90;
+  state: "not_synced" | "attention" | "healthy";
+  configuration: {
+    adAccountConfigured: boolean;
+    adAccountSuffix: string | null;
+    graphVersion: string | null;
+  };
+  latestRun: {
+    id: string;
+    status: "running" | "succeeded" | "partial" | "failed" | "skipped";
+    error_detail: string | null;
+    started_at: string;
+    completed_at: string | null;
+  } | null;
+  latestSuccessfulRun: {
+    id: string;
+    status: "succeeded";
+    insight_rows: number;
+    scope_start: string;
+    scope_end: string;
+    completed_at: string;
+  } | null;
+  datasetQuality: {
+    status: "not_applicable";
+    detail: string;
+  };
+  totals: ConversionReconciliationMetric[];
+  ads: Array<ConversionReconciliationMetric & {
+    campaignId: string;
+    campaignName: string;
+    adsetId: string;
+    adsetName: string;
+    adId: string;
+    adName: string;
+    firstDay: string;
+    lastDay: string;
+    fetchedAt: string;
+    smartZap: {
+      conversations: number;
+      acceptedLeads: number;
+      acceptedQualifiedLeads: number;
+      acceptedPurchases: number;
+      informedPurchaseValueMinor: number;
+    };
+  }>;
+  alerts: Array<{
+    severity: "info" | "warning" | "critical";
+    code: string;
+    title: string;
+    detail: string;
+  }>;
+};
+
+export function useConversionReconciliation(days: 7 | 30 | 90) {
+  return useQuery({
+    queryKey: ["conversions", "reconciliation", days],
+    queryFn: () => api<ConversionReconciliation>(
+      `/api/conversions/reconciliation?days=${days}`,
+    ),
+    retry: false,
+  });
+}
+
+export function useSyncConversionReconciliation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api<{
+      ok: true;
+      status: "succeeded";
+      rows: number;
+      pages: number;
+    }>("/api/conversions/reconciliation/sync", {
+      method: "POST",
+      body: JSON.stringify({ confirm: true }),
+    }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["conversions", "reconciliation"] }),
+  });
+}

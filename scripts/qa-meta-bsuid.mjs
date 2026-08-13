@@ -195,7 +195,9 @@ function d1Target(target, sql) {
       "execute",
       production ? "smartzap" : "smartzap-staging",
       "--config",
-      production ? "wrangler.jsonc" : "config/wrangler.staging.jsonc",
+      production
+        ? (process.env.SMARTZAP_PRODUCTION_WRANGLER_CONFIG || "wrangler.jsonc")
+        : "config/wrangler.staging.jsonc",
       "--remote",
       "--json",
       "--command",
@@ -696,7 +698,7 @@ async function sendStrictBsuid(state, statePath) {
   };
 }
 
-async function waitForOutboundStatus(state, waitSeconds) {
+async function waitForOutboundStatus(state, waitSeconds, requireRead = false) {
   const deadline = Date.now() + waitSeconds * 1_000;
   let row = null;
   while (Date.now() < deadline) {
@@ -709,7 +711,13 @@ async function waitForOutboundStatus(state, waitSeconds) {
       ...d1Production(query).map((event) => ({ ...event, environment: "production" })),
     ];
     row = selectBestMetaStatusEvent(events);
-    if (["delivered", "read", "failed"].includes(row?.status)) return row;
+    if (row?.status === "failed") return row;
+    if (
+      requireRead
+        ? row?.status === "read"
+        : ["delivered", "read"].includes(row?.status)
+    )
+      return row;
     await sleep(5_000);
   }
   return row;
@@ -876,6 +884,7 @@ async function run() {
   let callbackRestored = false;
   const callbackArtifacts = [];
   let contractArtifact = null;
+  const requireRead = process.argv.includes("--require-read");
   const restoreOnSignal = () => {
     try {
       try {
@@ -915,6 +924,7 @@ async function run() {
     outboundStatus = await waitForOutboundStatus(
       state,
       boundedSeconds("status-wait-seconds", 600, 1_800),
+      requireRead,
     );
     snapshot = evidenceSnapshot(state, official, send, outboundStatus, true);
   } catch (error) {
@@ -938,6 +948,7 @@ async function run() {
     official: snapshot?.official,
     outbound: snapshot?.outbound,
     cleanup,
+    requireRead,
   });
   const issues = [...new Set([...runtimeIssues, ...evaluation.issues])];
   const status = issues.length ? "failed" : "passed";
@@ -952,6 +963,7 @@ async function run() {
     release: spec.release,
     environment: state.environment,
     authorizedRecipient: state.authorizedRecipient,
+    requiredStatus: requireRead ? "read" : "delivered-or-read",
     official: snapshot?.official || null,
     outbound: snapshot?.outbound || null,
     cleanup,
@@ -1035,6 +1047,7 @@ async function finalizeObservedRun() {
   const outboundStatus = await waitForOutboundStatus(
     state,
     boundedSeconds("status-wait-seconds", 60, 1_800),
+    process.argv.includes("--require-read"),
   );
   const snapshot = evidenceSnapshot(state, official, send, outboundStatus, true);
   const runtimeIssues = [];
@@ -1052,6 +1065,7 @@ async function finalizeObservedRun() {
     official: snapshot.official,
     outbound: snapshot.outbound,
     cleanup,
+    requireRead: process.argv.includes("--require-read"),
   });
   const issues = [...new Set([...runtimeIssues, ...evaluation.issues])];
   const status = issues.length ? "failed" : "passed";
@@ -1066,6 +1080,9 @@ async function finalizeObservedRun() {
     release: spec.release,
     environment: state.environment,
     authorizedRecipient: state.authorizedRecipient,
+    requiredStatus: process.argv.includes("--require-read")
+      ? "read"
+      : "delivered-or-read",
     official: snapshot.official,
     outbound: snapshot.outbound,
     cleanup,

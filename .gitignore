@@ -1,8 +1,14 @@
 node_modules
+.smartzap/
+wrangler.fork.generated.json
+config/wrangler.production.jsonc
 dist
 .DS_Store
 .claude/
 .meta-whatsapp-cache/
+.meta-docs-cache/
+exa-results/
+provisioner/tmp/
 .dev.vars*
 !.dev.vars.example
 .env*
@@ -15,4 +21,5 @@ qa/.state/
 qa/.ledger/
 qa/reports/
 qa/backups/
+tmp/
 ds.zip

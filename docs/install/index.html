@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="referrer" content="no-referrer" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; font-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; navigate-to https://instalar.escoladeautomacao.com" />
+    <title>Instalar SmartZap com segurança</title>
+    <style>
+      :root { color-scheme: dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #080b0a; color: #f2f6f3; }
+      * { box-sizing: border-box; }
+      body { margin: 0; min-width: 320px; background: radial-gradient(circle at 80% 0%, rgba(39, 130, 82, .18), transparent 34rem), #080b0a; }
+      main { width: min(760px, calc(100% - 32px)); margin: 0 auto; padding: 48px 0 72px; }
+      header { display: flex; align-items: center; gap: 12px; margin-bottom: 48px; }
+      .logo { width: 42px; height: 42px; border-radius: 13px; display: grid; place-items: center; background: #0b8e63; font-weight: 900; font-size: 22px; }
+      .brand { font-weight: 750; }
+      .muted { color: #9da8a1; }
+      .eyebrow { color: #8df4b6; text-transform: uppercase; letter-spacing: .14em; font-size: 12px; font-weight: 750; }
+      h1 { margin: 14px 0; max-width: 700px; font-size: clamp(34px, 7vw, 58px); letter-spacing: -.045em; line-height: 1.02; }
+      h2 { margin: 3px 0 0; font-size: 18px; }
+      p { line-height: 1.6; }
+      .card { margin-top: 28px; padding: clamp(20px, 4vw, 30px); border: 1px solid #28332d; border-radius: 22px; background: rgba(18, 24, 21, .92); }
+      ol { margin: 0; padding: 0; list-style: none; }
+      li { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 14px; padding: 17px 0; border-bottom: 1px solid #28332d; }
+      li:first-child { padding-top: 0; }
+      li:last-child { padding-bottom: 0; border-bottom: 0; }
+      .number { display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid #3d6554; border-radius: 50%; color: #8df4b6; font-weight: 750; }
+      a.primary { min-height: 48px; margin-top: 22px; border-radius: 12px; padding: 0 18px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: #bffbd3; color: #07120b; font-weight: 750; text-decoration: none; }
+      a:focus-visible { outline: 3px solid #87efb0; outline-offset: 3px; }
+      footer { margin-top: 30px; color: #7f8b84; font-size: 13px; line-height: 1.6; }
+      @media (max-width: 520px) { main { padding-top: 26px; } header { margin-bottom: 34px; } a.primary { width: 100%; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div class="logo" aria-hidden="true">S</div>
+        <div><div class="brand">SmartZap</div><div class="muted">Instalação segura na sua Cloudflare</div></div>
+      </header>
+
+      <section aria-labelledby="title">
+        <div class="eyebrow">Código próprio recomendado</div>
+        <h1 id="title">Escolha o fork ou uma instalação rápida.</h1>
+        <p class="muted">O fork deixa código e atualizações sob seu controle. A rota OAuth permanece disponível para uma versão fixa, sem manutenção contínua.</p>
+      </section>
+
+      <section class="card" aria-label="Como funciona">
+        <ol>
+          <li><span class="number">1</span><div><h2>Produção: crie seu fork</h2><p class="muted">Seu GitHub recebe o código e a Cloudflare publica somente os pushes que você autorizar.</p></div></li>
+          <li><span class="number">2</span><div><h2>Avaliação: use OAuth</h2><p class="muted">O provisionador instala uma versão fixa sem Git, mas não inclui atualizações.</p></div></li>
+          <li><span class="number">3</span><div><h2>Conclua o /setup</h2><p class="muted">Nos dois modelos, valide infraestrutura, Meta, webhook, templates e mensagem real.</p></div></li>
+        </ol>
+      </section>
+
+      <a id="provisioner" class="primary" href="https://instalar.escoladeautomacao.com/smartzap/">Comparar formas de instalação <span aria-hidden="true">↗</span></a>
+      <p class="muted">Nenhuma modalidade promete manutenção gratuita ou atualização automática. A senha e a chave do cofre são criadas no navegador.</p>
+
+      <footer>SmartZap Community · open-source e autogerenciado.</footer>
+    </main>
+  </body>
+</html>

@@ -43,4 +43,8 @@ export class PhoneThrottle extends DurableObject<Env> {
     void this.ctx.storage.put('nextSlot', this.nextSlot)
     return slot - now // ms que o chamador deve esperar
   }
+
+  health(): boolean {
+    return true
+  }
 }

@@ -4,6 +4,7 @@ import { verifyMetaSignature } from '../whatsapp/webhook-verify'
 import { timingSafeEqualStr } from '../middleware/auth'
 import { readBodyBytes } from './body'
 import { minimizeReferralUrl } from '../domain/conversions'
+import { getMetaSecrets } from '../whatsapp/credentials'
 
 const MAX_ENVELOPE_ENTRIES = 100
 const MAX_CHANGES_PER_ENTRY = 100
@@ -346,16 +347,19 @@ export const webhookRoutes = new Hono<{ Bindings: Env }>()
     const mode = c.req.query('hub.mode')
     const token = c.req.query('hub.verify_token')
     const challenge = c.req.query('hub.challenge')
-    if (mode === 'subscribe' && token && challenge
-      && (await timingSafeEqualStr(token, c.env.META_VERIFY_TOKEN)))
+    const meta = await getMetaSecrets(c.env).catch(() => null)
+    if (mode === 'subscribe' && token && challenge && meta
+      && (await timingSafeEqualStr(token, meta.verifyToken)))
       return c.text(challenge)
     return c.text('forbidden', 403)
   })
   .post('/', async (c) => {
     const body = await readBodyBytes(c, MAX_WEBHOOK_BYTES)
     if (!body.ok) return c.json({ error: body.error }, body.status)
+    const meta = await getMetaSecrets(c.env).catch(() => null)
+    if (!meta) return c.json({ error: 'webhook não configurado' }, 503)
     const signatureOk = await verifyMetaSignature(
-      c.env.META_APP_SECRET, body.value, c.req.header('x-hub-signature-256') ?? null)
+      meta.appSecret, body.value, c.req.header('x-hub-signature-256') ?? null)
     if (!signatureOk) return c.json({ error: 'assinatura inválida' }, 401)
 
     let raw: string

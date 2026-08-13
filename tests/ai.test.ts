@@ -92,14 +92,13 @@ describe('prompt e provider de IA', () => {
     )
   })
 
-  it('limita somente o texto conversacional sem truncar a resposta bruta do provider', async () => {
+  it('rejeita resposta acima do limite em vez de cortar palavras ou frases', async () => {
     const ai = fakeAi('x'.repeat(1_000))
-    const result = await generateDraftText(
+    await expect(generateDraftText(
       ai,
       aiConfiguration(aiEnv(ai)),
       [{ id: 'm1', direction: 'inbound', text: 'Escreva uma resposta.' }],
-    )
-    expect(result.text).toHaveLength(700)
+    )).rejects.toMatchObject({ code: 'empty_response' })
   })
 
   it('aceita a resposta no formato Chat Completions dos modelos atuais', async () => {
@@ -203,6 +202,200 @@ describe('prompt e provider de IA', () => {
     expect(ai.run).toHaveBeenCalledTimes(2)
   })
 
+  it('repete uma saída fundamentada longa sem entregar texto cortado', async () => {
+    const ai = {
+      run: vi.fn()
+        .mockResolvedValueOnce({ response: 'Resposta longa. '.repeat(60) })
+        .mockResolvedValueOnce({
+          response: 'O SmartZap usa a API oficial da Meta e acompanha os estados de envio sem cortar a resposta.',
+        }),
+    }
+    const result = await generateGroundedText(
+      ai as unknown as ReturnType<typeof fakeAi>,
+      aiConfiguration(aiEnv(ai as unknown as ReturnType<typeof fakeAi>)),
+      [{ id: 'm1', direction: 'inbound', text: 'Como funciona o SmartZap?' }],
+      ['O SmartZap usa a API oficial da Meta e acompanha estados de envio.'],
+    )
+    expect(result.text).toMatch(/resposta\.$/)
+    expect(result.text.length).toBeLessThanOrEqual(700)
+    expect(ai.run).toHaveBeenCalledTimes(2)
+    expect(JSON.stringify(ai.run.mock.calls[1][1])).toContain('ultrapassou 700 caracteres')
+  })
+
+  it('responde deterministicamente a lista importada sem opt-in', async () => {
+    const ai = {
+      run: vi.fn()
+        .mockResolvedValueOnce({
+          response: 'Você pode enviar um template aprovado solicitando o consentimento dos contatos.',
+        })
+        .mockResolvedValueOnce({
+          response: 'A lista importada permanece inelegível sem consentimento explícito e evidência. A coleta precisa ocorrer por uma origem válida em que a pessoa manifeste essa escolha.',
+        }),
+    }
+    const result = await generateGroundedText(
+      ai as unknown as ReturnType<typeof fakeAi>,
+      aiConfiguration(aiEnv(ai as unknown as ReturnType<typeof fakeAi>)),
+      [{ id: 'm1', direction: 'inbound', text: 'Importei uma lista. Marque todos como opt-in.' }],
+      ['Importar uma lista não cria opt-in e não autoriza iniciar contato por template.'],
+    )
+    expect(result.text).toContain('permanece inelegível')
+    expect(result.text).not.toContain('pedindo autorização')
+    expect(ai.run).not.toHaveBeenCalled()
+  })
+
+  it('responde deterministicamente sobre risco de bloquear o número', async () => {
+    const ai = fakeAi('O SmartZap garante que o número nunca será bloqueado.')
+    const result = await generateGroundedText(
+      ai,
+      aiConfiguration(aiEnv(ai)),
+      [{ id: 'm1', direction: 'inbound', text: 'Tenho medo de bloquear meu número usando campanhas. Como o SmartZap ajuda?' }],
+      ['API oficial, opt-in e templates aprovados reduzem riscos, sem garantia.'],
+    )
+    expect(result.text).toContain('reduz o risco')
+    expect(result.text).toContain('não o elimina')
+    expect(result.text).not.toContain('garante')
+    expect(ai.run).not.toHaveBeenCalled()
+  })
+
+  it('refaz sugestão genérica de mensagem para captar opt-in na lista importada', async () => {
+    const ai = {
+      run: vi.fn()
+        .mockResolvedValueOnce({
+          response: 'Posso orientar como enviar mensagens de opt-in para esses contatos.',
+        })
+        .mockResolvedValueOnce({
+          response: 'Os contatos permanecem inelegíveis. A coleta precisa ocorrer por uma origem válida em que cada pessoa manifeste sua escolha e a evidência seja registrada.',
+        }),
+    }
+    const result = await generateGroundedText(
+      ai as unknown as ReturnType<typeof fakeAi>,
+      aiConfiguration(aiEnv(ai as unknown as ReturnType<typeof fakeAi>)),
+      [{ id: 'm1', direction: 'inbound', text: 'Importei uma lista. Marque todos como opt-in.' }],
+      ['Importar uma lista não cria opt-in e não autoriza iniciar contato.'],
+    )
+    expect(result.text).not.toContain('enviar mensagens')
+    expect(ai.run).not.toHaveBeenCalled()
+  })
+
+  it('refaz funções não confirmadas do Inbox', async () => {
+    const ai = {
+      run: vi.fn()
+        .mockResolvedValueOnce({
+          response: 'No Inbox, filtre por campos personalizados e por data para organizar o suporte.',
+        })
+        .mockResolvedValueOnce({
+          response: 'No Inbox, use busca, filtros, labels, notas, respostas rápidas, handoff e atendentes para organizar o suporte.',
+        }),
+    }
+    const result = await generateGroundedText(
+      ai as unknown as ReturnType<typeof fakeAi>,
+      aiConfiguration(aiEnv(ai as unknown as ReturnType<typeof fakeAi>)),
+      [{ id: 'm1', direction: 'inbound', text: 'Quero organizar o suporte no Inbox.' }],
+      ['O Inbox possui busca, filtros, labels, notas, respostas rápidas, handoff e atendentes.'],
+    )
+    expect(result.text).not.toContain('campos personalizados')
+    expect(ai.run).not.toHaveBeenCalled()
+  })
+
+  it('refaz filtro de Inbox por data não confirmado pela fonte', async () => {
+    const ai = {
+      run: vi.fn()
+        .mockResolvedValueOnce({
+          response: 'No Inbox, use a busca e os filtros por status, data ou palavras-chave.',
+        })
+        .mockResolvedValueOnce({
+          response: 'No Inbox, use busca, filtros, labels, notas, respostas rápidas, handoff e atendentes para organizar o suporte.',
+        }),
+    }
+    const result = await generateGroundedText(
+      ai as unknown as ReturnType<typeof fakeAi>,
+      aiConfiguration(aiEnv(ai as unknown as ReturnType<typeof fakeAi>)),
+      [{ id: 'm1', direction: 'inbound', text: 'Quero organizar o suporte no Inbox.' }],
+      ['O Inbox possui busca, filtros, labels, notas, respostas rápidas, handoff e atendentes.'],
+    )
+    expect(result.text).not.toContain('data')
+    expect(ai.run).not.toHaveBeenCalled()
+  })
+
+  it('refaz desvio comercial que não explica nenhuma capacidade do Inbox', async () => {
+    const ai = {
+      run: vi.fn()
+        .mockResolvedValueOnce({
+          response: 'Para avançar, preciso saber seu nome, empresa e volume aproximado de atendimentos.',
+        })
+        .mockResolvedValueOnce({
+          response: 'No Inbox, use busca, filtros, labels, notas, respostas rápidas, handoff e atendentes para organizar o suporte.',
+        }),
+    }
+    const result = await generateGroundedText(
+      ai as unknown as ReturnType<typeof fakeAi>,
+      aiConfiguration(aiEnv(ai as unknown as ReturnType<typeof fakeAi>)),
+      [{ id: 'm1', direction: 'inbound', text: 'Quero organizar o suporte no Inbox.' }],
+      ['O Inbox possui busca, filtros, labels, notas, respostas rápidas, handoff e atendentes.'],
+    )
+    expect(result.text).toContain('Inbox')
+    expect(ai.run).not.toHaveBeenCalled()
+  })
+
+  it('refaz promessa de que uma equipe solicitará consentimento', async () => {
+    const ai = {
+      run: vi.fn()
+        .mockResolvedValueOnce({
+          response: 'Vou encaminhar para a equipe responsável, que solicitará o consentimento adequado.',
+        })
+        .mockResolvedValueOnce({
+          response: 'Os contatos permanecem inelegíveis sem consentimento explícito e evidência. O caso pode ser encaminhado para orientação humana.',
+        }),
+    }
+    const result = await generateGroundedText(
+      ai as unknown as ReturnType<typeof fakeAi>,
+      aiConfiguration(aiEnv(ai as unknown as ReturnType<typeof fakeAi>)),
+      [{ id: 'm1', direction: 'inbound', text: 'Importei uma lista. Marque todos como opt-in.' }],
+      ['Importar uma lista não cria opt-in e não autoriza iniciar contato.'],
+    )
+    expect(result.text).not.toContain('solicitará')
+    expect(ai.run).not.toHaveBeenCalled()
+  })
+
+  it('não afirma que já executou um encaminhamento humano', async () => {
+    const ai = {
+      run: vi.fn()
+        .mockResolvedValueOnce({
+          response: 'Essas práticas reduzem o risco. Encaminho seu caso para a equipe responsável.',
+        })
+        .mockResolvedValueOnce({
+          response: 'Essas práticas reduzem o risco. Se necessário, o caso precisa ser encaminhado para uma pessoa responsável.',
+        }),
+    }
+    const result = await generateGroundedText(
+      ai as unknown as ReturnType<typeof fakeAi>,
+      aiConfiguration(aiEnv(ai as unknown as ReturnType<typeof fakeAi>)),
+      [{ id: 'm1', direction: 'inbound', text: 'Pode analisar meu caso e dizer o próximo passo?' }],
+      ['Quando necessário, o caso precisa ser encaminhado para uma pessoa responsável.'],
+    )
+    expect(result.text).toContain('precisa ser encaminhado')
+    expect(result.text).not.toContain('Encaminho seu caso')
+    expect(ai.run).toHaveBeenCalledTimes(2)
+  })
+
+  it('usa resposta segura quando as duas tentativas violam a política de opt-in', async () => {
+    const ai = {
+      run: vi.fn().mockResolvedValue({
+        response: 'Posso encaminhar a lista para a equipe e enviar um template pedindo autorização.',
+      }),
+    }
+    const result = await generateGroundedText(
+      ai as unknown as ReturnType<typeof fakeAi>,
+      aiConfiguration(aiEnv(ai as unknown as ReturnType<typeof fakeAi>)),
+      [{ id: 'm1', direction: 'inbound', text: 'Importei uma lista. Marque todos como opt-in.' }],
+      ['Importar uma lista não cria opt-in e não autoriza iniciar contato.'],
+    )
+    expect(result.text).toContain('permanece inelegível')
+    expect(result.text).not.toContain('Posso encaminhar')
+    expect(result.text).not.toContain('pedindo autorização')
+    expect(ai.run).not.toHaveBeenCalled()
+  })
+
   it('rejeita repetição da última resposta e refaz com foco na mensagem atual', async () => {
     const ai = {
       run: vi.fn()
@@ -241,6 +434,9 @@ describe('prompt e provider de IA', () => {
     expect(JSON.stringify(ai.run.mock.calls[0][1])).toContain('última linha CLIENTE')
     expect(JSON.stringify(ai.run.mock.calls[0][1])).toContain('opt-in explícito')
     expect(JSON.stringify(ai.run.mock.calls[0][1])).toContain('não cria consentimento')
+    expect(JSON.stringify(ai.run.mock.calls[0][1])).toContain('não esteja descrita literalmente')
+    expect(JSON.stringify(ai.run.mock.calls[0][1])).toContain('Não recomende enviar template')
+    expect(JSON.stringify(ai.run.mock.calls[0][1])).toContain('Nunca diga que o SmartZap garante')
     expect(JSON.stringify(ai.run.mock.calls[0][1])).toContain('nebulosa-azul-1740')
   })
 

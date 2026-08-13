@@ -72,6 +72,21 @@ describe("homologação Meta BSUID", () => {
     expect(result.checks.statusProgressed).toBe(false);
   });
 
+  it("no modo estrito só aprova depois de read", () => {
+    const delivered = passingInput();
+    expect(
+      evaluateMetaBsuidHomologation({ ...delivered, requireRead: true }).checks
+        .statusProgressed,
+    ).toBe(false);
+
+    const read = passingInput();
+    read.outbound.status = "read";
+    expect(
+      evaluateMetaBsuidHomologation({ ...read, requireRead: true }).checks
+        .statusProgressed,
+    ).toBe(true);
+  });
+
   it("reprova envio que use telefone ou faça mais de uma chamada ao provedor", () => {
     const input = passingInput();
     input.outbound.phoneFieldOmitted = false;

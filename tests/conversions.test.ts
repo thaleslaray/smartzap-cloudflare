@@ -60,6 +60,8 @@ describe("persistência e entrega de conversões", () => {
   it("roteia a Queue dedicada e respeita ack/retry por mensagem", async () => {
     expect(isConversionQueue({ CAPI_QUEUE_NAME: "meta-conversions-staging" }, "meta-conversions-staging")).toBe(true);
     expect(isConversionQueue({}, "meta-conversions")).toBe(true);
+    expect(isConversionQueue({}, "smartzap-a1b2c3d4-meta-conversions")).toBe(true);
+    expect(isConversionQueue({}, "outra-fila-conversions")).toBe(false);
     const ack = vi.fn();
     const retry = vi.fn();
     await processConversionMessages([{

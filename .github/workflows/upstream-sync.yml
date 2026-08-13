@@ -1,0 +1,129 @@
+name: Propor atualização oficial
+
+on:
+  schedule:
+    - cron: "17 11 * * *"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Tag oficial exata; deixe vazio para a stable mais recente"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  propose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolver e validar versão
+        id: release
+        shell: bash
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
+          UPSTREAM_REPOSITORY: thaleslaray/smartzap-cloudflare
+        run: |
+          set -euo pipefail
+          VERSION="${REQUESTED_VERSION:-}"
+          if [ -z "$VERSION" ]; then
+            VERSION="$(gh api "repos/${UPSTREAM_REPOSITORY}/releases/latest" --jq .tag_name 2>/dev/null || true)"
+          fi
+          if [ -z "$VERSION" ]; then
+            echo "Nenhuma release stable oficial está disponível; nada será alterado."
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || {
+            echo "Use uma tag SemVer exata. latest não é aceito." >&2
+            exit 1
+          }
+          echo "available=true" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout do fork
+        if: steps.release.outputs.available == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Criar branch a partir da tag oficial
+        if: steps.release.outputs.available == 'true'
+        shell: bash
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          UPSTREAM_OWNER: thaleslaray
+          UPSTREAM_REPOSITORY: thaleslaray/smartzap-cloudflare
+        run: |
+          set -euo pipefail
+          allowed_signers="${RUNNER_TEMP}/smartzap-allowed-signers"
+          cp release/allowed_signers "$allowed_signers"
+          chmod 600 "$allowed_signers"
+          git remote add upstream "https://github.com/${UPSTREAM_REPOSITORY}.git" 2>/dev/null || git remote set-url upstream "https://github.com/${UPSTREAM_REPOSITORY}.git"
+          git fetch --no-tags upstream "refs/tags/${VERSION}:refs/tags/${VERSION}"
+          test -s "$allowed_signers" || {
+            echo "Âncora de confiança aprovada no fork está ausente." >&2
+            exit 1
+          }
+          git -c gpg.format=ssh -c gpg.ssh.allowedSignersFile="$allowed_signers" tag --verify "${VERSION}"
+          branch="release/${VERSION}"
+          candidate_sha="$(git rev-list -n 1 "${VERSION}")"
+          remote_sha="$(git ls-remote upstream "refs/heads/${branch}" | awk 'NR == 1 { print $1 }')"
+          test -n "$remote_sha" || {
+            echo "Branch oficial ${branch} ausente no upstream." >&2
+            exit 1
+          }
+          test "$remote_sha" = "$candidate_sha" || {
+            echo "Branch oficial ${branch} não aponta para a tag assinada ${VERSION}." >&2
+            exit 1
+          }
+          git switch --detach "${VERSION}"
+          echo "SMARTZAP_UPDATE_HEAD=${UPSTREAM_OWNER}:${branch}" >> "$GITHUB_ENV"
+
+      - name: Materializar changelog, migrations e incompatibilidades
+        if: steps.release.outputs.available == 'true'
+        shell: bash
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          OUTPUT_FILE: ${{ runner.temp }}/smartzap-update-pr.md
+        run: node scripts/generate-update-pr-body.mjs
+
+      - name: Preparar Node.js
+        if: steps.release.outputs.available == 'true'
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Validar a release sem publicar
+        if: steps.release.outputs.available == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run release:validate
+          npm run typecheck
+          npm test
+          npm run build
+
+      - name: Abrir pull request sem merge automático
+        if: steps.release.outputs.available == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          existing="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$SMARTZAP_UPDATE_HEAD" --base main --state open --json number --jq '.[0].number // empty')"
+          if [ -z "$existing" ]; then
+            gh pr create \
+              --repo "$GITHUB_REPOSITORY" \
+              --base main \
+              --head "$SMARTZAP_UPDATE_HEAD" \
+              --title "Atualizar SmartZap para ${VERSION}" \
+              --body-file "${RUNNER_TEMP}/smartzap-update-pr.md"
+          else
+            echo "PR #${existing} já está aberto."
+          fi

@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from "react-router";
 import { useEffect, useRef, useState } from "react";
 import {
   Bell,
+  ChartNoAxesCombined,
   ChevronLeft,
   ChevronRight,
   FileText,
@@ -15,6 +16,7 @@ import {
   Moon,
   Plus,
   Settings,
+  ShieldCheck,
   Sparkles,
   Sun,
   Users,
@@ -28,9 +30,11 @@ const NAV = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/campaigns", label: "Campanhas", icon: MessageSquare },
   { to: "/inbox", label: "Inbox", icon: MessageCircle },
+  { to: "/analytics/conversions", label: "Conversões", icon: ChartNoAxesCombined },
   { to: "/templates", label: "Templates", icon: FileText },
   { to: "/contacts", label: "Contatos", icon: Users },
   { to: "/settings/ai", label: "IA", icon: Sparkles },
+  { to: "/setup", label: "Configuração inicial", icon: ShieldCheck },
   { to: "/settings", label: "Configurações", icon: Settings },
 ];
 
@@ -52,6 +56,7 @@ const pageTitle = (pathname: string) => {
   if (pathname.startsWith("/flows/builder")) return "Editor de MiniApp";
   if (pathname.startsWith("/settings/ai/agents")) return "Agentes IA";
   if (pathname.startsWith("/settings/ai")) return "Central de IA";
+  if (pathname.startsWith("/setup")) return "Configuração inicial";
   if (pathname.startsWith("/settings")) return "Configurações";
   return "Dashboard";
 };
