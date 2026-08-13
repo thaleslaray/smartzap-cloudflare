@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-rc.40] - 2026-08-13
+
+- Corrige a leitura interna dos artefatos imutáveis quando o provisionador é publicado sob a subrota `/smartzap`, preservando checksum e rollback integral.
+- Substitui a `rc.39`, reprovada na primeira instalação OAuth física porque o binding R2 só reconhecia o caminho de release na raiz.
+
 ## [1.0.0-rc.39] - 2026-08-13
 
 - Recusa de forma determinística pedidos para revelar tokens, senhas, chaves de API, credenciais ou segredos, sem refletir valores sensíveis.

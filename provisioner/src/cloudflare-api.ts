@@ -263,8 +263,8 @@ export class CloudflareApi {
   }
 
   private async fetchRelease(url: URL, expectedSha256: string): Promise<Response> {
-    if (this.releaseBucket && url.pathname.startsWith("/release/")) {
-      const key = url.pathname.slice("/release/".length);
+    const key = releaseObjectKey(url);
+    if (this.releaseBucket && key) {
       const object = await this.releaseBucket.get(key);
       if (!object) throw new Error(`Artefato indisponível: ${url.pathname}`);
       const bytes = new Uint8Array(await object.arrayBuffer());
@@ -273,6 +273,28 @@ export class CloudflareApi {
     }
     return fetchVerified(url, expectedSha256);
   }
+}
+
+export function releaseObjectKey(url: URL): string | undefined {
+  const marker = "/release/";
+  const offset = url.pathname.indexOf(marker);
+  if (offset < 0) return undefined;
+  const encodedKey = url.pathname.slice(offset + marker.length);
+  if (!encodedKey) return undefined;
+
+  let key: string;
+  try {
+    key = decodeURIComponent(encodedKey);
+  } catch {
+    return undefined;
+  }
+
+  const segments = key.split("/");
+  return !key.startsWith("files/")
+    || !/^[A-Za-z0-9._/-]+$/.test(key)
+    || segments.some((segment) => segment === "" || segment === "." || segment === "..")
+    ? undefined
+    : key;
 }
 
 export async function exchangeOAuthCode(input: {
