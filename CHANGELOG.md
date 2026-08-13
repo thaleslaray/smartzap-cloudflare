@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-rc.38] - 2026-08-13
+
+- Torna determinísticas e fail-closed as respostas a pedido de disparo em massa sem consentimento e a garantia contratual absoluta de disponibilidade.
+- Substitui a `rc.37`, reprovada na repetição real do laboratório de IA porque duas das 84 sessões devolveram resposta vazia após os limites finitos do provedor.
+
 ## [1.0.0-rc.37] - 2026-08-13
 
 - Isola a matriz responsiva de Projetos/Fábrica em um processo WebKit próprio, sem retry e sem ampliar timeout, após a reprodução dedicada passar 30/30 vezes.
